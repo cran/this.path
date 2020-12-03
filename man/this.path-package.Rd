@@ -8,7 +8,7 @@
 \packageDescription{this.path}
 }
 \details{
-There are only two functions from this package; this.path and this.dir
+There are only two functions from this package; 'this.path' and 'this.dir'.
 
 this.path() returns the full path of the executing script.
 
