@@ -244,6 +244,81 @@ this.path <- function (verbose = getOption("verbose"))
         .Platform$OS.type == "unix" && .Platform$GUI == "X11") {       # running from Unix command-line
 
 
+        # when running R from the command-line, there are a few things to keep in
+        # mind when trying to select the correct 'file' to return. First, there
+        # are a few command-line arguments where the name and value are separate.
+        # This means that the name of the argument is the i-th argument and the
+        # value of the argument is the i+1-th argument. Second, the --args command-line
+        # flag to R means that all arguments after are for the R script to use,
+        # while the arguments before are for the Rterm executable. Finally, to take
+        # input from a file, the two accepted methods are -f file and --file=file
+        # where the input is taken from 'file'. If multiple of these arguments are
+        # supplied, (it seems as though) Rterm takes input from the last 'file' argument.
+
+
+        commandArgs <- commandArgs()
+
+
+        # select the command-line arguments intended for the Rterm executable
+        commandArgs <- commandArgs[seq_len(length(commandArgs) -
+            length(commandArgs(trailingOnly = TRUE)))]
+
+
+        # remove the possible --encoding command-line flag to R
+        which.enc <- which(commandArgs == "--encoding")
+        which.enc <- c(which.enc, which.enc + 1L)
+        commandArgs <- commandArgs[setdiff(seq_along(commandArgs), which.enc)]
+
+
+        # there are three command-line arguments where the name and value are separate.
+        # those are --encoding -f -e
+        # find the locations of these special arguments
+        sep <- commandArgs %in% c("-f", "-e")
+        for (n in seq.int(1L, length.out = length(sep) - 1L)) {
+            if (sep[n])
+                sep[n + 1L] <- FALSE
+        }
+        which.sep <- which(sep)
+
+
+        # with the locations of the name-value pairs, we can select the locations
+        # of the -f file arguments
+        which.f <- which.sep[commandArgs[which.sep] %in% "-f"]
+
+
+        # find the locations of the other the command-line arguments
+        other <- setdiff(seq_along(commandArgs), c(which.sep, which.sep + 1L))
+
+
+        # in these other command-line arguments, find the locations of the arguments
+        # that start with --file=
+        which.file <- other[grep("^--file=", commandArgs[other])]
+
+
+        n.file <- length(which.f) + length(which.file)
+        if (!n.file)
+            stop("'this.path' used in an inappropriate fashion\n",
+                "* no appropriate source call was found up the calling stack\n",
+                "* R is being run from the command-line and argument \"--file=\" is missing\n")
+        if (n.file > 1L)
+            warning("command-line formal argument 'file' matched by multiple actual arguments\n")
+        n <- max(which.f, which.file)
+        if (n %in% which.file)
+            path <- sub("^--file=", "", commandArgs[n])
+        else path <- commandArgs[n + 1L]
+        where("Command-line argument 'file'")
+
+
+        # R has a weird bug when running from the Unix command-line,
+        #     all " " in argument 'file' are replaced with "~+~"
+        # the following is a work around and may not work in all instances
+        # if you'd like to take a look at the details, try:
+        # this.path:::unix.command.line.argument.file.containing.space.fix
+
+
+        return(unix.command.line.argument.file.containing.space.fix(path))
+
+
         # get all command-line arguments that start with "--file="
         # check the number of command-line arguments starting with "--file="
         #     in case more or less than one were supplied
@@ -384,15 +459,15 @@ dirname(this.path(verbose = verbose))
 
 
 if (FALSE) {
-    local({
+    (function() {
+        odir <- getwd()
+        on.exit(setwd(odir))
         setwd("~")
-        package.dir <- dirname(this.path::this.dir(verbose = FALSE))
-        package.dir <- normalizePath(package.dir)
-        system(sprintf("Rcmd build \"%s\"", package.dir))
-        package.tar.gz <- basename(package.dir)
-        package.tar.gz <- sprintf("%s_%s.tar.gz", package.tar.gz, utils::packageVersion(package.tar.gz))
-        package.tar.gz <- file.path("~", package.tar.gz)
-        package.tar.gz <- normalizePath(package.tar.gz, mustWork = TRUE)
-        system(sprintf("Rcmd check \"%s\" --as-cran", package.tar.gz))
-    })
+        pkg <- "this.path"
+        system(sprintf("Rcmd INSTALL --no-multiarch --with-keep.source %s", pkg))
+        cat("\n")
+        system(sprintf("Rcmd build %s", pkg))
+        cat("\n")
+        system(sprintf("Rcmd check --as-cran %s_%s.tar.gz", pkg, utils::packageVersion(pkg)))
+    })()
 }

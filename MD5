@@ -1,7 +1,7 @@
-2208866f08fd1842fd5c5f73c8dc9b6a *DESCRIPTION
+1784147d19b41ede9682a72243d201cb *DESCRIPTION
 9eabdd79537b93ac1016906f9b217759 *LICENSE
 5daa4cc6a22a00d9428fe151d421547a *NAMESPACE
-6fcab10e42481c6106dc53b933643d91 *R/this.path.R
-52b38cec8acf17870527be4e54004450 *build/partial.rdb
+a766c4e3d804e5c9dbd02306469ffccc *R/this.path.R
+15e317fe7a3be4dcdee46476792f5224 *build/partial.rdb
 bcb45c7021e11bed76f4aa51c6a1cba7 *man/this.path-package.Rd
-07133cbafc6a01f7da30d19cb2631e21 *man/this.path.Rd
+2ad398f9a34db1e3c03263f1390a1b07 *man/this.path.Rd

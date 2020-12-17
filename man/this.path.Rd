@@ -33,10 +33,14 @@ If no source call is found up the calling stack, then an attempt is made to figu
 out how R is currently being used.
 
 If R is being run from the command-line / / terminal, the command-line / / terminal
-arguments are searched for one starting with "\verb{--}file=". It is an error for
-no arguments (or multiple arguments) to match "\verb{--}file=" when using 'this.path'.
-If one and only one argument is found that starts with "\verb{--}file=", the text
-following "\verb{--}file=" is returned.
+arguments are searched for -f file or \verb{--}file=file (the two methods of taking
+input from 'file'). If -f is used, then the following argument is returned. If \verb{--}file=
+is used, then the text following \verb{--}file= is returned.
+It is an error for no arguments to match this criteria when using 'this.path'.
+It is a warning for multiple arguments to match this criteria when using 'this.path'.
+When multiple arguments matching this criteria are supplied, the Rterm executable
+takes input from the last of these arguments, so 'this.path' will return the last
+of these arguments as well.
 
 If R is being run from RStudio, the source document's filename (the document open
 in the current tab) is returned (at the time of evaluation). It is important to not
