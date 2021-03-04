@@ -1,13 +1,39 @@
 
 
+file.open <- function (file)
+{
+    value <- file
+    file <- as.character(file)[1L]
+    file <- tryCatch({
+        normalizePath(file, mustWork = TRUE)
+    }, error = function(c) {
+        warning(c)
+        NULL
+    })
+    if (is.null(file))
+        return(invisible(value))
+    if (.Platform$OS.type != "windows") {
+        if (getRversion() >= "4.0.0")
+            os <- utils::osVersion
+        else os <- utils::sessionInfo()$running
+        file <- encodeString(file, quote = "\"")
+        if (is.null(os) || !startsWith(os, "macOS "))
+            system(sprintf("xdg-open %s", file))
+        else system(sprintf("open %s", file))
+    }
+    else shell.exec(file)
+    return(invisible(value))
+}
+
+
 unix.command.line.argument.file.containing.space.fix <- function (path)
 {
-    # on a computer running a Unix OS, you will experience the following bug when
-    #     running R scripts from the command-line:
-    # all " " in argument 'file' will be replaced with "~+~"
-    # To elaborate, the Rscript executable does open the correct file, for instance:
+    # on a computer running a Unix OS, you will experience the following bug
+    # when running R scripts from the command-line:
+    # all " " in argument 'file' will be replaced with "~+~".
+    # To elaborate, the 'Rterm' executable does open the correct file:
     #
-    # /path/to/Rscript "/tmp/RtmpqapV6Q/temp R script 15f42409a2.R"
+    # Rterm --file="/tmp/RtmpqapV6Q/temp R script 15f42409a2.R"
     #
     # will, in fact, open the file "/tmp/RtmpqapV6Q/temp R script 15f42409a2.R"
     #     and start parsing and evaluating the code within that file as it should,
@@ -19,14 +45,11 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
     #
     # you would see something like:
     #
-    # [1] "/path/to/Rscript"
-    # [2] "--no-echo"
-    # [3] "--no-restore"
-    # [4] "--file=/tmp/RtmpqapV6Q/temp~+~R~+~script~+~15f42409a2.R"
+    # [1] "Rterm"
+    # [2] "--file=/tmp/RtmpqapV6Q/temp~+~R~+~script~+~15f42409a2.R"
     #
-    # the first element is computer dependent, this may be different for you.
-    # the thing to notice is that the command-line argument 'file' is incorrect,
-    #     and that this function should correct this error
+    # as you can see, the filename is recorded incorrectly. this function should
+    # be able to solve this issue.
 
 
     opath <- path
@@ -79,14 +102,14 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
         # 3 replacements, 10 combinations
         # 4 replacements, 5  combinations
         # 5 replacements, 1  combination
-        # some of these combitions may be invalid due to overlapping matches,
+        # some of these combinations may be invalid due to overlapping matches,
         #     but those will be handled later
 
 
         tmp <- c(TRUE, FALSE)
         tmp <- .mapply(rep, list(each = length(tmp)^(seq_along(m) - 1)), list(x = tmp))
         tmp <- do.call("cbind", tmp)
-        tmp <- asplit(x = tmp, MARGIN = 1L)
+        tmp <- asplit(tmp, MARGIN = 1L)
 
 
         # each element of 'tmp' should be a different combination of replacing "~+~"
@@ -121,7 +144,7 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
 
 
         # remove NULL values
-        tmp <- tmp[!vapply(X = tmp, FUN = "is.null", FUN.VALUE = NA)]
+        tmp <- tmp[!vapply(tmp, "is.null", FUN.VALUE = NA)]
 
 
         # replace instances of "~+~" with " "
@@ -132,7 +155,7 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
         path <- path[file.exists(path)]  # select the filenames that exist
         if (length(path) == 0L) {
             stop("unable to resolve Unix command-line argument 'file' conflict for file\n",
-                "    ", deparse(opath), "\n",
+                "    ", encodeString(opath, quote = "\""), "\n",
                 "* when running an R script that contains \" \" from the Unix command-line,\n",
                 "    the R script is opened and starts executing its code (as it should),\n",
                 "    but the R script's path is recorded incorrectly\n",
@@ -143,7 +166,7 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
         }
         else if (length(path) > 1L) {
             stop("unable to resolve Unix command-line argument 'file' conflict for file\n",
-                "    ", deparse(opath), "\n",
+                "    ", encodeString(opath, quote = "\""), "\n",
                 "* when running an R script that contains \" \" from the Unix command-line,\n",
                 "    the R script is opened and starts executing its code (as it should),\n",
                 "    but the R script's path is recorded incorrectly\n",
@@ -159,8 +182,28 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
 
 this.path <- function (verbose = getOption("verbose"))
 {
-    where <- function(x) if (verbose)
-        cat("Source: ", x, "\n", sep = "")
+    where <- function(x) {
+        if (verbose)
+            cat("Source: ", x, "\n", sep = "")
+    }
+
+
+    existsn <- function(x, frame = n, inherits = FALSE) {
+        exists(x, envir = sys.frame(frame), inherits = inherits)
+    }
+    getn <- function(x, frame = n, inherits = FALSE) {
+        get(x, envir = sys.frame(frame), inherits = inherits)
+    }
+    assign.__file__ <- function() {
+        assign("__file__", normalizePath(path, mustWork = TRUE),
+            envir = sys.frame(n))
+    }
+
+
+    rstudio.get <- function(x) {
+        get(x, mode = "function", "tools:rstudio",
+            inherits = FALSE)
+    }
 
 
     # loop through functions that lead here from most recent to earliest looking
@@ -202,33 +245,54 @@ this.path <- function (verbose = getOption("verbose"))
     #     stack (if available)
 
 
-    if (.Platform$GUI == "RStudio")
-        dbs <- get("debugSource", mode = "function", "tools:rstudio",
-            inherits = FALSE)
+    dbs <- if (.Platform$GUI == "RStudio")
+        rstudio.get("debugSource")
     for (n in seq.int(sys.nframe(), 1L)[-1L]) {
-        if (identical(sys.function(n), base::source) &&
-            exists("ofile", envir = sys.frame(n), inherits = FALSE)) {
-            path <- get("ofile", envir = sys.frame(n), inherits = FALSE)
-            if (!is.character(path))
-                path <- summary.connection(path)$description
+        if (identical(sys.function(n), base::source)) {
+            if (!existsn("ofile"))
+                next
+            if (!existsn("__file__")) {
+                path <- getn("ofile")
+                if (!is.character(path))
+                  path <- summary.connection(path)$description
+                if (existsn("owd")) {
+                  owd <- getwd()
+                  on.exit(setwd(owd))
+                  setwd(getn("owd"))
+                }
+                assign.__file__()
+            }
             where("call to function source")
-            return(normalizePath(path, mustWork = TRUE))
+            return(getn("__file__"))
         }
-        else if (identical(sys.function(n), base::sys.source) &&
-            exists("exprs", envir = sys.frame(n), inherits = FALSE)) {
-            path <- get("file", envir = sys.frame(n), inherits = FALSE)
+        else if (identical(sys.function(n), base::sys.source)) {
+            if (!existsn("exprs"))
+                next
+            if (!existsn("__file__")) {
+                path <- getn("file")
+                if (existsn("owd")) {
+                  owd <- getwd()
+                  on.exit(setwd(owd))
+                  setwd(getn("owd"))
+                }
+                assign.__file__()
+            }
             where("call to function sys.source")
-            return(normalizePath(path, mustWork = TRUE))
+            return(getn("__file__"))
         }
-        else if (.Platform$GUI == "RStudio" && identical(sys.function(n), dbs) &&
-            tryCatch({
-                path <- get("fileName", envir = sys.frame(n), inherits = FALSE)
+        else if (identical(sys.function(n), dbs)) {
+            cond <- tryCatch({
+                path <- getn("fileName")
                 TRUE
             }, error = function(c) {
                 FALSE
-            })) {
+            })
+            if (!cond)
+                next
+            if (!existsn("__file__"))
+                assign.__file__()
             where("call to function debugSource in RStudio")
-            return(normalizePath(path, mustWork = TRUE))
+            return(getn("__file__"))
         }
     }
 
@@ -244,90 +308,112 @@ this.path <- function (verbose = getOption("verbose"))
         .Platform$OS.type == "unix" && .Platform$GUI == "X11") {       # running from Unix command-line
 
 
-        # when running R from the command-line, there are a few things to keep in
-        # mind when trying to select the correct 'file' to return. First, there
-        # are a few command-line arguments where the name and value are separate.
-        # This means that the name of the argument is the i-th argument and the
-        # value of the argument is the i+1-th argument. Second, the --args command-line
-        # flag to R means that all arguments after are for the R script to use,
-        # while the arguments before are for the Rterm executable. Finally, to take
-        # input from a file, the two accepted methods are -f file and --file=file
-        # where the input is taken from 'file'. If multiple of these arguments are
-        # supplied, (it seems as though) Rterm takes input from the last 'file' argument.
+        if (is.null(`__file__`)) {
 
 
-        commandArgs <- commandArgs()
+            # when running R from the command-line, there are a few things to keep in
+            # mind when trying to select the correct 'file' to return. First, there
+            # are a few command-line arguments where the name and value are separate.
+            # This means that the name of the argument is the i-th argument and the
+            # value of the argument is the i+1-th argument. Second, the --args command-line
+            # flag to R means that all arguments after are for the R script to use,
+            # while the arguments before are for the 'Rterm' executable. Finally, to
+            # take input from a file, the two accepted methods are -f file and --file=file
+            # where the input is taken from 'file'. If multiple of these arguments are
+            # supplied, (it seems as though) 'Rterm' takes input from the last 'file' argument.
 
 
-        # select the command-line arguments intended for the Rterm executable
-        commandArgs <- commandArgs[seq_len(length(commandArgs) -
-            length(commandArgs(trailingOnly = TRUE)))]
+            ca <- commandArgs()
 
 
-        # remove the possible --encoding command-line flag to R
-        which.enc <- which(commandArgs == "--encoding")
-        which.enc <- c(which.enc, which.enc + 1L)
-        commandArgs <- commandArgs[setdiff(seq_along(commandArgs), which.enc)]
+            # select the command-line arguments intended for the Rterm executable
+            # also remove the first argument, this is the name of the executable by
+            # which this R process was invoked (not useful here)
+            ca <- ca[seq_len(length(ca) - length(commandArgs(trailingOnly = TRUE)))]
+            ca <- ca[-1L]
 
 
-        # there are three command-line arguments where the name and value are separate.
-        # those are --encoding -f -e
-        # find the locations of these special arguments
-        sep <- commandArgs %in% c("-f", "-e")
-        for (n in seq.int(1L, length.out = length(sep) - 1L)) {
-            if (sep[n])
-                sep[n + 1L] <- FALSE
-        }
-        which.sep <- which(sep)
+            # remove the --encoding=enc and --encoding enc command-line flags to R
+            # these flags have highest priority, they are always handled first, regardless
+            # of the preceding argument.
+            # Example:
+            # /path/to/Rterm -f --encoding=UTF-8 file
+            # you might think the value for -f would be --encoding=UTF-8 but it's actually
+            # file because --encoding=enc and --encoding enc are processed first
+            which.rm <- which(ca == "--encoding")
+            which.rm <- c(which.rm, which.rm + 1L)
+            ca <- ca[setdiff(seq_along(ca), which.rm)]
 
 
-        # with the locations of the name-value pairs, we can select the locations
-        # of the -f file arguments
-        which.f <- which.sep[commandArgs[which.sep] %in% "-f"]
+            # there are 17 more arguments that are evaluated before -f is grouped with
+            # its corresponding value. Some of them are static (the first fifteen) while
+            # the others are variable (same beginning, different values after)
+            # Example:
+            # /path/to/Rterm -f --silent --max-ppsize=100 file
+            # you might think the value of -f would be --silent but it's actually file
+            # because --silent and --max-ppsize=N are processed before
+            which.rm <- which(ca %in% c("--save", "--no-save",
+                "--no-environ", "--no-site-file",
+                "--no-init-file", "--restore", "--no-restore-data",
+                "--no-restore-history", "--no-restore",
+                "--vanilla", "-q", "--quiet",
+                "--silent", "--no-echo", "--verbose") |
+                grepl("^--encoding=|^--max-ppsize=", ca))
+            ca <- ca[setdiff(seq_along(ca), which.rm)]
 
 
-        # find the locations of the other the command-line arguments
-        other <- setdiff(seq_along(commandArgs), c(which.sep, which.sep + 1L))
+            # next, we group the command-line arguments where the name and value are separate
+            # there are two left being -f file and -e expression
+            # find the locations of these special arguments
+            special <- ca %in% c("-f", "-e")
 
 
-        # in these other command-line arguments, find the locations of the arguments
-        # that start with --file=
-        which.file <- other[grep("^--file=", commandArgs[other])]
+            # next, we figure out which of these special arguments are ACTUALLY special
+            # Example:
+            # /path/to/Rterm -f -f -f -e
+            # here, the first and third -f are special
+            #     while the second -f and first -e are not
+            for (n in seq_len(max(length(special) - 1L, 0L))) {
+                if (special[[n]])
+                  special[[n + 1L]] <- FALSE
+            }
+            which.special <- which(special)
 
 
-        n.file <- length(which.f) + length(which.file)
-        if (!n.file)
-            stop("'this.path' used in an inappropriate fashion\n",
-                "* no appropriate source call was found up the calling stack\n",
-                "* R is being run from the command-line and argument \"--file=\" is missing\n")
-        if (n.file > 1L)
-            warning("command-line formal argument 'file' matched by multiple actual arguments\n")
-        n <- max(which.f, which.file)
-        if (n %in% which.file)
-            path <- sub("^--file=", "", commandArgs[n])
-        else path <- commandArgs[n + 1L]
-        where("Command-line argument 'file'")
+            # with the locations of the special arguments,
+            #     figure out which of those are -f file arguments
+            which.f <- which.special[ca[which.special] == "-f"]
 
 
-        # R has a weird bug when running from the Unix command-line,
-        #     all " " in argument 'file' are replaced with "~+~"
-        # the following is a work around and may not work in all instances
-        # if you'd like to take a look at the details, try:
-        # this.path:::unix.command.line.argument.file.containing.space.fix
+            # use the locations of the special arguments to
+            #     find the non-special argument locations
+            which.non.special <- setdiff(seq_along(ca), c(which.special,
+                which.special + 1L))
 
 
-        return(unix.command.line.argument.file.containing.space.fix(path))
+            # in these non-special command-line arguments,
+            #     figure out which arguments start with --file=
+            which.file <- which.non.special[grep("^--file=",
+                ca[which.non.special])]
 
 
-        # get all command-line arguments that start with "--file="
-        # check the number of command-line arguments starting with "--file="
-        #     in case more or less than one were supplied
+            # given the number of -f file and --file=file arguments,
+            #     signal a possible error or warning
+            n.file <- length(which.f) + length(which.file)
+            if (!n.file)
+                stop("'this.path' used in an inappropriate fashion\n",
+                  "* no appropriate source call was found up the calling stack\n",
+                  "* R is being run from the command-line and argument 'file' is missing\n")
+            if (n.file > 1L)
+                warning("command-line formal argument 'file' matched by multiple actual arguments\n")
 
 
-        path <- grep("^--file=", commandArgs(), value = TRUE)
-        if (length(path) == 1L) {
-            path <- sub("^--file=", "", path)
-            where("Command-line argument 'file'")
+            # since 'Rterm' uses the last -f file or --file=file argument,
+            #     use max to find the index of the last one of these arguments
+            n <- max(which.f, which.file)
+            if (n %in% which.file)
+                path <- sub("^--file=", "", ca[[n]])
+            else path <- ca[[n + 1L]]
 
 
             # R has a weird bug when running from the Unix command-line,
@@ -337,16 +423,10 @@ this.path <- function (verbose = getOption("verbose"))
             # this.path:::unix.command.line.argument.file.containing.space.fix
 
 
-            return(unix.command.line.argument.file.containing.space.fix(path))
+            assignInMyNamespace("__file__", unix.command.line.argument.file.containing.space.fix(path))
         }
-        else if (length(path)) {
-            stop("'this.path' used in an inappropriate fashion\n",
-                "* no appropriate source call was found up the calling stack\n",
-                "* R is being run from the command-line and formal argument \"--file=\" matched by multiple actual arguments\n")
-        }
-        else stop("'this.path' used in an inappropriate fashion\n",
-            "* no appropriate source call was found up the calling stack\n",
-            "* R is being run from the command-line and argument \"--file=\" is missing\n")
+        where("command-line argument 'file'")
+        return(`__file__`)
     }
     else if (.Platform$GUI == "RStudio") {  # running R from 'RStudio'
 
@@ -361,13 +441,12 @@ this.path <- function (verbose = getOption("verbose"))
         # element 'path' is a character string, the path of the document
 
 
-        adc <- get(".rs.api.getActiveDocumentContext",
-            mode = "function", "tools:rstudio", inherits = FALSE)()
+        adc <- rstudio.get(".rs.api.getActiveDocumentContext")()
         if (adc$id != "#console") {
             path <- adc$path
             if (nzchar(path)) {
                 where("active document in RStudio")
-                return(normalizePath(path, mustWork = TRUE))
+                return(normalizePath(path, mustWork = FALSE))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
@@ -375,13 +454,12 @@ this.path <- function (verbose = getOption("verbose"))
         }
 
 
-        sec <- get(".rs.api.getSourceEditorContext", mode = "function",
-            "tools:rstudio", inherits = FALSE)()
+        sec <- rstudio.get(".rs.api.getSourceEditorContext")()
         if (!is.null(sec)) {
             path <- sec$path
             if (nzchar(path)) {
                 where("source document in RStudio")
-                return(normalizePath(path, mustWork = TRUE))
+                return(normalizePath(path, mustWork = FALSE))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
@@ -420,7 +498,7 @@ this.path <- function (verbose = getOption("verbose"))
             path <- sub(" - R Editor$", "", path)
             if (path != "Untitled") {
                 where("active document in RGui")
-                return(normalizePath(path, mustWork = TRUE))
+                return(normalizePath(path, mustWork = FALSE))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
@@ -433,7 +511,7 @@ this.path <- function (verbose = getOption("verbose"))
             path <- sub(" - R Editor$", "", path)
             if (path != "Untitled") {
                 where("source document in RGui")
-                return(normalizePath(path, mustWork = TRUE))
+                return(normalizePath(path, mustWork = FALSE))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
@@ -458,16 +536,4 @@ this.dir <- function (verbose = getOption("verbose"))
 dirname(this.path(verbose = verbose))
 
 
-if (FALSE) {
-    (function() {
-        odir <- getwd()
-        on.exit(setwd(odir))
-        setwd("~")
-        pkg <- "this.path"
-        system(sprintf("Rcmd INSTALL --no-multiarch --with-keep.source %s", pkg))
-        cat("\n")
-        system(sprintf("Rcmd build %s", pkg))
-        cat("\n")
-        system(sprintf("Rcmd check --as-cran %s_%s.tar.gz", pkg, utils::packageVersion(pkg)))
-    })()
-}
+`__file__` <- NULL

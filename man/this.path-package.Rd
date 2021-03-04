@@ -8,11 +8,11 @@
 \packageDescription{this.path}
 }
 \details{
-There are only two functions from this package; 'this.path' and 'this.dir'.
+There are only two functions from this package being \code{this.path} and \code{this.dir}.
 
-this.path() returns the full path of the executing script.
+\code{this.path()} returns the full path of the executing script.
 
-this.dir() is a shorter way of writing dirname(this.path()).
+\code{this.dir()} is a shorter way of writing \code{dirname(this.path())}.
 It returns the full path of the directory where the executing script is located.
 }
 \author{

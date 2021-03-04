@@ -1,3 +1,2 @@
-
-
+importFrom(utils, assignInMyNamespace)
 export(this.path, this.dir)
