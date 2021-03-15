@@ -33,9 +33,10 @@ them by executing the following command:
 
 The few I use the most are:
 
-\option{--quiet} do not print the R startup message
+\option{--quiet} do not print the \R startup message
 
-\option{--no-echo} make R run as quietly as possible (includes \option{--quiet})
+\option{--no-echo} make \R run as quietly as possible (includes
+\option{--quiet})
 
 \option{--verbose} print information about progress (includes setting option
 \dQuote{verbose} to \code{TRUE})
@@ -113,11 +114,11 @@ Control Panel. You should be able to do this by pressing \strong{Windows},
 \strong{Environment Variables...} (should appear near the bottom right). You
 should see a new window split in two sections, environment variables for the
 current user and environment variables for the system. If all users of this
-machine are using the same R executable files, you can add the path to the
+machine are using the same \R executable files, you can add the path to the
 system environment variables (this is what I did), otherwise you can add it to
 your user environment variables. Click the variable \env{Path}, then click
 \strong{Edit...}, then click \strong{New}, then type (or paste) the full path of
-the directory where your R executable files are located.
+the directory where your \R executable files are located.
 
 To check that this worked correctly, open the command-line and execute the
 following commands:
