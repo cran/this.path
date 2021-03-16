@@ -69,20 +69,26 @@ A character vector of length 1; the executing script's filename.
 }
 \note{
 The first time \code{this.path} is called within a script, it will normalize the
-script's path (express as an absolute path in its canonical form), check that
-the script exists (and throw an error if it does not), and save it in the
-appropriate environment. When \code{this.path} is called subsequent times within
-that same script, it returns the saved path. This will be faster than the first
-time, and it will not check for file existence. This means that a script can
-delete itself using \code{file.remove(this.path::this.path())} but still know
-its own path for the remainder of the script.
+script's path using \code{\link[base]{normalizePath}}, check that the script
+exists (throwing an error if it does not), and save it in the appropriate
+environment. Within a script that contains calls to both \code{this.path} and
+\code{\link[base:getwd]{setwd}}, \code{this.path} \emph{MUST} be used \emph{AT LEAST}
+once before the first call to \code{setwd} since the script's path is normalized against
+the working directory. When \code{this.path} is called subsequent times within
+the same script, it returns the saved path. This will be faster than the first
+time, will not check for file existence, and will not depend on the working
+directory. This means that a script can delete itself using
+\code{file.remove(this.path::this.path())} but still know its own path for the
+remainder of the script.
 }
 \seealso{
+\code{\link{this.path-package}}
+
 \code{\link[base]{source}}
 
 \code{\link[base]{sys.source}}
 
-\code{\link[utils]{Rscript}}
+\code{\link[testthat:source_file]{testthat::source_file}}
 
 \code{\link{Running.R.from.the.command-line}}
 }
@@ -140,7 +146,7 @@ tryCatch((function() {
 
 
     oopt <- options(useFancyQuotes = TRUE)
-    on.exit(options(oopt), add = TRUE)
+    on.exit(options(oopt))
 
 
     tryCatch({
@@ -148,11 +154,8 @@ tryCatch((function() {
             pattern = "this.path.example.R.script.",
             tmpdir = tempdir(check = TRUE), fileext = ".R"
         ), mustWork = FALSE)
-        on.exit(file.remove(tmp.R.script), add = TRUE)
-    }, warning = function(c) {
-        stop("\nunable to create temporary R script\n* ",
-            conditionMessage(c), "\n", sep = "")
-    }, error = function(c) {
+        on.exit(suppressWarnings(file.remove(tmp.R.script)), add = TRUE)
+    }, condition = function(c) {
         stop("\nunable to create temporary R script\n* ",
             conditionMessage(c), "\n", sep = "")
     })
@@ -164,11 +167,7 @@ tryCatch((function() {
             pattern = paste0("this.path.example.results.", .Sys.time),
             tmpdir = dirname(tmp.R.script), fileext = ".txt"
         ), mustWork = FALSE)
-    }, warning = function(c) {
-        NULL
-    }, error = function(c) {
-        NULL
-    })
+    }, condition = as.null)
 
 
     write.results <- function(expr) {
@@ -188,9 +187,7 @@ tryCatch((function() {
                 if (`tmp.R.script sub` == this.path::this.path(verbose = TRUE))
                     "success"
                 else stop("'this.path' did not correctly determine the current file")
-            }, warning = function(c) {
-                paste0("failure\n* ", conditionMessage(c))
-            }, error = function(c) {
+            }, condition = function(c) {
                 paste0("failure\n* ", conditionMessage(c))
             }), "\n", sep = "")
         })
@@ -213,11 +210,7 @@ tryCatch((function() {
                 paste0(deparse(y), collapse = "\n")
             }, FUN.VALUE = "")
             writeLines(lines, con = file)
-        }, warning = function(c) {
-            stop("\nunable to write R code to file: ",
-                sQuote(file), "\n* ", conditionMessage(c), "\n",
-                sep = "")
-        }, error = function(c) {
+        }, condition = function(c) {
             stop("\nunable to write R code to file: ",
                 sQuote(file), "\n* ", conditionMessage(c), "\n",
                 sep = "")
@@ -228,21 +221,20 @@ tryCatch((function() {
     writeRcode2file(tmp.R.script.code, tmp.R.script)
 
 
-    msg <- paste0("Created an example R script. This script will be run in ",
+    cat2 <- function(msg, ...) {
+        cat("\n", paste0(strwrap(msg, exdent = 2), "\n",
+            collapse = ""), ..., sep = "")
+    }
+    cat2(paste0("Created an example R script. This script will be run in ",
         "all possible ways that are compatible with ", sQuote("this.path"),
-        " that are currently available."
-    )
-    cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""), sep = "")
+        " that are currently available."))
     if (.interactive) {
-        msg <- paste0("Attempting to open the example R script. If the ",
-            "script did not open automatically, the script's path is:")
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sQuote(tmp.R.script), "\n", sep = "")
+        cat2(paste0("Attempting to open the example R script. If the ",
+            "script did not open automatically, the script's path is:"),
+            sQuote(tmp.R.script), "\n")
         tryCatch({
             this.path:::file.open(tmp.R.script)
-        }, warning = function(c) {
-        }, error = function(c) {
-        })
+        }, condition = invisible)
         pressEnter2Continue("")
     }
 
@@ -255,58 +247,38 @@ tryCatch((function() {
     })
 
 
-    write.results({
-        msg <- "Attempting to use 'this.path' when using 'source'"
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
-    })
+    write.results(cat2("Attempting to use 'this.path' when using 'source'"))
 
 
     tryCatch({
         cat("\n* first, using ", sQuote("source"), "\n", sep = "")
         source(tmp.R.script, local = TRUE)
-        msg <- paste0("You should see that 'this.path' correctly determined ",
+        cat2(paste0("You should see that 'this.path' correctly determined ",
             "the executing script's filename when using 'source'. If you ",
             "believe 'this.path' did not correctly determine the executing ",
             "script's filename, please send a bug report to the package ",
-            "maintainer.")
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
+            "maintainer."))
         pressEnter2Continue("")
-    }, warning = function(c) {
-        cat("\nunexpected error when attempting to source file: ",
-            tmp.R.script, "\n* ", conditionMessage(c),
-            "\n", sep = "")
-    }, error = function(c) {
+    }, condition = function(c) {
         cat("\nunexpected error when attempting to source file: ",
             tmp.R.script, "\n* ", conditionMessage(c),
             "\n", sep = "")
     })
 
 
-    write.results({
-        msg <- "Attempting to use 'this.path' when using 'sys.source'"
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
-    })
+    write.results(cat2("Attempting to use 'this.path' when using 'sys.source'"))
 
 
     tryCatch({
         cat("\n* second, using ", sQuote("sys.source"), "\n", sep = "")
         sys.source(tmp.R.script, envir = environment())
-        msg <- paste0("You should see that 'this.path' correctly determined ",
+        cat2(paste0("You should see that 'this.path' correctly determined ",
             "the executing script's filename when using 'sys.source'. If you ",
             "believe 'this.path' did not correctly determine the executing ",
             "script's filename, please send a bug report to the package",
-            "maintainer.")
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
+            "maintainer."))
         pressEnter2Continue("")
-    }, warning = function(c) {
-        cat("\nunexpected error when attempting to source file: ",
-            tmp.R.script, "\n* ", conditionMessage(c),
-            "\n", sep = "")
-    }, error = function(c) {
+    }, condition = function(c) {
         cat("\nunexpected error when attempting to source file: ",
             tmp.R.script, "\n* ", conditionMessage(c),
             "\n", sep = "")
@@ -325,82 +297,59 @@ tryCatch((function() {
             cat("\n* third, using ", sQuote("debugSource"),
                 " from ", sQuote("RStudio"), "\n", sep = "")
             dbs(tmp.R.script, local = TRUE)
-            msg <- paste0("You should see that 'this.path' correctly ",
+            cat2(paste0("You should see that 'this.path' correctly ",
                 "determined the executing script's filename when using ",
                 "'debugSource'. If you believe 'this.path' did not correctly ",
                 "determine the executing script's filename, please send a bug ",
-                "report to the package maintainer.")
-            cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-                sep = "")
+                "report to the package maintainer."))
             pressEnter2Continue("")
-        }, warning = function(c) {
-            cat("\nunexpected error when attempting to source file: ",
-                tmp.R.script, "\n* ", conditionMessage(c),
-                "\n", sep = "")
-        }, error = function(c) {
+        }, condition = function(c) {
             cat("\nunexpected error when attempting to source file: ",
                 tmp.R.script, "\n* ", conditionMessage(c),
                 "\n", sep = "")
         })
     }
     else write.results({
-        msg <- paste0("Unfortunately, it is impossible to demonstrate the ",
+        cat2(paste0("Unfortunately, it is impossible to demonstrate the ",
             "functionality of 'this.path' when using 'debugSource' because ",
-            "'RStudio' is not presently running.")
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
+            "'RStudio' is not presently running."))
         pressEnter2Continue("")
     })
 
 
     cmt <- if (.Platform$OS.type == "windows")
-        "command-line"
-    else "terminal"
+        "Windows command-line"
+    else "Unix terminal"
     write.results({
-        msg <- paste0("Attempting to use 'this.path' when running from the ",
-            cmt)
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
+        cat2(paste0("Attempting to use 'this.path' when running from the ",
+            cmt))
     })
 
 
-    owd <- getwd()
-    if (!is.null(owd))
-        on.exit(setwd(owd), add = TRUE)
-    setwd(dirname(tmp.R.script))
     command <- sprintf("Rterm --no-echo --no-restore --file=\%s",
-        encodeString(basename(tmp.R.script), quote = "\""))
+        this.path:::file.encode(tmp.R.script))
     tryCatch({
         cat("\n* last, running from the ", cmt, "\n", sep = "")
         cat("\nProcess finished with exit code ",
             system(command), "\n", sep = "")
-        msg <- paste0("You should see that 'this.path' correctly determined ",
+        cat2(paste0("You should see that 'this.path' correctly determined ",
             "the executing script's filename when running from the ", cmt, ". ",
             "If you believe 'this.path' did not correctly determine the ",
             "executing script's filename, please send a bug report to the ",
-            "package maintainer.")
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
-            sep = "")
+            "package maintainer."))
         pressEnter2Continue()
-    }, warning = function(c) {
-        cat("\nunexpected error when attempting to run file: ",
-            tmp.R.script, "\nfrom the command-line\n* ",
-            conditionMessage(c), "\n", sep = "")
-    }, error = function(c) {
+    }, condition = function(c) {
         cat("\nunexpected error when attempting to run file: ",
             tmp.R.script, "\nfrom the command-line\n* ",
             conditionMessage(c), "\n", sep = "")
     })
-    if (!is.null(owd))
-        setwd(owd)
 
 
     write.results({
-        msg <- paste0("Unfortunately, it is impossible to use ",
+        cat2(paste0("Unfortunately, it is impossible to use ",
             "'example(this.path)' to demonstrate the functionality of ",
             "'this.path' in 'RStudio' and 'RGui'. If you would like to see ",
-            "this functionality, you could try this:")
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n", collapse = ""),
+            "this functionality, you could try this:"),
             "* make a new R script containing just this one command:\n",
             "    this.path::this.path(verbose = TRUE)\n",
             "* open this script in 'RStudio' or 'RGui'\n",
@@ -414,18 +363,14 @@ tryCatch((function() {
             "* try closing all your documents and run that same command in ",
                 "the R Console\n",
             "    (both should raise an error \"R is being run ... with no ",
-                "documents open\")\n",
-            sep = "")
+                "documents open\")\n")
     })
 
 
     if (.interactive) {
         tryCatch({
             this.path:::file.open(results.file)
-        }, warning = function(c) {
-            cat("\n")
-            cat(readLines(results.file), sep = "\n")
-        }, error = function(c) {
+        }, condition = function(c) {
             cat("\n")
             cat(readLines(results.file), sep = "\n")
         })
@@ -435,9 +380,5 @@ tryCatch((function() {
         cat(readLines(results.file), sep = "\n")
     }
     invisible()
-})(), warning = function(c) {
-    cat(conditionMessage(c))
-}, error = function(c) {
-    cat(conditionMessage(c))
-})
+})(), condition = function(c) cat(conditionMessage(c)))
 }

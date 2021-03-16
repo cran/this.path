@@ -143,31 +143,48 @@ For me, this is:
 }
 \examples{
 tryCatch({
+
+
     ## the following shows that 'Rscript' is just a wrapper for 'Rterm' with a few
     ## extra options. This makes 'Rscript' less desirable in my opinion.
+
+
+    cat("\n* first, from 'Rterm'\n")
     invisible(system("Rterm   -e \"commandArgs()\"")
     )  # "Rterm" "-e" "commandArgs()"
+
+
+    cat("\n* next, from 'Rscript'\n\n")
     invisible(system("Rscript -e \"commandArgs()\"")
     )  # "Rterm" "--no-echo" "--no-restore" "-e" "commandArgs()"
-}, warning = conditionMessage, error = conditionMessage)
+}, condition = function(c) cat(conditionMessage(c)))
 
 
 tryCatch((function() {
     on.exit(suppressWarnings(file.remove(tmp.R.script, outfile)))
 
+
     ## the following shows that 'Rcmd BATCH' is just a wrapper for 'Rterm' with a
     ## few extra options. It also show that 'Rcmd BATCH' always creates an output
     ## file, making 'Rcmd BATCH' less desirable in my opinion.
+
+
     tmp.R.script <- tempfile(fileext = ".R")
     writeLines("commandArgs()", tmp.R.script)
-    invisible(system(sprintf("Rcmd BATCH \"\%s\"", tmp.R.script)))
+    invisible(system(sprintf("Rcmd BATCH \%s",
+        this.path:::file.encode(tmp.R.script))))
     outfile <- paste0(sub("\\\\.R$", "", tmp.R.script), ".Rout")
     outfile.lines <- readLines(outfile)
     outfile.lines <- outfile.lines[-1:-which(outfile.lines == "> commandArgs()")[[1L]]]
     outfile.lines <- outfile.lines[-which(outfile.lines == "> "):-length(outfile.lines)]
 
-    invisible(system(sprintf("Rterm -f \"\%s\"", tmp.R.script)))
-    cat(sprintf("> system(\"Rcmd BATCH \\\\\"\%s\\\\\"\")", tmp.R.script),
-        outfile.lines, sep = "\n")
-})(), warning = conditionMessage, error = conditionMessage)
+
+    cat("\n* first, from 'Rterm'\n")
+    invisible(system(sprintf("Rterm -f \%s",
+        this.path:::file.encode(tmp.R.script))))
+
+
+    cat("\n* next, from 'Rcmd BATCH'\n\n")
+    cat(outfile.lines, sep = "\n")
+})(), condition = function(c) cat(conditionMessage(c)))
 }

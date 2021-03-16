@@ -1,9 +1,9 @@
-d8bb8183a3bc57298948e9e1838c1c79 *DESCRIPTION
+9f61e5c8e459b3eb15977a15da92930f *DESCRIPTION
 9eabdd79537b93ac1016906f9b217759 *LICENSE
 cca186e3bfa176e9860225ae8c4538f0 *NAMESPACE
 5630aca88d848c9249d30ae25e2aaf04 *R/Check_This.R
-1bc7641428bbf97c2b81b10ac87d535e *R/this.path.R
-5c9ac4df52f8a9bce1d8fb78311361eb *build/partial.rdb
-6769dd6b6ec2132c9ad9b3f9c05ed4b7 *man/Running.R.from.the.command-line.Rd
-c51ff42ec80da4e800b9d53ccd23c1e9 *man/this.path-package.Rd
-ea6343902161d7e7dd8a9b1202c63547 *man/this.path.Rd
+9efb0851f505e24a0684a26605e55f95 *R/this.path.R
+9d8ae6d9db4d7e653f0573f889d46af2 *build/partial.rdb
+40ac246d1a1dcb545b0c51c40984feac *man/Running.R.from.the.command-line.Rd
+e4a59da3194c2a27d5cda75528bb814e *man/this.path-package.Rd
+09f58fc516f73f365ad5565d05bd7bc6 *man/this.path.Rd
