@@ -164,7 +164,7 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
                 "  the R script's path is recorded incorrectly\n",
                 "* each \" \" in argument 'file' is replaced by \"~+~\"\n",
                 "* all possible combinations of replacing instances of \"~+~\" with \" \"\n",
-                "  were attempted, but no file was found.\n")
+                "  were attempted, but no file was found.")
         }
         else if (length(path) > 1L) {
             stop("unable to resolve Unix command-line argument 'file' conflict for file\n",
@@ -173,7 +173,7 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
                 "  the R script's path is recorded incorrectly\n",
                 "* each \" \" in argument 'file' is replaced by \"~+~\"\n",
                 "* all possible combinations of replacing instances of \"~+~\" with \" \"\n",
-                "  were attempted, but multiple files were found.\n")
+                "  were attempted, but multiple files were found.")
         }
     }
     return(normalizePath(path, mustWork = TRUE))
@@ -182,10 +182,15 @@ unix.command.line.argument.file.containing.space.fix <- function (path)
 
 this.path <- function (verbose = getOption("verbose"))
 {
+    ## function to print the method in which the
+    ## path of the executing script was determined
     where <- function(x) {
         if (verbose)
             cat("Source: ", x, "\n", sep = "")
     }
+
+
+    ## functions to get or check for an object in the n-th frame
     existsn <- function(x) exists(x, envir = sys.frame(n), inherits = FALSE)
     getn <- function(x) get(x, envir = sys.frame(n), inherits = FALSE)
     assign.__file__ <- function(value = normalizePath(path, mustWork = TRUE)) {
@@ -234,9 +239,29 @@ this.path <- function (verbose = getOption("verbose"))
     #     stack (if available)
 
 
+    ## as of this.path_0.2.0, compatibility with 'debugSource' from the
+    ## 'RStudio' environment was added. 'debugSource' presents challenges that
+    ## other source functions do not. For example, it is impossible to test if
+    ## argument 'fileName' has been forced since all of the work is done
+    ## internally in C. This is why a 'tryCatch' was used instead of an
+    ## 'existsn'. There are some things simpler in 'debugSource' than
+    ## 'base::source'. For instance, argument 'fileName' must be a character
+    ## vector while argument 'file' can be a character vector or a connection.
     dbs <- if (.Platform$GUI == "RStudio")
         get("debugSource", mode = "function", "tools:rstudio",
             inherits = FALSE)
+
+
+    ## as of this.path_0.4.0, compatibility with 'source_file' from package
+    ## 'testthat' was added. 'testthat::source_file' is almost identical to
+    ## 'base::sys.source' except that, strangely enough, it does not have the
+    ## issue when sourcing a file named 'clipboard' ('base::sys.source' does
+    ## have this issue where it tries to source the clipboard instead of the
+    ## file named 'clipboard'. You might ask "why are you even concerned about
+    ## this case, who would name a file 'clipboard'?", and that's a valid
+    ## question, and I don't really have an answer. I was just messing around
+    ## when I found this, so I accounted for it, despite how little it will
+    ## occur, because I wanted to).
     sf <- if (isNamespaceLoaded("testthat"))
         getExportedValue("testthat", "source_file")
 
@@ -252,7 +277,7 @@ this.path <- function (verbose = getOption("verbose"))
                     assign.__file__(NULL)
                     next
                   }
-                  con <- file(path, "r", encoding = getn("encoding"))
+                  con <- file(path, "r")
                   on.exit(close(con))
                   path <- summary.connection(con)$description
                   on.exit()
@@ -281,7 +306,8 @@ this.path <- function (verbose = getOption("verbose"))
             if (!existsn("__file__")) {
                 path <- getn("file")
                 if (path %in% c("clipboard", "stdin"))
-                  stop("\nIn sys.source: invalid 'file' argument, must not be \"clipboard\" nor \"stdin\"")
+                  stop(errorCondition("invalid 'file' argument, must not be \"clipboard\" nor \"stdin\"",
+                    call = sys.call(n)))
                 if (existsn("owd")) {
                   cwd <- getwd()
                   on.exit(setwd(cwd))
@@ -305,7 +331,7 @@ this.path <- function (verbose = getOption("verbose"))
                   assign.__file__(NULL)
                   next
                 }
-                con <- file(path, "r", encoding = "native.enc")
+                con <- file(path, "r")
                 on.exit(close(con))
                 path <- summary.connection(con)$description
                 on.exit()
@@ -326,8 +352,9 @@ this.path <- function (verbose = getOption("verbose"))
                 next
             if (!existsn("__file__")) {
                 path <- getn("path")
-                if (path %in% c("clipboard", "stdin"))
-                  stop("\nIn testthat::source_file: invalid 'path' argument, must not be \"clipboard\" nor \"stdin\"")
+                if (path == "stdin")
+                  stop(errorCondition("invalid 'file' argument, must not be \"stdin\"",
+                    call = sys.call(n)))
                 if (existsn("old_dir")) {
                   cwd <- getwd()
                   on.exit(setwd(cwd))
@@ -460,9 +487,9 @@ this.path <- function (verbose = getOption("verbose"))
             if (!n.file)
                 stop("'this.path' used in an inappropriate fashion\n",
                   "* no appropriate source call was found up the calling stack\n",
-                  "* R is being run from the command-line and argument 'file' is missing\n")
+                  "* R is being run from the command-line and argument 'file' is missing")
             if (n.file > 1L)
-                warning("command-line formal argument 'file' matched by multiple actual arguments\n")
+                warning("command-line formal argument 'file' matched by multiple actual arguments")
 
 
             # since 'Rterm' uses the last -f file or --file=file argument,
@@ -512,7 +539,7 @@ this.path <- function (verbose = getOption("verbose"))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
-                "* active document in RStudio does not exist\n")
+                "* active document in RStudio does not exist")
         }
 
 
@@ -526,11 +553,11 @@ this.path <- function (verbose = getOption("verbose"))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
-                "* source document in RStudio does not exist\n")
+                "* source document in RStudio does not exist")
         }
         else stop("'this.path' used in an inappropriate fashion\n",
             "* no appropriate source call was found up the calling stack\n",
-            "* R is being run from RStudio with no documents open\n")
+            "* R is being run from RStudio with no documents open")
     }
     else if (.Platform$OS.type == "windows" && .Platform$GUI == "Rgui") {  # running R from 'RGui' on Windows
 
@@ -563,7 +590,7 @@ this.path <- function (verbose = getOption("verbose"))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
-                "* active document in RGui does not exist\n")
+                "* active document in RGui does not exist")
         }
 
 
@@ -576,20 +603,20 @@ this.path <- function (verbose = getOption("verbose"))
             }
             else stop("'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
-                "* source document in RGui does not exist\n")
+                "* source document in RGui does not exist")
         }
         else stop("'this.path' used in an inappropriate fashion\n",
             "* no appropriate source call was found up the calling stack\n",
-            "* R is being run from RGui with no documents open\n")
+            "* R is being run from RGui with no documents open")
     }
     else if (.Platform$OS.type == "unix" && .Platform$GUI == "AQUA") {  # running R from 'RGui' on Unix
         stop("'this.path' used in an inappropriate fashion\n",
             "* no appropriate source call was found up the calling stack\n",
-            "* R is being run from AQUA which requires a source call on the calling stack\n")
+            "* R is being run from AQUA which requires a source call on the calling stack")
     }
     else stop("'this.path' used in an inappropriate fashion\n",
         "* no appropriate source call was found up the calling stack\n",
-        "* R is being run in an unrecognized manner\n")
+        "* R is being run in an unrecognized manner")
 }
 
 

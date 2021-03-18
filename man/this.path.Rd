@@ -6,8 +6,9 @@
 \description{
 \code{this.path()} returns the full path of the executing script.
 
-\code{this.dir()} is a shortcut for \code{dirname(this.path())}, returning the
-full path of the directory where the executing script is located.
+\code{this.dir()} is a shortcut for
+\code{\link[base:basename]{dirname}(this.path())}, returning the full path of
+the directory in which the executing script is located.
 }
 \usage{
 this.path(verbose = getOption("verbose"))
@@ -68,18 +69,20 @@ If \R is being run in another manner, it is an error to use \code{this.path}.
 A character vector of length 1; the executing script's filename.
 }
 \note{
-The first time \code{this.path} is called within a script, it will normalize the
-script's path using \code{\link[base]{normalizePath}}, check that the script
-exists (throwing an error if it does not), and save it in the appropriate
-environment. Within a script that contains calls to both \code{this.path} and
-\code{\link[base:getwd]{setwd}}, \code{this.path} \emph{MUST} be used \emph{AT LEAST}
-once before the first call to \code{setwd} since the script's path is normalized against
-the working directory. When \code{this.path} is called subsequent times within
-the same script, it returns the saved path. This will be faster than the first
-time, will not check for file existence, and will not depend on the working
-directory. This means that a script can delete itself using
+The first time \code{this.path} is called within a script, it will
+\code{\link[base:normalizePath]{normalize}} the script's path, check that the
+script exists (throwing an error if it does not), and save it in the appropriate
+environment. When \code{this.path} is called subsequent times within the same
+script, it returns the saved path. This will be faster than the first time, will
+not check for file existence, and will not depend on the working directory. This
+means that a script can delete itself using
 \code{file.remove(this.path::this.path())} but still know its own path for the
 remainder of the script.
+
+Within a script that contains calls to both \code{this.path} and
+\code{\link[base:getwd]{setwd}}, \code{this.path} \emph{MUST} be used
+\emph{AT LEAST} once before the first call to \code{setwd} since the script's
+path is normalized against the working directory.
 }
 \seealso{
 \code{\link{this.path-package}}
@@ -123,7 +126,7 @@ could try this:
 tryCatch((function() {
     .interactive <- interactive()
     if (.interactive) {
-        cat("\n")
+        cat("\\n")
         prompt <- "Would you like to run this example interactively? (Yes/No/Cancel): "
         repeat {
             tmp <- tolower(substr(readline(prompt), 1L, 1L))
@@ -131,13 +134,13 @@ tryCatch((function() {
                 break
         }
         if (tmp == "c") {
-            cat("\n")
+            cat("\\n")
             return(invisible())
         }
         .interactive <- tmp == "y"
     }
     if (.interactive) {
-        pressEnter2Continue <- function(x = "\n") {
+        pressEnter2Continue <- function(x = "\\n") {
             readline("Hit <Return> to continue: ")
             cat(x)
         }
@@ -156,8 +159,9 @@ tryCatch((function() {
         ), mustWork = FALSE)
         on.exit(suppressWarnings(file.remove(tmp.R.script)), add = TRUE)
     }, condition = function(c) {
-        stop("\nunable to create temporary R script\n* ",
-            conditionMessage(c), "\n", sep = "")
+        stop(errorCondition(paste0(conditionMessage(c),
+            "\\nunable to create temporary R script"),
+            call = conditionCall(c)))
     })
 
 
@@ -180,22 +184,47 @@ tryCatch((function() {
 
 
     tmp.R.script.code <- substitute({
+        options(useFancyQuotes = TRUE)
         results.file <- `results.file sub`
         write.results <- `write.results sub`
+        cat("\\n")
         write.results({
-            cat("this.path status : ", x <- tryCatch({
-                if (`tmp.R.script sub` == this.path::this.path(verbose = TRUE))
-                    "success"
-                else stop("'this.path' did not correctly determine the current file")
-            }, condition = function(c) {
-                paste0("failure\n* ", conditionMessage(c))
-            }), "\n", sep = "")
+            x <- tryCatch({
+                this.path::this.path(verbose = TRUE)
+                TRUE
+            }, condition = force)
+            cat("this.path status : ")
         })
-        if (x == "success") {
-            cat("\nExecuting script's filename:\n")
-            cat(sQuote(`tmp.R.script sub`), "\n\n", sep = "")
-            cat("Executing script's filename (as determined by 'this.path'):\n")
-            cat(sQuote(this.path::this.path(verbose = TRUE)), "\n", sep = "")
+        if (!isTRUE(x)) {
+            msg <- conditionMessage(x)
+            call <- conditionCall(x)
+            write.results({
+                if (!is.null(call))
+                  cat("Error in ", deparse(call), " :\\n  ", msg, "\\n",
+                      sep = "")
+                else cat("Error: ", msg, "\\n", sep = "")
+            })
+            if (!is.null(call))
+                cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+            else cat("Error: ", msg, "\\n", sep = "")
+            cat(sQuote("this.path"), " could not determine the executing ",
+                "script's filename\\n", sep = "")
+        }
+        else {
+            cat("Executing script's filename:\\n")
+            cat(sQuote(`tmp.R.script sub`), "\\n\\n", sep = "")
+            cat("Executing script's filename (as determined by ",
+                sQuote("this.path"), "):\\n", sep = "")
+            cat(sQuote(this.path::this.path(verbose = TRUE)), "\\n", sep = "")
+            if (`tmp.R.script sub` != this.path::this.path(verbose = FALSE)) {
+                write.results({
+                  cat("Error: ", sQuote("this.path"), " could not correctly ",
+                    "determine the executing script's filename\\n", sep = "")
+                })
+                cat("\\nError: ", sQuote("this.path"), " could not correctly ",
+                  "determine the executing script's filename\\n", sep = "")
+            }
+            else write.results(cat("success\\n"))
         }
     }, list(
         `write.results sub` = write.results,
@@ -207,13 +236,13 @@ tryCatch((function() {
     writeRcode2file <- function(x, file) {
         tryCatch({
             lines <- vapply(as.list(x[-1]), function(y) {
-                paste0(deparse(y), collapse = "\n")
+                paste0(deparse(y), collapse = "\\n")
             }, FUN.VALUE = "")
             writeLines(lines, con = file)
         }, condition = function(c) {
-            stop("\nunable to write R code to file: ",
-                sQuote(file), "\n* ", conditionMessage(c), "\n",
-                sep = "")
+            stop(errorCondition(paste0(conditionMessage(c),
+                "\\nunable to write R code to file ", sQuote(file)),
+                call = conditionCall(c)))
         })
     }
 
@@ -221,9 +250,9 @@ tryCatch((function() {
     writeRcode2file(tmp.R.script.code, tmp.R.script)
 
 
-    cat2 <- function(msg, ...) {
-        cat("\n", paste0(strwrap(msg, exdent = 2), "\n",
-            collapse = ""), ..., sep = "")
+    cat2 <- function(msg, ..., appendLF = TRUE) {
+        cat(if (appendLF) "\\n", paste0(strwrap(msg, exdent = 2),
+            "\\n", collapse = ""), ..., sep = "")
     }
     cat2(paste0("Created an example R script. This script will be run in ",
         "all possible ways that are compatible with ", sQuote("this.path"),
@@ -231,7 +260,7 @@ tryCatch((function() {
     if (.interactive) {
         cat2(paste0("Attempting to open the example R script. If the ",
             "script did not open automatically, the script's path is:"),
-            sQuote(tmp.R.script), "\n")
+            sQuote(tmp.R.script), "\\n")
         tryCatch({
             this.path:::file.open(tmp.R.script)
         }, condition = invisible)
@@ -239,131 +268,170 @@ tryCatch((function() {
     }
 
 
-    write.results({
-        cat("** session info\n\n")
-        print(utils::sessionInfo())
-        cat("\n** the above is information the package maintainer will likely ",
-            "need if you report a bug\n", sep = "")
-    })
-
-
-    write.results(cat2("Attempting to use 'this.path' when using 'source'"))
+    write.results(cat2(paste0("Attempting to use ", sQuote("this.path"),
+        " when using ", sQuote("source")), appendLF = FALSE))
 
 
     tryCatch({
-        cat("\n* first, using ", sQuote("source"), "\n", sep = "")
+        cat("\\n* first, using ", sQuote("source"), "\\n", sep = "")
         source(tmp.R.script, local = TRUE)
-        cat2(paste0("You should see that 'this.path' correctly determined ",
-            "the executing script's filename when using 'source'. If you ",
-            "believe 'this.path' did not correctly determine the executing ",
-            "script's filename, please send a bug report to the package ",
-            "maintainer."))
         pressEnter2Continue("")
     }, condition = function(c) {
-        cat("\nunexpected error when attempting to source file: ",
-            tmp.R.script, "\n* ", conditionMessage(c),
-            "\n", sep = "")
+        msg <- paste0(conditionMessage(c), "\\nunable to source file ",
+            sQuote(tmp.R.script))
+        call <- conditionCall(c)
+        if (!is.null(call))
+            cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+        else cat("Error: ", msg, "\\n", sep = "")
     })
 
 
-    write.results(cat2("Attempting to use 'this.path' when using 'sys.source'"))
+    write.results(cat2(paste0("Attempting to use ", sQuote("this.path"),
+        " when using ", sQuote("sys.source"))))
 
 
     tryCatch({
-        cat("\n* second, using ", sQuote("sys.source"), "\n", sep = "")
+        cat("\\n* second, using ", sQuote("sys.source"), "\\n", sep = "")
         sys.source(tmp.R.script, envir = environment())
-        cat2(paste0("You should see that 'this.path' correctly determined ",
-            "the executing script's filename when using 'sys.source'. If you ",
-            "believe 'this.path' did not correctly determine the executing ",
-            "script's filename, please send a bug report to the package",
-            "maintainer."))
         pressEnter2Continue("")
     }, condition = function(c) {
-        cat("\nunexpected error when attempting to source file: ",
-            tmp.R.script, "\n* ", conditionMessage(c),
-            "\n", sep = "")
+        msg <- paste0(conditionMessage(c), "\\nunable to source file ",
+            sQuote(tmp.R.script))
+        call <- conditionCall(c)
+        if (!is.null(call))
+            cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+        else cat("Error: ", msg, "\\n", sep = "")
     })
 
 
     if (.Platform$GUI == "RStudio") {
-        write.results({
-            cat("\nAttempting to use 'this.path' when using 'debugSource'\n")
-        })
+        write.results(cat2(paste0("Attempting to use ", sQuote("this.path"),
+            " when using ", sQuote("debugSource"))))
 
 
         tryCatch({
             dbs <- get("debugSource", mode = "function", "tools:rstudio",
                 inherits = FALSE)
-            cat("\n* third, using ", sQuote("debugSource"),
-                " from ", sQuote("RStudio"), "\n", sep = "")
+            cat("\\n* third, using ", sQuote("debugSource"),
+                " from ", sQuote("RStudio"), "\\n", sep = "")
             dbs(tmp.R.script, local = TRUE)
-            cat2(paste0("You should see that 'this.path' correctly ",
-                "determined the executing script's filename when using ",
-                "'debugSource'. If you believe 'this.path' did not correctly ",
-                "determine the executing script's filename, please send a bug ",
-                "report to the package maintainer."))
             pressEnter2Continue("")
         }, condition = function(c) {
-            cat("\nunexpected error when attempting to source file: ",
-                tmp.R.script, "\n* ", conditionMessage(c),
-                "\n", sep = "")
+            msg <- paste0(conditionMessage(c), "\\nunable to source file ",
+                sQuote(tmp.R.script))
+            call <- conditionCall(c)
+            if (!is.null(call))
+                cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+            else cat("Error: ", msg, "\\n", sep = "")
         })
     }
     else write.results({
         cat2(paste0("Unfortunately, it is impossible to demonstrate the ",
-            "functionality of 'this.path' when using 'debugSource' because ",
-            "'RStudio' is not presently running."))
-        pressEnter2Continue("")
+            "functionality of ", sQuote("this.path"), " when using ",
+            sQuote("debugSource"), " because ", sQuote("RStudio"), " is not ",
+            "presently running."))
+    })
+
+
+    if (!isNamespaceLoaded("testthat") && .interactive) {
+        cat2(paste0(sQuote("this.path"), " also works with function ",
+            sQuote("source_file"), " from package ", sQuote("testthat"),
+            ", but this package is not presently loaded."))
+        prompt <- "Would you like to load this package? (Yes/No/Cancel): "
+        repeat {
+            tmp <- tolower(substr(readline(prompt), 1, 1))
+            if (tmp \%in\% c("y", "n", "c"))
+                break
+        }
+        if (tmp == "y") {
+            requireNamespace("testthat", quietly = TRUE)
+            on.exit(unloadNamespace("testthat"), add = TRUE)
+            cat2(paste0("Package ", sQuote("testthat"), " will be unloaded ",
+                " once the example concludes."))
+        }
+    }
+    if (isNamespaceLoaded("testthat")) {
+        write.results(cat2(paste0("Attempting to use ", sQuote("this.path"),
+            " when using ", sQuote("testthat::source_file"))))
+
+
+        tryCatch({
+            cat("\\n* fourth, using ", sQuote("testthat::source_file"),
+                "\\n", sep = "")
+            testthat::source_file(tmp.R.script)
+            pressEnter2Continue("")
+        }, condition = function(c) {
+            msg <- paste0(conditionMessage(c), "\\nunable to source file ",
+                sQuote(tmp.R.script))
+            call <- conditionCall(c)
+            if (!is.null(call))
+                cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+            else cat("Error: ", msg, "\\n", sep = "")
+        })
+    }
+    else write.results({
+        cat2(paste0("Unfortunately, it is impossible to demonstrate the ",
+            "functionality of ", sQuote("this.path"), " when using ",
+            sQuote("source_file"), " because package ", sQuote("testthat"),
+            " is not presently loaded."))
     })
 
 
     cmt <- if (.Platform$OS.type == "windows")
         "Windows command-line"
     else "Unix terminal"
-    write.results({
-        cat2(paste0("Attempting to use 'this.path' when running from the ",
-            cmt))
-    })
+    write.results(cat2(paste0("Attempting to use ", sQuote("this.path"),
+        " when running from the ", cmt)))
 
 
     command <- sprintf("Rterm --no-echo --no-restore --file=\%s",
         this.path:::file.encode(tmp.R.script))
     tryCatch({
-        cat("\n* last, running from the ", cmt, "\n", sep = "")
-        cat("\nProcess finished with exit code ",
-            system(command), "\n", sep = "")
-        cat2(paste0("You should see that 'this.path' correctly determined ",
-            "the executing script's filename when running from the ", cmt, ". ",
-            "If you believe 'this.path' did not correctly determine the ",
-            "executing script's filename, please send a bug report to the ",
-            "package maintainer."))
+        cat("\\n* last, running from the ", cmt, "\\n", sep = "")
+        cat("\\nProcess finished with exit code ",
+            system(command), "\\n", sep = "")
         pressEnter2Continue()
     }, condition = function(c) {
-        cat("\nunexpected error when attempting to run file: ",
-            tmp.R.script, "\nfrom the command-line\n* ",
-            conditionMessage(c), "\n", sep = "")
+        msg <- paste0(conditionMessage(c), "\\nunable to run file ",
+            sQuote(tmp.R.script), "\\n from the ", cmt)
+        call <- conditionCall(c)
+        if (!is.null(call))
+            cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+        else cat("Error: ", msg, "\\n", sep = "")
     })
 
 
     write.results({
         cat2(paste0("Unfortunately, it is impossible to use ",
-            "'example(this.path)' to demonstrate the functionality of ",
-            "'this.path' in 'RStudio' and 'RGui'. If you would like to see ",
-            "this functionality, you could try this:"),
-            "* make a new R script containing just this one command:\n",
-            "    this.path::this.path(verbose = TRUE)\n",
-            "* open this script in 'RStudio' or 'RGui'\n",
-            "* run that command directly from the script\n",
-            "    (both should print \"Source: active document ...\" along ",
-                "with the script's path)\n",
+            sQuote("example(this.path)"), " to demonstrate the functionality ",
+            "of ", sQuote("this.path"), " in ", sQuote("RStudio"), " and ",
+            sQuote("RGui"), ". If you would like to see this functionality, ",
+            "you could try this:"),
+            "* make a new R script containing just this one command:\\n",
+            "    this.path::this.path(verbose = TRUE)\\n",
+            "* open this script in ", sQuote("RStudio"), " or ", sQuote("RGui"),
+                "\\n",
+            "* run that command directly from the script\\n",
+            "    (both should print \\"Source: active document ...\\" along ",
+                "with the script's path)\\n",
             "* copy and paste that command into the R Console and run that ",
-                "command again\n",
-            "    (both should print \"Source: source document ...\" along ",
-                "with the script's path)\n",
+                "command again\\n",
+            "    (both should print \\"Source: source document ...\\" along ",
+                "with the script's path)\\n",
             "* try closing all your documents and run that same command in ",
-                "the R Console\n",
-            "    (both should raise an error \"R is being run ... with no ",
-                "documents open\")\n")
+                "the R Console\\n",
+            "    (both should raise an error \\"R is being run ... with no ",
+                "documents open\\")\\n")
+    })
+
+
+    write.results({
+        cat2(paste0("If ", sQuote("this.path"), " did not correctly determine ",
+            "the executing script's filename, please send a bug report to the ",
+            "package maintainer, ",
+            utils::packageDescription("this.path")$Maintainer, ". Please ",
+            "include your session information in your bug report, which can ",
+            "be found with the following command:"), "utils::sessionInfo()\\n")
     })
 
 
@@ -371,14 +439,20 @@ tryCatch((function() {
         tryCatch({
             this.path:::file.open(results.file)
         }, condition = function(c) {
-            cat("\n")
-            cat(readLines(results.file), sep = "\n")
+            cat("\\n")
+            cat("* results\\n", readLines(results.file), sep = "\\n")
         })
     }
     else if (!is.null(results.file)) {
-        cat("\n")
-        cat(readLines(results.file), sep = "\n")
+        cat("\\n")
+        cat("* results\\n", readLines(results.file), sep = "\\n")
     }
     invisible()
-})(), condition = function(c) cat(conditionMessage(c)))
+})(), condition = function(c) {
+    msg <- conditionMessage(c)
+    call <- conditionCall(c)
+    if (!is.null(call))
+        cat("Error in ", deparse(call), " :\\n  ", msg, "\\n", sep = "")
+    else cat("Error: ", msg, "\\n", sep = "")
+})
 }
