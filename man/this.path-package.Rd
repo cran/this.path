@@ -29,6 +29,23 @@ of \code{\link{this.path}} and \code{\link{Running.R.from.the.command-line}}.
 \code{file.open} opens the specified file using the default application for that
 file's extension. It is used in section \strong{Examples} of
 \code{\link{this.path}}.
+
+If you are using either of these unexported functions in a package that is being
+submitted to CRAN, a WARNING will be issued:
+
+Unexported objects imported by ':::' calls:
+  'this.path:::file.encode' 'this.path:::file.open'
+
+Instead, put these two functions in your package and use them instead. This will
+eliminate the WARNING.
+
+\code{file.encode <- function (...)
+get("file.encode", envir = asNamespace("this.path"),
+    inherits = FALSE)(...)}
+
+\code{file.open <- function (...)
+get("file.open", envir = asNamespace("this.path"),
+    inherits = FALSE)(...)}
 }
 \author{
 \packageAuthor{this.path}

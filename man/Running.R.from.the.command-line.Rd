@@ -1,8 +1,6 @@
 \name{Running.R.from.the.command-line}
 \alias{Running.R.from.the.command-line}
-\alias{Running.R.from.the.command.line}
-\alias{Running R from the command-line / / terminal}
-\title{Running R from the command-line / / terminal
+\title{Running R from the Windows Command-line / / Unix Terminal
 }
 \description{
 How to run \R from the Windows command-line / / Unix terminal.
@@ -26,17 +24,17 @@ following commands:
 \pkg{this.path} is capable of recognizing either of these, so use whichever you
 prefer.
 
-There are plenty of options that \sQuote{Rterm} accepts, you can find all of
-them by executing the following command:
+There are plenty of other options that \sQuote{Rterm} accepts, you can find all
+of them by executing the following command:
 
 \command{Rterm} \option{--help}
 
 The few I use the most are:
 
-\option{--quiet} do not print the \R startup message
+\option{-q} do not print the \R startup message (equivalent to \option{--quiet}
+and \option{--silent})
 
-\option{--no-echo} make \R run as quietly as possible (includes
-\option{--quiet})
+\option{--no-echo} make \R run as quietly as possible (includes \option{-q})
 
 \option{--verbose} print information about progress (includes setting option
 \dQuote{verbose} to \code{TRUE})

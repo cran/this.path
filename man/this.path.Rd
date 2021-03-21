@@ -129,15 +129,15 @@ tryCatch((function() {
         cat("\\n")
         prompt <- "Would you like to run this example interactively? (Yes/No/Cancel): "
         repeat {
-            tmp <- tolower(substr(readline(prompt), 1L, 1L))
-            if (tmp \%in\% c("y", "n", "c"))
+            response <- tolower(substr(readline(prompt), 1, 1))
+            if (response \%in\% c("y", "n", "c"))
                 break
         }
-        if (tmp == "c") {
+        if (response == "c") {
             cat("\\n")
             return(invisible())
         }
-        .interactive <- tmp == "y"
+        .interactive <- response == "y"
     }
     if (.interactive) {
         pressEnter2Continue <- function(x = "\\n") {
@@ -310,10 +310,10 @@ tryCatch((function() {
 
 
         tryCatch({
-            dbs <- get("debugSource", mode = "function", "tools:rstudio",
-                inherits = FALSE)
             cat("\\n* third, using ", sQuote("debugSource"),
                 " from ", sQuote("RStudio"), "\\n", sep = "")
+            dbs <- get("debugSource", mode = "function", "tools:rstudio",
+                inherits = FALSE)
             dbs(tmp.R.script, local = TRUE)
             pressEnter2Continue("")
         }, condition = function(c) {
@@ -333,21 +333,27 @@ tryCatch((function() {
     })
 
 
-    if (!isNamespaceLoaded("testthat") && .interactive) {
-        cat2(paste0(sQuote("this.path"), " also works with function ",
-            sQuote("source_file"), " from package ", sQuote("testthat"),
-            ", but this package is not presently loaded."))
-        prompt <- "Would you like to load this package? (Yes/No/Cancel): "
-        repeat {
-            tmp <- tolower(substr(readline(prompt), 1, 1))
-            if (tmp \%in\% c("y", "n", "c"))
-                break
+    if (!isNamespaceLoaded("testthat")) {
+        if (.interactive) {
+            cat2(paste0(sQuote("this.path"), " also works with function ",
+                sQuote("source_file"), " from package ", sQuote("testthat"),
+                ", but this package is not presently loaded."))
+            prompt <- "Would you like to load this package? (Yes/No/Cancel): "
+            repeat {
+                response <- tolower(substr(readline(prompt), 1, 1))
+                if (response \%in\% c("y", "n", "c"))
+                  break
+            }
         }
-        if (tmp == "y") {
-            requireNamespace("testthat", quietly = TRUE)
-            on.exit(unloadNamespace("testthat"), add = TRUE)
-            cat2(paste0("Package ", sQuote("testthat"), " will be unloaded ",
-                " once the example concludes."))
+        else response <- "y"
+        if (response == "y") {
+            if (requireNamespace("testthat", quietly = TRUE)) {
+                on.exit(unloadNamespace("testthat"), add = TRUE)
+                cat2(paste0("Package ", sQuote("testthat"), " will be ",
+                  "unloaded once the example concludes."))
+            }
+            else cat2(paste0("Package ", sQuote("testthat"), " was not ",
+                "successfully loaded."))
         }
     }
     if (isNamespaceLoaded("testthat")) {
@@ -356,8 +362,10 @@ tryCatch((function() {
 
 
         tryCatch({
-            cat("\\n* fourth, using ", sQuote("testthat::source_file"),
-                "\\n", sep = "")
+            cat("\\n* ", if (.Platform$GUI != "RStudio")
+                "third"
+            else "fourth", ", using ", sQuote("testthat::source_file"), "\\n",
+                sep = "")
             testthat::source_file(tmp.R.script)
             pressEnter2Continue("")
         }, condition = function(c) {
