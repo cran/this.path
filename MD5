@@ -1,4 +1,4 @@
-6ca585438963080bb6b52d81a76a8662 *DESCRIPTION
+c9944081d661b3f7ea00f58a6d9e2dbd *DESCRIPTION
 ce68554831836f97d4ef9a613c2d2849 *LICENSE
 0a1a3e85c3d1821461121b608ddfa426 *NAMESPACE
 c1c6668c51ab7faeb71a58fbabe35b0c *R/ArgumentParser-class.R
@@ -7,7 +7,7 @@ c1c6668c51ab7faeb71a58fbabe35b0c *R/ArgumentParser-class.R
 82307480d123dcf9c0077bc3feef457d *R/R.R
 3bf82a194392e646c2660fb6a902b315 *R/all.char.R
 2a2bdb2ecd1bcd7160d63d798f056bf5 *R/as.relative.path.R
-e1f2bba75a33c557eb8b407819bb1492 *R/build_this.R
+8bc234bb9009c2ef8b39403933798a0c *R/build_this.R
 aa703c8d6fd72544ec9ab8df6ad040ca *R/check.path.R
 c106b3c2678b0153067db4d87fc3bedd *R/commandArgs.R
 235d7aa17c379f3a18bfa293a37a88ea *R/commandPrompt.R
@@ -26,14 +26,17 @@ ba57e72a9fc19d9c6d2273d3e30bf719 *R/path.exists.R
 f2daf8de0fc66b56b7e53521c67fb7c7 *R/pseudoglobalenv.R
 8415f93dc517636d89c26ba449c4f341 *R/readArgs.R
 d94b18c309d4b85156dbfdcc2fbcb245 *R/supports.8.bit.color.R
-32e400c74a289212f4c83b63585960c2 *R/this.path.R
+1c5304731d634b7eafaac523f0b893fd *R/this.path.R
 072eaa3424dcd999e11e3553a86b6e6d *R/withArgs.R
 c21607f713904871cac6b572b9baca12 *R/write.code.R
 e5db9a988d2a2e4faa5f96643965b4f5 *README
-27f1938da13af94cbd206aa58933912e *build/partial.rdb
-ace487a0dcf815d0b6b572c3710b6f9b *inst/extdata/R_Editor_regexp.R
-02768f469a445828542eeb43ba672290 *inst/extdata/testing_coordinates.R
-331fa64a82648126484fa425b7d5643d *inst/extdata/write_R_Editor_regexp.R
+115f751a29ecfcc11fe3f38377424fd5 *build/partial.rdb
+0f5621a81b3197e17b6d6d4e47215a64 *inst/extdata/r_editor_regexp_ge_4.2.0.txt
+2b18e271cdf7e21e79687779f962eb75 *inst/extdata/r_editor_regexp_lt_4.2.0.txt
+72acf130d13557f9c764d0e95585ae6f *inst/extdata/testing_coordinates.R
+dac0c58f5fecd3ab511ac6dfdfb9f648 *inst/extdata/untitled_ge_4.2.0.txt
+5fb80da050819303cf631b16c7dc7348 *inst/extdata/untitled_lt_4.2.0.txt
+b7d424dace134de2087736d94e26aa3b *inst/extdata/write_r_editor_regexp.R
 e5b93c0c546962b86ac640bdb84817aa *man/R.from.shell.Rd
 b5e7951550fe2ac8fac386fe023ed21e *man/as.relative.path.Rd
 8375efc5eb21eae6e40686d3091564d2 *man/check.path.Rd
@@ -41,7 +44,7 @@ b5e7951550fe2ac8fac386fe023ed21e *man/as.relative.path.Rd
 12b81a259505ebd686a2df9c4aa6298e *man/shFILE.Rd
 74b5ec21c90fc1b44d2cd4f06caccefd *man/this.path-defunct.Rd
 f835fa1a7458a11e5dea70d3b40170cf *man/this.path-package.Rd
-2fae12cc9b89d330ba28b84779e1c82c *man/this.path.Rd
+da3091bd0c781bc4fb09256d70752fd4 *man/this.path.Rd
 c495419e9e953e250428ff7a26549788 *man/this.path2.Rd
 1cb36f07637a616c7facdb4d5b5f9ef8 *tests/faster_subsequent_times.R
 af6968f749c4a79ab1719323eaf08f6e *tests/main.R
