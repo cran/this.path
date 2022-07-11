@@ -1,25 +1,41 @@
 \name{this.path}
 \alias{this.path}
 \alias{this.dir}
+\alias{this.path2-deprecated}
+\alias{this.dir2-deprecated}
+\alias{this.dir3-deprecated}
 \title{Determine Executing Script's Filename
 }
 \description{
-\code{this.path()} returns the \code{\link[base:normalizePath]{normalized}} path
-of the executing script.
+\code{this.path()} returns the \code{\link[base:normalizePath]{normalized}}
+path of the executing script.
 
-\code{this.dir()} is a shorter way of writing
-\code{\link[base:basename]{dirname}(this.path())}, returning the
-\code{\link[base:normalizePath]{normalized}} path of the directory in which the
-executing script is located.
+\code{this.dir()} returns the \code{\link[base:normalizePath]{normalized}} path
+of the directory in which the executing script is located.
+
+\code{this.path2()}, \code{this.dir2()}, and \code{this.dir3()} are from an old
+release that did not include \code{default} as an argument in
+\code{this.path()} or \code{this.dir()}. They should not be used in future code
+development and should be removed from older code.
 }
 \usage{
-this.path(verbose = getOption("verbose"))
-this.dir(...)
+this.path(verbose = getOption("verbose"), default)
+this.dir(..., default)
+
+this.path2(...)  # deprecated, use this.path(..., default = NULL) instead
+this.dir2(...)   # deprecated, use this.dir(..., default = NULL) instead
+
+this.dir3(...)   # deprecated, use this.dir(..., default = getwd()) instead
 }
 \arguments{
   \item{verbose}{
-\code{TRUE} or \code{FALSE}; should the method in which the path of the
-executing script was determined be printed?
+\code{TRUE} or \code{FALSE}; should the method in which the path was determined
+be printed?
+  }
+  \item{default}{
+if there is no executing script, this value is returned. This facilitates
+retrieving the execting script's path / / directory and checking whether it
+exists and setting it separately if not.
   }
   \item{\dots}{
 arguments passed to \code{this.path}.
@@ -92,6 +108,44 @@ the package maintainer so that it can be implemented.
 \value{
 character string; the executing script's filename.
 }
+% There are a few reasons why there would be no executing script:
+% \itemize{
+%   \item{
+% \R is being run from a shell without supplying argument \option{-f}
+% \option{FILE} or \option{--file=FILE}
+%   }
+%   \item{
+% \R is being run from a shell under Unix-alikes with option \option{-g}
+% \option{Tk} or \option{--gui=Tk} (GUI \sQuote{Tk} does not make use of its
+% \option{-f} \option{FILE} or \option{--file=FILE} arguments)
+%   }
+%   \item{
+% \R is being run from \sQuote{RStudio} with no documents open
+%   }
+%   \item{
+% \R is being run from \sQuote{Rgui} with no documents open
+%   }
+% }
+% The following cases will still throw an error:
+% \itemize{
+%   \item{
+% unable to \code{\link[base:normalizePath]{normalize}} the executing script's
+% filename
+%   }
+%   \item{
+% using \code{\link[base]{sys.source}} or
+% \code{\link[testthat:source_file]{testthat::source_file}} on a file named
+% \dQuote{clipboard}, \dQuote{clipboard-128}, or \dQuote{stdin}
+%   }
+%   \item{
+% active / / source document in \sQuote{RStudio} / / \sQuote{Rgui} does not exist
+% (not saved anywhere)
+%   }
+%   \item{
+% in \sQuote{AQUA}, running the current line or selection from an open \R script
+% (currently unimplemented)
+%   }
+% }
 \note{
 The first time \code{this.path} is called within a script, it will
 \code{\link[base:normalizePath]{normalize}} the script's path, check that the
@@ -541,7 +595,14 @@ this.path:::write.code(file = FILE <- tempfile(), {
     withAutoprint({
 
 
-        cat(sQuote(this.path::this.path(verbose = TRUE)), "\\n\\n")
+        cat(sQuote(this.path::this.path(verbose = TRUE, default = {
+            stop("interestingly enough, because the executing script's\n",
+                "  path will be found, argument 'default' won't be evaluated,\n",
+                "  and so this error won't actually print, isn't that\n",
+                "  neat? you can use this to your advantage in a similar\n",
+                "  manner, doing arbitrary things only if the executing\n",
+                "  script does not exist")
+        })), "\\n\\n")
 
 
     }, verbose = FALSE)
@@ -557,7 +618,7 @@ if (requireNamespace("testthat"))
     testthat::source_file(FILE, chdir = FALSE, wrap = FALSE)
 
 
-this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE))% essentials::Rscript(c("--default-packages=NULL", "--vanilla"), file = FILE)
+this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE))
 
 
 # this.path also works when source-ing a URL
@@ -565,4 +626,12 @@ this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE))% essential
 tryCatch({
     source("https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R")
 }, condition = base::message)
+
+
+for (expr in c("this.path()",
+               "this.path(default = NULL)",
+               "this.dir()",
+               "this.dir(default = NULL)",
+               "this.dir(default = getwd())"))
+    this.path:::.Rscript(c("--default-packages=this.path", "--vanilla", "-e", expr))
 \dontshow{unlink(FILE) ; if (.unload) unloadNamespace("testthat")}}

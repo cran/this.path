@@ -5,24 +5,21 @@
 Get Argument \option{FILE} Provided to R by a Shell
 }
 \description{
-Look through the command line arguments, extracting argument \option{FILE} from
-either of the following: \option{--file=FILE} or \option{-f} \option{FILE}
+Look through the command line arguments, extracting \option{FILE} from either
+of the following: \option{--file=FILE} or \option{-f} \option{FILE}
 }
 \usage{
-shFILE()
-normalized.shFILE()
+shFILE(default)
+normalized.shFILE(default)
 }
-\details{
-For \code{shFILE}, if there are no such arguments, \code{NA} is returned.
-
-For \code{normalized.shFILE}, if there are no such arguments, an error is
-raised.
-
-For both functions, if there are multiple such arguments, an error is
-raised.
+\arguments{
+  \item{default}{
+if \option{FILE} was not found, this value is returned.
+  }
 }
 \value{
-character string. For \code{normalized.shFILE}, an absolute path.
+character string, or \code{default} if the command line argument \option{FILE}
+was not found.
 }
 \note{
 Both functions will save their return values; this makes them faster when
@@ -34,3 +31,33 @@ separator.
 \seealso{
 \code{\link{this.path}}, \code{\link{here}}
 }
+\examples{
+this.path:::write.code(file = FILE <- tempfile(), {
+
+
+    withAutoprint({
+
+
+        shFILE()
+        normalized.shFILE()
+        normalized.shFILE(default = {
+            stop("interestingly enough, because 'FILE' will be found,\\n",
+                "  argument 'default' won't be evaluated, and so this\\n",
+                "  error won't actually print, isn't that neat? you can\\n",
+                "  use this to your advantage in a similar manner, doing\\n",
+                "  arbitrary things only if 'FILE' isn't found")
+        })
+
+
+    }, width.cutoff = 60L)
+
+})
+this.path:::.Rscript(c("--default-packages=this.path", "--vanilla", FILE))
+
+
+for (expr in c("shFILE()",
+               "shFILE(default = NULL)",
+               "normalized.shFILE()",
+               "normalized.shFILE(default = NULL)"))
+    this.path:::.Rscript(c("--default-packages=this.path", "--vanilla", "-e", expr))
+\dontshow{unlink(FILE)}}
