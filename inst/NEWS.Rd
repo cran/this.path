@@ -1,6 +1,52 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
 \encoding{UTF-8}
+\section{CHANGES IN VERSION 0.11.0}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item Added \code{tryCatch2()}, introducing argument \code{else.} similar
+            to \code{try except} in \sQuote{Python}.
+      \item Added \code{else.} argument to \code{this.path()},
+            \code{this.dir()}, \code{shFILE()}, and \code{normalized.shFILE()},
+            a function to act on the return value.
+    }
+  }
+}
+\section{CHANGES IN VERSION 0.10.0}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item Added \code{asArgs()}, \code{fileArgs()}, and
+            \code{withArgs()} to more easily provide arguments to a
+            script.
+      \item Added \code{from.shell()} to determine if a script was run
+            from a shell.
+      \item Added \code{this.proj(...)}, similar to
+            \code{here::here(...)}, except that \code{this.proj()}
+            supports multiple projects in one \R session.
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item \code{this.path::here()} no longer uses \code{dirname()} on
+            a UNC path.
+    }
+  }
+}
+\section{CHANGES IN VERSION 0.9.0}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{this.path()} and all its associated functions now
+            work in VSCode.
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item when \code{source}-ing a file URL,
+            \code{source("file:///path/to/file")}, \code{this.path()}
+            no longer attempts to re-open a connection.
+    }
+  }
+}
 \section{CHANGES IN VERSION 0.8.0}{
   \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
     \itemize{

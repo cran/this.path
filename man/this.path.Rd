@@ -19,8 +19,8 @@ release that did not include \code{default} as an argument in
 development and should be removed from older code.
 }
 \usage{
-this.path(verbose = getOption("verbose"), default)
-this.dir(..., default)
+this.path(verbose = getOption("verbose"), default, else.)
+this.dir(..., default, else.)
 
 this.path2(...)  # deprecated, use this.path(..., default = NULL) instead
 this.dir2(...)   # deprecated, use this.dir(..., default = NULL) instead
@@ -33,23 +33,30 @@ this.dir3(...)   # deprecated, use this.dir(..., default = getwd()) instead
 be printed?
   }
   \item{default}{
-if there is no executing script, this value is returned. This facilitates
-retrieving the execting script's path / / directory and checking whether it
-exists and setting it separately if not.
+if there is no executing script, this value is returned.
+  }
+  \item{else.}{
+missing or a function to call on the return value if there is an executing
+script. See \code{\link{tryCatch2}} for inspiration.
   }
   \item{\dots}{
 arguments passed to \code{this.path}.
   }
 }
 \details{
-There are three ways in which \R code is typically run; in \sQuote{RStudio} or
-\sQuote{Rgui} by running the current line or selection with the \strong{Run}
-button (or appropriate keyboard shortcut), through a source call (a call to
-function \code{\link[base]{source}}, \code{\link[base]{sys.source}},
-\href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{
-\code{debugSource}} in \sQuote{RStudio}, or
-\code{\link[testthat:source_file]{testthat::source_file}}), and from a shell
-(including the Windows command-line / / Unix terminal).
+There are three ways in which \R code is typically run:
+\enumerate{
+  \item in \sQuote{RStudio} / / \sQuote{Rgui} / / \sQuote{VSCode} by running
+        the current line / / selection with the \strong{Run} button / /
+        appropriate keyboard shortcut
+  \item through a source call: a call to function \code{\link[base]{source}},
+        \code{\link[base]{sys.source}}, \href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}}
+        in \sQuote{RStudio}, or \code{\link[testthat:source_file]{testthat::source_file}}
+  \item from a shell, such as the Windows command-line / / Unix terminal
+}
+
+If you are using \code{this.path} in \sQuote{VSCode}, see
+\code{\link{this.path.in.VSCode}}
 
 To retrieve the executing script's filename, first an attempt is made to find a
 source call. The calls are searched in reverse order so as to grab the most
@@ -85,6 +92,12 @@ to \code{this.path} have yet to be evaluated in the run selection. It is an
 error for no documents to be open or for a document to not exist (not saved
 anywhere).
 
+If \R is being run \sQuote{VSCode}, the source document's filename is returned
+(at the time of evaluation). It is important to not leave the current tab
+(either by closing or switching tabs) while any calls to \code{this.path} have
+yet to be evaluated in the run selection. It is an error for a document to not
+exist (not saved anywhere).
+
 If \R is being run from \sQuote{Rgui}, the source document's filename (the
 document most recently interacted with besides the \R Console) is returned (at
 the time of evaluation). Please note that minimized documents will be
@@ -98,7 +111,7 @@ If \R is being run from \sQuote{AQUA}, the executing script's path cannot be
 determined. Unlike \sQuote{RStudio} and \sQuote{Rgui}, there is currently no
 way to request the path of an open document. Until such a time that there is a
 method for requesting the path of an open document, consider using
-\sQuote{RStudio}.
+\sQuote{RStudio} or \sQuote{VSCode}.
 
 If \R is being run in another manner, it is an error to use \code{this.path}.
 
@@ -181,9 +194,8 @@ before calling \code{this.path} at least once.
 
 \code{\link{this.path-package}}
 
-\code{\link[base]{source}}, \code{\link[base]{sys.source}},
-\href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{
-\code{debugSource}}, \code{\link[testthat:source_file]{testthat::source_file}}
+\code{\link[base]{source}}, \code{\link[base]{sys.source}}, \href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}},
+\code{\link[testthat:source_file]{testthat::source_file}}
 
 \code{\link{R.from.shell}}
 }
@@ -594,18 +606,16 @@ this.path:::write.code(file = FILE <- tempfile(), {
 
     withAutoprint({
 
-
         cat(sQuote(this.path::this.path(verbose = TRUE, default = {
-            stop("interestingly enough, because the executing script's\n",
-                "  path will be found, argument 'default' won't be evaluated,\n",
-                "  and so this error won't actually print, isn't that\n",
-                "  neat? you can use this to your advantage in a similar\n",
-                "  manner, doing arbitrary things only if the executing\n",
+            stop("interestingly enough, because the executing script's\\n",
+                "  path will be found, argument 'default' won't be evaluated,\\n",
+                "  and so this error won't actually print, isn't that\\n",
+                "  neat? you can use this to your advantage in a similar\\n",
+                "  manner, doing arbitrary things only if the executing\\n",
                 "  script does not exist")
         })), "\\n\\n")
 
-
-    }, verbose = FALSE)
+    }, width.cutoff = 60L, verbose = FALSE)
 
 })
 
@@ -625,7 +635,7 @@ this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE))
 # (included tryCatch in case an internet connection is not available)
 tryCatch({
     source("https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R")
-}, condition = base::message)
+}, condition = message)
 
 
 for (expr in c("this.path()",
@@ -634,4 +644,14 @@ for (expr in c("this.path()",
                "this.dir(default = NULL)",
                "this.dir(default = getwd())"))
     this.path:::.Rscript(c("--default-packages=this.path", "--vanilla", "-e", expr))
+
+
+# an example from R package 'logr'
+this.path::this.path(verbose = FALSE, default = "script.log",
+    else. = function(x) {
+        x <- if (.Platform$OS.type == "windows")
+            sub("[.][^.\\\\/]+$", "", x)
+        else sub("[.][^./]+$", "", x)
+        paste0(x, ".log")
+    })
 \dontshow{unlink(FILE) ; if (.unload) unloadNamespace("testthat")}}

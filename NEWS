@@ -1,5 +1,42 @@
 this.path News
 
+CHANGES IN this.path 0.11.0:
+
+  NEW FEATURES
+
+    * Added tryCatch2(), introducing argument 'else.' similar to
+      'try except' in 'Python'.
+
+    * Added 'else.' argument to this.path(), this.dir(), shFILE(), and
+      normalized.shFILE(), a function to act on the return value.
+
+CHANGES IN this.path 0.10.0:
+
+  NEW FEATURES
+
+    * Added asArgs(), fileArgs(), and withArgs() to more easily provide
+      arguments to a script.
+
+    * Added from.shell() to determine if a script was run from a shell.
+
+    * Added this.proj(...), similar to here::here(...), except that
+      this.proj() supports multiple projects in one R session.
+
+  BUG FIXES
+
+    * this.path::here() no longer uses dirname() on a UNC path.
+
+CHANGES IN this.path 0.9.0:
+
+  NEW FEATURES:
+
+    * this.path() and all its associated functions now work in VSCode.
+
+  BUG FIXES:
+
+    * when source-ing a file URL, source("file:///path/to/file"),
+      this.path() no longer attempts to re-open a connection.
+
 CHANGES IN this.path 0.8.0:
 
   SIGNIFICANT USER-VISIBLE CHANGES:

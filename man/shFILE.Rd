@@ -9,12 +9,16 @@ Look through the command line arguments, extracting \option{FILE} from either
 of the following: \option{--file=FILE} or \option{-f} \option{FILE}
 }
 \usage{
-shFILE(default)
-normalized.shFILE(default)
+shFILE(default, else.)
+normalized.shFILE(default, else.)
 }
 \arguments{
   \item{default}{
 if \option{FILE} was not found, this value is returned.
+  }
+  \item{else.}{
+missing or a function to call on the return value if \option{FILE} is found.
+See \code{\link{tryCatch2}} for inspiration.
   }
 }
 \value{
@@ -34,9 +38,7 @@ separator.
 \examples{
 this.path:::write.code(file = FILE <- tempfile(), {
 
-
     withAutoprint({
-
 
         shFILE()
         normalized.shFILE()
@@ -49,7 +51,7 @@ this.path:::write.code(file = FILE <- tempfile(), {
         })
 
 
-    }, width.cutoff = 60L)
+    }, width.cutoff = 60L, verbose = FALSE)
 
 })
 this.path:::.Rscript(c("--default-packages=this.path", "--vanilla", FILE))

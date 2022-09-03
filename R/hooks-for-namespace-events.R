@@ -25,3 +25,20 @@
 #     print(system.file(package = pkgname))
 # }
 
+
+# .onLoad <- function (libname, pkgname)
+# {
+#     # cat("> libname\n")
+#     # print(libname)
+#     # cat("> pkgname\n")
+#     # print(pkgname)
+#     # sink("~/temp3.txt", append = TRUE)
+#     # on.exit(sink())
+#     # cat('> Sys.getenv("_R_CHECK_PACKAGE_NAME_")\n')
+#     # print(Sys.getenv("_R_CHECK_PACKAGE_NAME_"))
+#     # cat("> tryCatch2\n")
+#     # print(tryCatch2)
+#     # cat("> commandArgs()\n")
+#     # print(commandArgs())
+#     # cat("\n\n\n\n\n")
+# }
