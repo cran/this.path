@@ -144,7 +144,7 @@ check.dir <- function (...)
 .check.path(path = file.path(...), this.dir(verbose = FALSE), "this.dir()")
 
 
-# path.split(c(
+# this.path:::path.split(c(
 #     this.path(),
 #     "~/this.path",
 #     "testing//this/out",

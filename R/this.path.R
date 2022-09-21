@@ -499,8 +499,8 @@ windows.abs.path <- .this.path_regexps$windows.absolute.path.anchored
 
 
 
-this.path_not_exists_error_class <- "this.path_this.path_not_exists_error"
-this.path_unimplemented_error_class <- "this.path_this.path_unimplemented_error"
+thisPathNotExistError_class <- c("this.path::thisPathNotExistError", "this.path_this.path_not_exists_error")
+thisPathNotImplementedError_class <- c("this.path::thisPathNotImplementedError", "this.path_this.path_unimplemented_error")
 
 
 Error <- function (..., call. = TRUE, domain = NULL, class = NULL,
@@ -509,12 +509,20 @@ errorCondition(message = .makeMessage(..., domain = domain),
     class = class, call = if (call.) call)
 
 
-ThisPathNotExistsError <- function(...) NULL
-body(ThisPathNotExistsError) <- bquote(Error(..., class = .(this.path_not_exists_error_class)))
+thisPathNotExistsError <- function(...) NULL
+body(thisPathNotExistsError) <- bquote(Error(..., class = .(thisPathNotExistError_class)))
 
 
-ThisPathUnimplementedError <- function(...) NULL
-body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimplemented_error_class)))
+thisPathNotImplementedError <- function(...) NULL
+body(thisPathNotImplementedError) <- bquote(Error(..., class = .(thisPathNotImplementedError_class)))
+
+
+is.clipboard.or.stdin <- function (file)
+{
+    if (os.windows)
+        file %in% c("clipboard", "stdin") || startsWith(file, "clipboard-")
+    else file %in% c("clipboard", "X11_primary", "X11_secondary", "X11_clipboard", "stdin")
+}
 
 
 .this.path <- function (verbose = getOption("verbose"))
@@ -626,13 +634,13 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
                     }
 
 
-                    # use of "clipboard", "clipboard-128", and "stdin" refer to
-                    # the clipboard or to the C-level 'standard input' of the
-                    # process. this means 'source' did not open a file, so we
+                    # use of "clipboard" and "stdin" refer to the clipboard or
+                    # to the C-level 'standard input' of the process.
+                    # this means 'source' did not open a file, so we
                     # assign .__file__ the value of NULL and continue to the
                     # next iteration. We use .__file__ as NULL to skip this
                     # source call the next time this.path leads here
-                    else if (path %in% c("clipboard", "clipboard-128", "stdin")) {
+                    else if (is.clipboard.or.stdin(path)) {
                         assign.__file__(NULL)
                         next
                     }
@@ -687,21 +695,19 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
                     #     cbind(
                     #         summary(a <- stdin (                      )),
                     #         summary(b <- file  ("clipboard"           )),
-                    #         summary(c <- file  ("clipboard-128"       )),
-                    #         summary(d <- file  ("stdin"               )),
-                    #         summary(e <- file  ("file://clipboard"    )),
-                    #         summary(f <- file  ("file://clipboard-128")),
-                    #         summary(g <- file  ("file://stdin"        )),
-                    #         summary(h <- url   ("ftp://clipboard"     )),
-                    #         summary(i <- url   ("ftps://clipboard"    )),
-                    #         summary(j <- url   ("http://clipboard"    )),
-                    #         summary(k <- url   ("https://clipboard"   )),
-                    #         summary(l <- gzfile("clipboard"           )),
-                    #         summary(m <- bzfile("clipboard"           )),
-                    #         summary(n <- xzfile("clipboard"           )),
-                    #         summary(o <- unz   ("clipboard", "stdin"  )),
-                    #         summary(p <- pipe  ("clipboard"           )),
-                    #         summary(q <- fifo  ("clipboard"           ))
+                    #         summary(c <- file  ("stdin"               )),
+                    #         summary(d <- file  ("file://clipboard"    )),
+                    #         summary(e <- file  ("file://stdin"        )),
+                    #         summary(f <- url   ("ftp://clipboard"     )),
+                    #         summary(g <- url   ("ftps://clipboard"    )),
+                    #         summary(h <- url   ("http://clipboard"    )),
+                    #         summary(i <- url   ("https://clipboard"   )),
+                    #         summary(j <- gzfile("clipboard"           )),
+                    #         summary(k <- bzfile("clipboard"           )),
+                    #         summary(l <- xzfile("clipboard"           )),
+                    #         summary(m <- unz   ("clipboard", "stdin"  )),
+                    #         summary(n <- pipe  ("clipboard"           )),
+                    #         summary(o <- fifo  ("clipboard"           ))
                     #     )
                     # })
 
@@ -735,7 +741,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
                         stop("'this.path' cannot be used within a zip file")
 
 
-                    }, stop(ThisPathUnimplementedError(
+                    }, stop(thisPathNotImplementedError(
                         "'this.path' unimplemented when source-ing a connection of class ",
                         sQuote(path$class))))
                 }
@@ -770,10 +776,9 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
                 # unlike 'source', 'sys.source' is intended to
                 # source a file (not a connection), so we have to throw an
                 # error if the user attempts to source a file named
-                # "clipboard", "clipboard-128", or "stdin" since none of these
-                # refer to files
-                if (path %in% c("clipboard", "clipboard-128", "stdin"))
-                    stop(Error("invalid 'file', must not be \"clipboard\", \"clipboard-128\", nor \"stdin\"",
+                # "clipboard" or "stdin" since none of these refer to files
+                if (is.clipboard.or.stdin(path))
+                    stop(Error("invalid 'file', must not be \"clipboard\" nor \"stdin\"",
                         call = sys.call(n)))
 
 
@@ -845,7 +850,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
                     assign.__file__(NULL)
                     next
                 }
-                else if (path %in% c("clipboard", "clipboard-128", "stdin")) {
+                else if (is.clipboard.or.stdin(path)) {
                     assign.__file__(NULL)
                     next
                 }
@@ -883,10 +888,9 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
                 # like 'sys.source', 'testthat::source_file' is intended
                 # to source a file (not a connection), so we have to throw an
                 # error if the user attempts to source a file named
-                # "clipboard", "clipboard-128", or "stdin" since none of these
-                # refer to files
-                if (path %in% c("clipboard", "clipboard-128", "stdin"))
-                    stop(Error("invalid 'path' argument, must not be \"clipboard\", \"clipboard-128\", nor \"stdin\"",
+                # "clipboard" or "stdin" since none of these refer to files
+                if (is.clipboard.or.stdin(path))
+                    stop(Error("invalid 'path' argument, must not be \"clipboard\" nor \"stdin\"",
                         call = sys.call(n)))
 
 
@@ -925,7 +929,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
 
         context <- rstudioapi::getSourceEditorContext()
         if (is.null(context))
-            stop(ThisPathNotExistsError(
+            stop(thisPathNotExistsError(
                 "'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
                 "* R is being run from VSCode with no documents open\n",
@@ -959,7 +963,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
 
 
         value <- normalized.shFILE(default = {
-            stop(ThisPathNotExistsError(
+            stop(thisPathNotExistsError(
                 "'this.path' used in an inappropriate fashion\n",
                 "* no appropriate source call was found up the calling stack\n",
                 "* R is being run from a shell and argument 'FILE' is missing"))
@@ -974,7 +978,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
     else if (os.unix && .Platform$GUI == "Tk") {
 
 
-        stop(ThisPathNotExistsError(
+        stop(thisPathNotExistsError(
             "'this.path' used in an inappropriate fashion\n",
             "* no appropriate source call was found up the calling stack\n",
             "* R is being run from Tk which does not make use of its -f FILE, --file=FILE arguments"))
@@ -1000,7 +1004,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
         if (!active) {
             context <- get(".rs.api.getSourceEditorContext", "tools:rstudio", inherits = FALSE)()
             if (is.null(context))
-                stop(ThisPathNotExistsError(
+                stop(thisPathNotExistsError(
                     "'this.path' used in an inappropriate fashion\n",
                     "* no appropriate source call was found up the calling stack\n",
                     "* R is being run from RStudio with no documents open\n",
@@ -1078,7 +1082,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
             nm <- nm[[1L]]
         else if (length(nm) >= 2L)
             nm <- nm[[2L]]
-        else stop(ThisPathNotExistsError(
+        else stop(thisPathNotExistsError(
             "'this.path' used in an inappropriate fashion\n",
             "* no appropriate source call was found up the calling stack\n",
             "* R is being run from Rgui with no documents open"))
@@ -1104,7 +1108,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
     else if (os.macos.gui.aqua) {
 
 
-        stop(ThisPathUnimplementedError(
+        stop(thisPathNotImplementedError(
             "'this.path' used in an inappropriate fashion\n",
             "* no appropriate source call was found up the calling stack\n",
             "* R is being run from AQUA which is currently unimplemented\n",
@@ -1113,7 +1117,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
 
 
     # running R in another manner
-    else stop(ThisPathUnimplementedError(
+    else stop(thisPathNotImplementedError(
         "'this.path' used in an inappropriate fashion\n",
         "* no appropriate source call was found up the calling stack\n",
         "* R is being run in an unrecognized manner"))
@@ -1130,7 +1134,7 @@ body(ThisPathUnimplementedError) <- bquote(Error(..., class = .(this.path_unimpl
         y <- strsplit(sub(URL.pattern, "\\2", path), "/+")[[1L]]
         paste(c(sub(URL.pattern, "\\1", path), y[-length(y)]), collapse = "/")
     }
-    else dirname(path)  # dirname(), while not safe to use in 'here', is safe in '.this.dir' because it only applies once
+    else dirname2(path)
 }
 
 
@@ -1149,7 +1153,7 @@ tryCatch({
 }, function(c) default)
 
 
-this.path_not_exists_error_class[[1L]] ->
+thisPathNotExistError_class[[1L]] ->
     names(body(this.path))[3L] ->
     names(body(this.dir ))[3L]
 
@@ -1203,14 +1207,12 @@ this.path2 <- function (...)
 }
 
 
-
 this.dir2 <- function (...)
 {
     .Deprecated("this.dir(..., default = NULL)",
         old = "this.dir2(...)")
     this.dir(..., default = NULL)
 }
-
 
 
 this.dir3 <- function (...)
@@ -1238,47 +1240,11 @@ here <- ici <- function (..., .. = 0L)
             sub(URL.pattern, "\\1", base)
         else paste(c(sub(URL.pattern, "\\1", base), y[seq_len(len)]), collapse = "/")
     }
-    else {
-        # base <- "//host-name/share-name/path/to/file"
-        # base <- "C:/Users/andre/Documents/this.path/man/this.path.Rd"
-        # .. <- "10"
-        base <- dirname(base)
-        if (.. <- length(seq_len(..))) {
-            if (os.windows) {
-                y <- chartr("\\", "/", base)
-                if (grepl(UNC.pattern, y)) {
-                    y <- path.split.UNC.1(y)
-                    substr(y[[1L]], 1L, 2L) <- substr(base, 1L, 2L)
-                    len <- length(y) - ..
-                    base <- if (len > 1L)
-                        paste(y[seq_len(len)], collapse = "/")
-                    else y[[1L]]
-                }
-                else {
-                    y <- path.split.default.1(y)
-                    len <- length(y) - ..
-                    base <- if (len > 1L)
-                        paste(y[seq_len(len)], collapse = "/")
-                    else paste0(y[[1L]], "/")
-                }
-            }
-            else {
-                if (grepl(UNC.pattern, base)) {
-                    y <- path.split.UNC.1(base)
-                    len <- length(y) - ..
-                    base <- if (len > 1L)
-                        paste(y[seq_len(len)], collapse = "/")
-                    else y[[1L]]
-                }
-                else {
-                    y <- path.split.default.1(base)
-                    len <- length(y) - ..
-                    base <- if (len > 1L)
-                        paste(y[seq_len(len)], collapse = "/")
-                    else paste0(y[[1L]], "/")
-                }
-            }
-        }
-    }
-    file.path(base, ...)
+
+
+    # base <- "//host-name/share-name/path/to/file"
+    # base <- "C:/Users/andre/Documents/this.path/man/this.path.Rd"
+    # .. <- "10"
+    else base <- .External2(C_dirname2, base, ..)
+    path.join(base, ...)
 }
