@@ -1,5 +1,5 @@
 Package: this.path
-Version: 1.0.0
+Version: 1.0.1
 License: MIT + file LICENSE
 Title: Get Executing Script's Path, from 'RStudio', 'Rgui', 'VSCode',
         'Rscript' (Shells Including Windows Command-Line / / Unix
@@ -16,6 +16,6 @@ URL: https://github.com/ArcadeAntics/this.path
 BugReports: https://github.com/ArcadeAntics/this.path/issues
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2022-09-21 08:53:41 UTC; andre
+Packaged: 2022-09-22 07:19:05 UTC; andre
 Repository: CRAN
-Date/Publication: 2022-09-21 22:30:02 UTC
+Date/Publication: 2022-09-23 11:20:02 UTC
