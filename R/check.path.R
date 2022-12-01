@@ -22,8 +22,6 @@ UNC.pattern <- "^(?:(//[^/]+)/+([^/]+))(?:/+(.*))?$"
 
 path.split <- function (path)
 {
-    #
-
     if (!is.character(path))
         stop(gettextf("invalid '%s' argument", "path"))
     value <- vector("list", length(path))
@@ -124,24 +122,24 @@ strsplit(path, "/+")[[1L]]
         x <- x[seq.int(to = length(x), along.with = path)]
         any(x != path)
     })
-        stop(Error(
+        stop(simpleError(.makeMessage(
             sQuote(name), " and expected path do not match\n",
             paste0("* ", format(c(name, "expected")), ": ",
             encodeString(c(
                 paste(x, collapse = "/"),
                 paste(path, collapse = "/")
-            ), quote = "\""), collapse = "\n"),
-            call = sys.call(sys.parent())))
+            ), quote = "\""), collapse = "\n")
+        ), call = sys.call(sys.parent())))
     invisible(TRUE)
 }
 
 
 check.path <- function (...)
-.check.path(path = file.path(...), this.path(verbose = FALSE), "this.path()")
+.check.path(path = path.join(...), .this.path(), "this.path()")
 
 
 check.dir <- function (...)
-.check.path(path = file.path(...), this.dir(verbose = FALSE), "this.dir()")
+.check.path(path = path.join(...), .this.dir(), "this.dir()")
 
 
 # this.path:::path.split(c(

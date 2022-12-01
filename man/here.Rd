@@ -5,8 +5,8 @@
 Construct Path to File, Beginning with \code{this.dir()}
 }
 \description{
-Construct the path to a file from components in a platform-independent way,
-starting with \code{\link{this.dir}()}.
+Construct the path to a file from components/paths in a
+platform-\strong{DEPENDENT} way, starting with \code{\link{this.dir}()}.
 }
 \usage{
 here(..., .. = 0)
@@ -14,7 +14,7 @@ ici(..., .. = 0)
 }
 \arguments{
   \item{\dots}{
-further arguments passed to \code{\link[base]{file.path}()}.
+further arguments passed to \code{\link{path.join}()}.
   }
   \item{..}{
 the number of directories to go back.
@@ -56,7 +56,8 @@ the executing script's directory.
 % this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE))% essentials::Rscript(c("--default-packages=NULL", "--vanilla"), file = FILE)
 % \dontshow{unlink(FILE)}}
 \examples{
-this.path:::write.code(file = FILE <- tempfile(), {
+FILE <- tempfile(fileext = ".R")
+this.path:::write.code({
 
 
     this.path::here()
@@ -72,7 +73,7 @@ this.path:::write.code(file = FILE <- tempfile(), {
     this.path::here("script2.R")
 
 
-})
+}, FILE)
 
 
 source(FILE, echo = TRUE, verbose = FALSE)

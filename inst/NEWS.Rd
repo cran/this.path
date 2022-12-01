@@ -1,6 +1,75 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
 \encoding{UTF-8}
+\section{CHANGES IN VERSION 1.1.0}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item \code{this.path()} now works inside \code{knitr::knit()}, fixing
+            \href{https://github.com/ArcadeAntics/this.path/issues/4}{issue #4 at BugReports URL}.
+            By extension, \code{withArgs(knitr::knit())} now also works.
+      \item \code{this.path()} now accepts arguments \code{original} and
+            \code{for.msg} that return the original argument from
+            \code{source} / / \code{knit} / / \code{Rscript} or return a
+            character string that can be used in diagnostic messages / /
+            warnings / / errors. It should be noted that
+            \code{this.path(for.msg = TRUE)} should not be used for
+            constructing file paths.
+      \item \code{shFILE()} also accepts argument \code{original} that returns
+            the original \option{FILE} argument from \code{Rscript}.
+      \item Added \code{splitext()}, \code{removeext()}, \code{ext()}, and
+            \code{ext<-()} for manipulating paths with extensions.
+      \item Added \code{progArgs()}, similar to \code{fileArgs()} but better,
+            might remove \code{fileArgs()} later.
+      \item Added \code{is.main()} for determining if an expression is run in a
+            top-level code environment.
+      \item Added \code{wrap.source()} and \code{inside.source()} for
+            implementing \code{this.path()} with any source-like function.
+      \item Added \code{LINENO()} for determining the line number of the
+            executing expression in the executing script.
+      \item Added \code{relpath()}, a version of \code{as.rel.path()} with
+            different default argument values.
+      \item Added \code{OS.type}, a list of \code{TRUE}/\code{FALSE} values
+            giving more details about the operating system.
+    }
+  }
+  \subsection{DEPRECATED AND DEFUNCT}{
+    \itemize{
+      \item \code{normalized.shFILE()}, \code{this.path2()},
+            \code{this.dir2()}, and \code{this.dir3()} are defunct and should
+            be replaced with \code{shFILE()}, \code{this.path(default = NULL)},
+            \code{this.dir(default = NULL)}, and
+            \code{this.dir(default = getwd())}, respectively.
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item \code{check.path()} and \code{check.dir()} now use
+            \code{path.join()} instead of \code{file.path()}.
+      \item \code{fileArgs()}, \code{progArgs()}, \code{from.shell()}, and
+            \code{is.main()} no longer force the normalization of the
+            \code{source} / / \code{knit} / / \code{Rscript} path, but instead
+            save it as a promise to be evaluated later if / / when desired.
+    }
+  }
+}
+\section{CHANGES IN VERSION 1.0.2}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item See \href{https://github.com/ArcadeAntics/this.path/issues/3}{issue #3 at BugReports URL}.
+            Fixed \code{this.path()} when called in a script from a shell on
+            ubuntu installed on an android (where
+            \code{.Platform$GUI == "unknown"}, normally "unix").
+    }
+  }
+}
+\section{CHANGES IN VERSION 1.0.1}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Fixed \code{path.join()}, \code{basename2()}, and \code{dirname2()}
+            not having a trailing nul-character.
+    }
+  }
+}
 \section{CHANGES IN VERSION 1.0.0}{
   \subsection{NEW FEATURES}{
     \itemize{

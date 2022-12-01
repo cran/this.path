@@ -4,13 +4,13 @@ useDynLib(this.path, .registration = TRUE, .fixes = "C_")
 # as.relative.path.R     ----
 
 
-export(as.relative.path, as.rel.path)
+export(as.relative.path, as.rel.path, relpath)
 
 
-# asArgs.R               ----
+# Args.R                 ----
 
 
-export(asArgs, from.shell, fileArgs, withArgs)
+export(asArgs, fileArgs, progArgs, withArgs)
 
 
 # basename2.R            ----
@@ -25,10 +25,40 @@ export(basename2, dirname2)
 export(check.path, check.dir)
 
 
+# ext.R                  ----
+
+
+export(splitext, removeext, ext, "ext<-")
+
+
+# from.shell.R           ----
+
+
+export(from.shell, is.main)
+
+
+# hooks-for-namespace-events ----
+
+
+export(OS.type)
+
+
+# LINENO.R               ----
+
+
+export(LINENO)
+
+
 # path.join.R            ----
 
 
 export(path.join)
+
+
+# promises.R             ----
+
+
+export(initwd, getinitwd)
 
 
 # rprojroot.R            ----
@@ -44,9 +74,16 @@ export(shFILE, normalized.shFILE)
 export(this.path, this.dir)
 export(this.path2, this.dir2, this.dir3)
 export(here, ici)
+export(Sys.path, Sys.dir)
 
 
 # tryCatch2.R            ----
 
 
 export(tryCatch2)
+
+
+# wrapsource.R           ----
+
+
+export(wrap.source, inside.source)

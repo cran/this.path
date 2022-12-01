@@ -68,10 +68,10 @@ normalizePath.and.URL <- function (path, ...)
         path[i] <- file.URL.path(path[i])
     if (any(i <- !i & grepl("^(ftp|ftps|http|https)://", path))) {
         path[i] <- normalizeURL(path[i])
-        path[!i] <- normalizePath(path = path[!i], ...)
+        path[!i] <- normpath(path = path[!i], ...)
         path
     }
-    else normalizePath(path = path, ...)
+    else normpath(path = path, ...)
 }
 
 
@@ -81,7 +81,7 @@ normalizePath.and.URL.1 <- function (path, ...)
         normalizePath(path = file.URL.path.1(path), ...)
     else if (grepl("^(ftp|ftps|http|https)://", path))
         normalizeURL.1(path)
-    else normalizePath(path = path, ...)
+    else normpath(path = path, ...)
 }
 
 
@@ -100,7 +100,8 @@ as.relative.path <- as.rel.path <- function (path, relative.to = this.dir(verbos
     x <- path.split(path)
     vapply(seq_along(x), function(i) {
         xx <- x[[i]]
-        n <- min(len2 <- length(xx), len)
+        len2 <- length(xx)
+        n <- min(len2, len)
 
 
         # this will give us the location of the first FALSE value, but what we
@@ -116,13 +117,31 @@ as.relative.path <- as.rel.path <- function (path, relative.to = this.dir(verbos
 
 
         # otherwise, return the appropriate number of .. and the tail of the path
-        value <- c(rep("..", len - n), xx[seq.int(n + 1L, length.out = len2 - n)])
+        # if there are no .. to add, add . instead
+        value <- c(
+            rep("..", len - n),
+            xx[seq.int(n + 1L, length.out = len2 - n)]
+        )
 
 
-        # this happens when the 'path', and 'relative.to' and equal
+        # this happens when 'path' and 'relative.to' are equal
         # simply return "."
         if (length(value) <= 0L)
             "."
+
+
+        # the path should always start with ./ or ../
+        #
+        # in command line applications, this avoids confusion for paths which
+        # beginning with hyphen
+        #
+        # for unix only, it avoids confusion for paths beginning with space
+        else if (!(value[[1L]] %in% c(".", "..")))
+            paste(c(".", value), collapse = "/")
         else paste(value, collapse = "/")
     }, FUN.VALUE = "")
 }
+
+
+relpath <- as.rel.path
+formals(relpath)["relative.to"] <- alist(getwd())

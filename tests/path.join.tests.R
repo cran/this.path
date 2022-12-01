@@ -41,6 +41,18 @@ path.join("//h/s/", "p1", "c:p2", "p3", "c:/p4", "p5", "C:p6", "p7/") %check% "C
 path.join("~/p1", "p2", "~/p3", "p4/") %check% "~/p3/p4/"
 
 
+path.join("c:p1", "p2", "p3", "C:") %check% "C:p1/p2/p3"
+
+
+# in 1.0.2-60 fixed mistake where forgot to
+# nul terminate a string with no pathspec
+path.join("//host/share") %check% "//host/share"
+
+
+# in 1.1.0 fixed mistake where the non empty path spec was ignored
+# because preceding path specs were empty
+path.join("C:", "c:test") %check% "c:test"
+
 
 
 

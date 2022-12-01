@@ -8,9 +8,6 @@
 \packageDescription{this.path}
 }
 \details{
-The three most important functions from this package are \code{this.path},
-\code{this.dir}, and \code{here}.
-
 \code{\link{this.path}()} returns the
 \code{\link[base:normalizePath]{normalized}} path of the executing script.
 
@@ -20,6 +17,37 @@ executing script is located.
 
 \code{\link{here}()} constructs file paths relative to the executing script's
 directory.
+
+\code{\link{path.join}()}, \code{\link{basename2}()}, and
+\code{\link{dirname2}()} are replacements for \code{\link{file.path}()},
+\code{\link{basename}()}, and \code{\link{dirname}()} that better handle
+drives, network shares, and a few important edge cases.
+
+\code{\link{splitext}()}, \code{\link{removeext}()}, \code{\link{ext}()}, and
+\code{\link{ext<-}()} split paths into root and extension, remove extensions,
+get extensions, and set extensions, respectively.
+
+\code{\link{check.path}()} and \code{\link{check.dir}()} check that
+\code{\link{this.path}()} and \code{\link{this.dir}()} are functioning
+correctly.
+
+\code{\link{as.rel.path}()} ( or \code{\link{as.relative.path}()} ) will turn
+absolute paths into relative paths.
+
+\code{\link{asArgs}()}, \code{\link{fileArgs}()}, \code{\link{progArgs}()}, and
+\code{\link{withArgs}()} provide functionality for running scripts with
+arguments in the same session, as opposed to a new one with
+\code{\link[utils]{Rscript}}.
+
+\code{\link{is.main}()} and \code{\link{from.shell}()} determine if an \R
+script is the main executing script or is run from a shell.
+
+\code{\link{shFILE}()} and \code{\link{normalized.shFILE}()} extract
+\option{FILE} from the command line arguments.
+
+\code{\link{tryCatch2}()} adds argument \code{else.} that runs if no error is
+thrown. This helps to run extra code that is not intended to be protected by
+the condition handlers.
 }
 \note{
 This package started from a stack overflow posting, found at:
@@ -40,17 +68,7 @@ Maintainer: \packageMaintainer{this.path}
 }
 \keyword{ package }
 \seealso{
-The main functions from \pkg{this.path}: \code{\link{this.path}},
-\code{\link{this.dir}}, \code{\link{here}}
-
-Check \code{this.path()} is functioning correctly: \code{\link{check.path}},
-\code{\link{check.dir}}
-
-Extract \option{FILE} from command line arguments: \code{\link{shFILE}},
-\code{\link{normalized.shFILE}}
-
-\code{\link[base]{source}}, \code{\link[base]{sys.source}}, \href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}},
-\code{\link[testthat:source_file]{testthat::source_file}}
+\sourcelinks{}
 
 \code{\link{R.from.shell}}
 }

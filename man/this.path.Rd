@@ -1,9 +1,8 @@
 \name{this.path}
 \alias{this.path}
 \alias{this.dir}
-\alias{this.path2-deprecated}
-\alias{this.dir2-deprecated}
-\alias{this.dir3-deprecated}
+\alias{Sys.path}
+\alias{Sys.dir}
 \title{Determine Executing Script's Filename
 }
 \description{
@@ -13,34 +12,44 @@ path of the executing script.
 \code{this.dir()} returns the \code{\link[base:normalizePath]{normalized}} path
 of the directory in which the executing script is located.
 
-\code{this.path2()}, \code{this.dir2()}, and \code{this.dir3()} are from an old
-release that did not include \code{default} as an argument in
-\code{this.path()} or \code{this.dir()}. They should not be used in future code
-development and should be removed from older code.
+See also \code{\link{here}()} for constructing paths to files, starting with
+\code{this.dir()}.
+
+\code{Sys.path()} and \code{Sys.dir()} are versions of \code{this.path()} and
+\code{this.dir()} that takes no arguments.
 }
 \usage{
-this.path(verbose = getOption("verbose"), default, else.)
-this.dir(..., default, else.)
+this.path(verbose = getOption("verbose"), original = FALSE,
+    for.msg = FALSE, default, else.)
+this.dir (verbose = getOption("verbose"), default, else.)
 
-this.path2(...)  # deprecated, use this.path(..., default = NULL) instead
-this.dir2(...)   # deprecated, use this.dir(..., default = NULL) instead
-
-this.dir3(...)   # deprecated, use this.dir(..., default = getwd()) instead
+Sys.path()  # short for 'this.path(verbose = FALSE)'
+Sys.dir ()  # short for 'this.dir (verbose = FALSE)'
 }
 \arguments{
   \item{verbose}{
 \code{TRUE} or \code{FALSE}; should the method in which the path was determined
 be printed?
   }
+  \item{original}{
+\code{TRUE}, \code{FALSE}, or \code{NA}; should the original or the normalized
+path be returned? \code{NA} means the normalized path will be returned if it
+has already been forced, and the original path if not.
+  }
+  \item{for.msg}{
+\code{TRUE} or \code{FALSE}; do you want the path for the purpose of printing a
+diagnostic message / / warning / / error? This will return \code{NA_character_}
+in most cases where an error would've be thrown.
+
+\code{for.msg = TRUE} will ignore \code{original = FALSE}, and will
+use \code{original = NA} instead.
+  }
   \item{default}{
 if there is no executing script, this value is returned.
   }
   \item{else.}{
-missing or a function to call on the return value if there is an executing
-script. See \code{\link{tryCatch2}} for inspiration.
-  }
-  \item{\dots}{
-arguments passed to \code{this.path}.
+missing or a function to apply if there is an executing script. See
+\code{\link{tryCatch2}} for inspiration.
   }
 }
 \details{
@@ -49,9 +58,7 @@ There are three ways in which \R code is typically run:
   \item in \sQuote{RStudio} / / \sQuote{Rgui} / / \sQuote{VSCode} by running
         the current line / / selection with the \strong{Run} button / /
         appropriate keyboard shortcut
-  \item through a source call: a call to function \code{\link[base]{source}},
-        \code{\link[base]{sys.source}}, \href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}}
-        in \sQuote{RStudio}, or \code{\link[testthat:source_file]{testthat::source_file}}
+  \item through a source call: a call to function \sourceorlist{}
   \item from a shell, such as the Windows command-line / / Unix terminal
 }
 
@@ -62,10 +69,11 @@ To retrieve the executing script's filename, first an attempt is made to find a
 source call. The calls are searched in reverse order so as to grab the most
 recent source call in the case of nested source calls. If a source call was
 found, the argument \var{file} (\var{fileName} in the case of
-\code{debugSource}, \var{path} in the case of \code{testthat::source_file}) is
-returned from the function's evaluation environment. If you have your own
-source-like function that you'd like to be recognized by \code{this.path},
-please contact the package maintainer so that it can be implemented.
+\code{debugSource}, \var{path} in the case of \code{testthat::source_file},
+\var{input} in the case of \code{knitr::knit}) is returned from the function's
+evaluation environment. If you have your own source-like function that you'd
+like to be recognized by \code{this.path}, please contact the package
+maintainer so that it can be implemented.
 
 If no source call is found up the calling stack, then an attempt is made to
 figure out how \R is currently being used.
@@ -146,9 +154,8 @@ character string; the executing script's filename.
 % filename
 %   }
 %   \item{
-% using \code{\link[base]{sys.source}} or
-% \code{\link[testthat:source_file]{testthat::source_file}} on a file named
-% \dQuote{clipboard}, \dQuote{clipboard-128}, or \dQuote{stdin}
+% using \syssourcelink{} or \sourcefilelink{} on a file named
+% \dQuote{clipboard} or \dQuote{stdin}
 %   }
 %   \item{
 % active / / source document in \sQuote{RStudio} / / \sQuote{Rgui} does not exist
@@ -162,10 +169,11 @@ character string; the executing script's filename.
 \note{
 The first time \code{this.path} is called within a script, it will
 \code{\link[base:normalizePath]{normalize}} the script's path, check that the
-script exists (throwing an error if it does not), and save it in the appropriate
-environment. When \code{this.path} is called subsequent times within the same
-script, it returns the saved path. This will be faster than the first time, will
-not check for file existence, and will be independent of the working directory.
+script exists (throwing an error if it does not), and save it in the
+appropriate environment. When \code{this.path} is called subsequent times
+within the same script, it returns the saved path. This will be faster than the
+first time, will not check for file existence, and will be independent of the
+working directory.
 
 As a side effect, this means that a script can delete itself using
 \code{\link[base:files]{file.remove}} or \code{\link[base]{unlink}} but still
@@ -192,10 +200,11 @@ before calling \code{this.path} at least once.
 
 \code{\link{shFILE}}
 
+\code{\link{wrap.source}}, \code{\link{inside.source}}
+
 \code{\link{this.path-package}}
 
-\code{\link[base]{source}}, \code{\link[base]{sys.source}}, \href{https://support.rstudio.com/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}},
-\code{\link[testthat:source_file]{testthat::source_file}}
+\sourcelinks{}
 
 \code{\link{R.from.shell}}
 }
@@ -601,11 +610,10 @@ before calling \code{this.path} at least once.
 %
 %
 %
-\examples{\dontshow{.unload <- !isNamespaceLoaded("testthat")}
-this.path:::write.code(file = FILE <- tempfile(), {
-
+\examples{\dontshow{.unload.testthat <- !isNamespaceLoaded("testthat") ; .unload.knitr <- !isNamespaceLoaded("knitr")}
+FILE <- tempfile(fileext = ".R")
+this.path:::write.code({
     withAutoprint({
-
         cat(sQuote(this.path::this.path(verbose = TRUE, default = {
             stop("interestingly enough, because the executing script's\\n",
                 "  path will be found, argument 'default' won't be evaluated,\\n",
@@ -614,10 +622,8 @@ this.path:::write.code(file = FILE <- tempfile(), {
                 "  manner, doing arbitrary things only if the executing\\n",
                 "  script does not exist")
         })), "\\n\\n")
-
-    }, width.cutoff = 60L, verbose = FALSE)
-
-})
+    }, spaced = TRUE, verbose = FALSE, width.cutoff = 60L)
+}, FILE)
 
 
 source(FILE, verbose = FALSE)
@@ -626,6 +632,24 @@ if (.Platform$GUI == "RStudio")
     get("debugSource", "tools:rstudio", inherits = FALSE)(FILE)
 if (requireNamespace("testthat"))
     testthat::source_file(FILE, chdir = FALSE, wrap = FALSE)
+if (requireNamespace("knitr")) {
+    writeLines(con = FILE2 <- tempfile(fileext = ".Rmd"), c(
+        "```{r}",
+        # same expression as above
+        deparse(parse(FILE)[[c(1L, 2L, 2L)]]),
+        "```"
+    ))
+    knitr::knit(input = FILE2, output = FILE3 <- tempfile(fileext = ".md"),
+        quiet = TRUE)
+    cat(sprintf("\\n$ cat -bsT \%s\\n", shQuote(FILE2)))
+    this.path:::cat.file(FILE2, number.nonblank = TRUE,
+        squeeze.blank = TRUE, show.tabs = TRUE)
+    cat(sprintf("\\n$ cat -bsT \%s\\n", shQuote(FILE3)))
+    this.path:::cat.file(FILE3, number.nonblank = TRUE,
+        squeeze.blank = TRUE, show.tabs = TRUE)
+    cat("\\n")
+    unlink(c(FILE3, FILE2))
+}
 
 
 this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE))
@@ -643,15 +667,18 @@ for (expr in c("this.path()",
                "this.dir()",
                "this.dir(default = NULL)",
                "this.dir(default = getwd())"))
+{
+    cat("\\n\\n")
     this.path:::.Rscript(c("--default-packages=this.path", "--vanilla", "-e", expr))
+}
 
 
 # an example from R package 'logr'
 this.path::this.path(verbose = FALSE, default = "script.log",
-    else. = function(x) {
-        x <- if (.Platform$OS.type == "windows")
-            sub("[.][^.\\\\/]+$", "", x)
-        else sub("[.][^./]+$", "", x)
-        paste0(x, ".log")
+    else. = function(path) {
+        # replace extension (probably .R) with .log
+        this.path::ext(path) <- ".log"
+        path
+        # or you could use paste0(this.path::removeext(path), ".log")
     })
-\dontshow{unlink(FILE) ; if (.unload) unloadNamespace("testthat")}}
+\dontshow{unlink(FILE) ; if (.unload.testthat) unloadNamespace("testthat") ; if (.unload.knitr) unloadNamespace("knitr")}}
