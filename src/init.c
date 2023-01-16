@@ -2,6 +2,13 @@
 #include "this.path.h"
 
 
+/*
+I used to have some C functions called using .Call(.),
+but I switched entirely to .External2(.) instead,
+so now this array is empty.
+
+I could remove this, but it's not causing any harm
+ */
 static const R_CallMethodDef callRoutines[] = {
     {NULL, NULL, 0}
 };
@@ -57,7 +64,8 @@ static const R_ExternalMethodDef externalRoutines[] = {
     /* hooks-for-namespace-events.c */
 
 
-    {"onload", (DL_FUNC) &do_onload, 2},
+    {"onload"  , (DL_FUNC) &do_onload  , 2},
+    {"onunload", (DL_FUNC) &do_onunload, 1},
 
 
     /* isabspath.c */
@@ -80,6 +88,7 @@ static const R_ExternalMethodDef externalRoutines[] = {
 
 
     {"isunevaluatedpromise"    , (DL_FUNC) &do_isunevaluatedpromise    , -1},
+    {"promiseisunevaluated"    , (DL_FUNC) &do_promiseisunevaluated    , -1},
     {"getpromisewithoutwarning", (DL_FUNC) &do_getpromisewithoutwarning, -1},
     {"prinfo"                  , (DL_FUNC) &do_prinfo                  , -1},
 
@@ -88,6 +97,7 @@ static const R_ExternalMethodDef externalRoutines[] = {
 
 
     {"shfile", (DL_FUNC) &do_shfile, 2},
+    {"shinfo", (DL_FUNC) &do_shinfo, 0},
 
 
     /* thispath.c */
@@ -99,8 +109,11 @@ static const R_ExternalMethodDef externalRoutines[] = {
     {"thispathnotexistserror"                  , (DL_FUNC) &do_thispathnotexistserror                  , 2},
     {"thispathinzipfileerror"                  , (DL_FUNC) &do_thispathinzipfileerror                  , 2},
     {"thispathinaquaerror"                     , (DL_FUNC) &do_thispathinaquaerror                     , 1},
-    {"isclipboard", (DL_FUNC) &do_isclipboard, 1},
-    {"thispath"   , (DL_FUNC) &do_thispath   , 5},
+
+    {"isclipboard"     , (DL_FUNC) &do_isclipboard     ,  1},
+    {"thispath"        , (DL_FUNC) &do_thispath        ,  5},
+    {"inittoolsrstudio", (DL_FUNC) &do_inittoolsrstudio, -1},
+    {"thispathrgui"    , (DL_FUNC) &do_thispathrgui    ,  5},
 
 
     /* wrapsource.c */
@@ -109,6 +122,7 @@ static const R_ExternalMethodDef externalRoutines[] = {
     {"setprseen2"  , (DL_FUNC) &do_setprseen2  ,  1},
     {"wrapsource"  , (DL_FUNC) &do_wrapsource  , 20},
     {"insidesource", (DL_FUNC) &do_insidesource, 20},
+    {"setthispath" , (DL_FUNC) &do_setthispath , 20},
 
 
     {NULL, NULL, 0}

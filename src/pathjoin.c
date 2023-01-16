@@ -74,16 +74,18 @@ SEXP do_windowspathjoin(SEXP call, SEXP op, SEXP args, SEXP rho)
             /* coerce the object to string if needed */        \
             if (!isString(xi)) {                               \
                 if (OBJECT(xi)) {                              \
-                    SEXP call2 = lang2(                        \
-                        findVarInFrame(R_BaseEnv, R_AsCharacterSymbol),\
-                        lang2(                                 \
-                            findVarInFrame(R_BaseEnv, R_QuoteSymbol),\
-                            xi                                 \
-                        )                                      \
-                    );                                         \
-                    PROTECT(call2);                            \
-                    SET_VECTOR_ELT(x, i, eval(call2, rho));    \
-                    UNPROTECT(1);                              \
+                    SEXP expr = allocList(2);                  \
+                    PROTECT(expr);                             \
+                    SET_TYPEOF(expr, LANGSXP);                 \
+                    SETCAR(expr, findVarInFrame(R_BaseEnv, R_AsCharacterSymbol));\
+                    SEXP expr2 = allocList(2);                 \
+                    PROTECT(expr2);                            \
+                    SET_TYPEOF(expr2, LANGSXP);                \
+                    SETCAR(expr2, findVarInFrame(R_BaseEnv, R_QuoteSymbol));\
+                    SETCADR(expr2, xi);                        \
+                    SETCADR(expr, expr2);                      \
+                    SET_VECTOR_ELT(x, i, eval(expr, rho));     \
+                    UNPROTECT(2);                              \
                 }                                              \
                 else if (isSymbol(xi))                         \
                     SET_VECTOR_ELT(x, i, ScalarString(PRINTNAME(xi)));\
@@ -176,7 +178,7 @@ SEXP do_windowspathjoin(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
             /* look for a drivespec in ptr */
-            drivewidth = get_drive_width(ptr, nchar);
+            drivewidth = get_drive_width_windows(ptr, nchar);
 
 
             /* if we have no already found an absolute pathspec,
@@ -297,7 +299,7 @@ SEXP do_windowspathjoin(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
                 /* look for a drivespec in ptr */
-                maybe_drivewidth = get_drive_width(maybe_ptr, maybe_nchar);
+                maybe_drivewidth = get_drive_width_windows(maybe_ptr, maybe_nchar);
 
 
                 if (maybe_drivewidth) {
@@ -509,7 +511,7 @@ SEXP do_windowspathjoin(SEXP call, SEXP op, SEXP args, SEXP rho)
                  * be sure to chop off the drive before pasting
                  */
                 if (i <= drive_indx) {
-                    drivewidth = get_drive_width(ptr, nchar);
+                    drivewidth = get_drive_width_windows(ptr, nchar);
                     ptr += drivewidth;
                     nchar -= drivewidth;
 

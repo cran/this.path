@@ -134,6 +134,8 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
     if (N <= 0) {
+
+
 #define toplevel                                               \
         if (get_frame_number) return ScalarInteger(0);         \
         SEXP expr;                                             \
@@ -149,7 +151,6 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
         returnthis = eval(expr, rho);                          \
         UNPROTECT(1);                                          \
         return returnthis
-        /* exclude the ; on purpose */
 
 
         toplevel;
@@ -163,6 +164,9 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
     int nprotect = 0;
+
+
+    init_tools_rstudio(FALSE);
 
 
     int testthat_loaded, knitr_loaded;
@@ -415,7 +419,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
         }
 
 
-        else if (gui_rstudio && identical(function, debugSource)) {
+        else if (has_tools_rstudio && identical(function, debugSource)) {
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
                 ofile = findVarInFrame(frame, fileNameSymbol);
                 if (ofile == R_UnboundValue)
@@ -642,4 +646,157 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 #undef toplevel
 #undef returnfile
+}
+
+
+SEXP do_inittoolsrstudio(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    Rboolean skipCheck = FALSE;
+    int nargs = length(args) - 1;
+    if (nargs == 0) {
+    }
+    else if (nargs == 1) {
+        skipCheck = asLogical(CADR(args));
+    }
+    else errorcall(call, wrong_nargs_to_External(nargs, "C_inittoolsrstudio", "0 or 1"));
+    return ScalarLogical(init_tools_rstudio(skipCheck));
+}
+
+
+#include "drivewidth.h"
+
+
+SEXP do_thispathrgui(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    args = CDR(args);
+
+
+    /* titles of the windows in RGui */
+    SEXP wintitle = CAR(args); args = CDR(args);
+    if (!(TYPEOF(wintitle) == STRSXP || wintitle == R_NilValue))
+        errorcall(call, _("invalid first argument, must be %s"), "'character' / / NULL");
+
+
+    /* strings representing non-existent files in RGui */
+    SEXP untitled = CAR(args); args = CDR(args);
+    if (!(TYPEOF(untitled) == STRSXP || untitled == R_NilValue))
+        errorcall(call, _("invalid second argument, must be %s"), "'character' / / NULL");
+
+
+    /* strings representing R scripts in RGui */
+    SEXP r_editor = CAR(args); args = CDR(args);
+    if (!(TYPEOF(r_editor) == STRSXP || r_editor == R_NilValue))
+        errorcall(call, _("invalid third argument, must be %s"), "'character' / / NULL");
+
+
+    Rboolean verbose = asLogical(CAR(args)); args = CDR(args);
+    if (verbose == NA_LOGICAL)
+        errorcall(call, _("invalid '%s' value"), "verbose");
+
+
+    Rboolean for_msg = asLogical(CAR(args)); args = CDR(args);
+    if (for_msg == NA_LOGICAL)
+        errorcall(call, _("invalid '%s' value"), "for.msg");
+
+
+    Rboolean active = TRUE;
+    int n = LENGTH(wintitle);
+    int length_untitled = LENGTH(untitled);
+    int length_r_editor = LENGTH(r_editor);
+    for (int i = 0; i < n; i++) {
+        SEXP wintitle0 = STRING_ELT(wintitle, i);
+        if (wintitle0 == NA_STRING || wintitle0 == R_BlankString) continue;
+        const char *title = CHAR(wintitle0);
+        int nchar_title = (int) strlen(title);
+
+
+        /* if the title and untitled strings are equal (byte-wise, do
+         * not care if encodings match), then the script does not exist
+         */
+        for (int j = 0; j < length_untitled; j++) {
+            SEXP untitled0 = STRING_ELT(untitled, j);
+            if (untitled0 == NA_STRING || untitled0 == R_BlankString) continue;
+            // if (wintitle0 == untitled0) {
+            if (!strcmp(title, CHAR(untitled0))) {
+                if (for_msg) return ScalarString(NA_STRING);
+                error("%s%s",
+                    this_path_used_in_an_inappropriate_fashion,
+                    (active) ? "* active document in Rgui does not exist" :
+                               "* source document in Rgui does not exist");
+            }
+        }
+
+
+        /* if the title ends with R Editor strings (again, bit-wise),
+         * then it is an R script, remove the suffix and return
+         */
+        for (int j = 0; j < length_r_editor; j++) {
+            SEXP r_editor0 = STRING_ELT(r_editor, j);
+            if (r_editor0 == NA_STRING || r_editor0 == R_BlankString) continue;
+            const char *suffix = CHAR(r_editor0);
+            int nchar_suffix = (int) strlen(suffix);
+            int off = nchar_title - nchar_suffix;
+            if (off > 0) {
+                if (memcmp(title + off, suffix, nchar_suffix) == 0) {
+                    SEXP ans = mkCharLenCE(title, off, getCharCE(wintitle0));
+                    if (!is_abs_path_windows(CHAR(ans)))
+                        error("invalid title, path preceding '%s' must be absolute", suffix);
+
+
+#define return_abs_path(charsxp)                               \
+                    if (verbose)                               \
+                        Rprintf((active) ? "Source: active document in Rgui\n" :\
+                                           "Source: source document in Rgui\n");\
+                    SEXP expr = allocList(2);                  \
+                    PROTECT(expr);                             \
+                    SET_TYPEOF(expr, LANGSXP);                 \
+                    SETCAR(expr, _normalizePathSymbol);        \
+                    SETCADR(expr, ScalarString((charsxp)));    \
+                    SEXP returnthis = eval(expr, mynamespace); \
+                    UNPROTECT(1);                              \
+                    return returnthis
+
+
+                    return_abs_path(ans);
+                }
+            }
+        }
+
+
+        /* if found an absolute path, return it */
+        if (is_abs_path_windows(title)) {
+            active = FALSE;
+            return_abs_path(wintitle0);
+        }
+
+
+        /* determine if the executing script is active */
+        if (active) {
+            if (!strcmp(title, "R Console") ||
+                !strcmp(title, "R Console (64-bit)") ||
+                !strcmp(title, "R Console (32-bit)"))
+            {
+                active = FALSE;
+            }
+        }
+    }
+
+
+    if (active) error("no windows in Rgui; should never happen, please report!");
+    if (for_msg) return ScalarString(NA_STRING);
+
+
+    SEXP expr = allocList(2);
+    PROTECT(expr);
+    SET_TYPEOF(expr, LANGSXP);
+    SETCAR(expr, stopSymbol);
+    char msg[256];
+    snprintf(msg, 256, "%s%s",
+        this_path_used_in_an_inappropriate_fashion,
+        "* R is being run from Rgui with no documents open");
+    SEXP call2 = PROTECT(getCurrentCall(rho));
+    SETCADR(expr, thisPathNotExistsError(msg, call2));
+    eval(expr, mynamespace);
+    UNPROTECT(2);
+    return R_NilValue;  /* should not be reached */
 }

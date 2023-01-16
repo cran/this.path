@@ -140,3 +140,7 @@ local({
         fun(testthat::source_file(.(full.path) , env = environment(), chdir = TRUE , wrap = TRUE ))
     }
 })
+
+
+# print(this.path:::HAVE_AQUA)
+# print(this.path:::PATH_MAX)

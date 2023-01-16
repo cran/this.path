@@ -88,11 +88,11 @@ normalizePath.and.URL.1 <- function (path, ...)
 as.relative.path <- as.rel.path <- function (path, relative.to = this.dir(verbose = FALSE))
 {
     if (!is.character(path))
-        stop("invalid 'path' argument")
+        stop(gettextf("invalid '%s' argument", "path", domain = "R"), domain = NA)
     path <- normalizePath.and.URL(path, winslash = "/", mustWork = FALSE)
     if (!missing(relative.to)) {
         if (!is.character(relative.to) || length(relative.to) != 1L)
-            stop("invalid 'relative.to' argument")
+            stop(gettextf("invalid '%s' argument", "relative.to", domain = "R"), domain = NA)
         relative.to <- normalizePath.and.URL.1(relative.to, winslash = "/", mustWork = FALSE)
     }
     relative.to <- path.split.1(relative.to)
@@ -143,5 +143,112 @@ as.relative.path <- as.rel.path <- function (path, relative.to = this.dir(verbos
 }
 
 
+rel2here <- as.rel.path
+
+
 relpath <- as.rel.path
 formals(relpath)["relative.to"] <- alist(getwd())
+
+
+
+
+
+# relative.to <- this.path:::abspath("~/this.path/testing/code")
+#
+#
+# path <- "C:\\Users\\andre\\Documents\\this.path\\testing\\this\\out"
+# # path <- "C:Users\\andre\\Documents\\this.path\\testing\\this\\out"
+# # path <- "test"
+# # path <- "./."
+# # path <- "\\\\LOCALHOST\\\\\\C$///////////////Users\\andre\\Documents\\this.path\\testing\\this\\out"
+#
+#
+# normalizePath2 <- function (path, winslash = "\\")
+# {
+#     x <- path
+#     p <- ""
+#     delayedAssign("returnx", return(x))
+#     repeat {
+#         tryCatch2({
+#             path <- normalizePath(path, winslash, TRUE)
+#         }, error = function(e) {
+#             b <- basename2(path)
+#             if (b == "")
+#                 returnx
+#             if (b != ".")
+#                 p <<- path.join(b, p)
+#             path <<- dirname2(path)
+#         }, else. = {
+#             return(path.join(path, p))
+#         })
+#     }
+# }
+# environment(normalizePath2) <- getNamespace("this.path")
+# normalizePath2 <- compiler::cmpfun(normalizePath2)
+#
+#
+# normalizePath2(path)
+# normalizePath2(relative.to)
+#
+#
+# # path <- "C:\\Users\\andre\\Desktop"
+#
+#
+#
+#
+# new.path.split.1 <- function (path)
+# {
+#     path <- chartr("\\", "/", path)
+#     p <- character(0)
+#     do({
+#         p <- c(basename2(path), p)
+#         path <- dirname2(path)
+#     }) %until% (path == (dir <- dirname2(path)))
+#     p <- c(path, p)
+#     p <- p[p != "."]
+#     if (length(p) <= 0L)
+#         p <- "."
+#     p
+#     p[[1L]] <- gsub("(?<=[^/])/{2,}", "/", p[[1L]], perl = TRUE, useBytes = TRUE)
+#     p[[1L]] <- sub("^(//[^/]+/+[^/]+)/$", "\\1", p[[1L]])
+#     p
+# }
+# environment(new.path.split.1) <- getNamespace("this.path")
+# new.path.split.1 <- compiler::cmpfun(new.path.split.1)
+#
+#
+# new.path.split <- function (path, use.names = TRUE)
+# {
+#     if (!is.character(path))
+#         stop(gettextf("invalid '%s' argument", "path", domain = "R"))
+#     if (use.names) {
+#         value <- lapply(path, new.path.split.1)
+#         names(value) <- path
+#         value
+#     }
+#     else lapply(path, new.path.split.1)
+# }
+# new.path.split <- compiler::cmpfun(new.path.split)
+#
+#
+#
+#
+#
+# xx           <- new.path.split.1(normalizePath2(path))
+# relative.to2 <- new.path.split.1(normalizePath2(relative.to))
+#
+#
+# len <- length(relative.to2)
+# len2 <- length(xx)
+# n <- min(len2, len)
+# n <- match(FALSE, xx[seq_len(n)] == relative.to2[seq_len(n)], n + 1L) - 1L
+# if (n == 0L) {
+#     path
+# } else {
+#     value <- c(rep("..", len - n), xx[seq.int(n + 1L, length.out = len2 - n)])
+#     if (length(value) <= 0L)
+#         "."
+#     else if (!(value[[1L]] %in% c(".", "..")))
+#         paste(c(".", value), collapse = "/")
+#     else paste(value, collapse = "/")
+# }

@@ -85,7 +85,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
             PROTECT(function);
             if (TYPEOF(function) != CLOSXP)
                 context_number = nframe;
-            else if (identical(function, R_getNSValue(R_NilValue, this_pathSymbol, withArgsSymbol, FALSE)))
+            else if (identical(function, getInFrame(withArgsSymbol, mynamespace, FALSE)))
                 context_number = nframe;
             else
                 context_number = sys_parent;
@@ -157,7 +157,25 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
      * save the root promise, the original code of the promise,
      * and make an on.exit() call that will restore said promise
      */
-    eval(lang2(on_exitSymbol, lang3(External2Symbol, C_setprseen2Symbol, ptr)), rho);
+    {
+        /* on.exit(.External2(C_setprseen2, ptr)) */
+        SEXP expr = allocList(3);
+        PROTECT(expr);
+        SET_TYPEOF(expr, LANGSXP);
+        SETCAR(expr, External2Symbol);
+        SETCADR(expr, C_setprseen2Symbol);
+        SETCADDR(expr, ptr);
+
+
+        SEXP expr2 = allocList(2);
+        PROTECT(expr2);
+        SET_TYPEOF(expr2, LANGSXP);
+        SETCAR(expr2, on_exitSymbol);
+        SETCADR(expr2, expr);
+
+
+        eval(expr2, rho);
+    }
 
 
 #define check_validity                                         \
@@ -424,14 +442,13 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
         e = eval(s, env);
 
 
-        SEXP tmp = lang5(
-            findVarInFrame(R_BaseEnv, delayedAssignSymbol),
-            ScalarString(PRINTNAME(thispathtempSymbol)),
-            R_NilValue,
-            R_EmptyEnv,
-            rho
-        );
+        SEXP tmp = allocList(5);
         PROTECT(tmp); nprotect++;
+        SET_TYPEOF(tmp, LANGSXP);
+        SETCAR   (tmp, findVarInFrame(R_BaseEnv, delayedAssignSymbol));
+        SETCADR  (tmp, /* x          */ ScalarString(PRINTNAME(thispathtempSymbol)));
+        SETCADDDR(tmp, /* eval.env   */ R_EmptyEnv);
+        SETCAD4R (tmp, /* assign.env */ rho);
 
 
         eval(tmp, R_EmptyEnv);
@@ -501,7 +518,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
 {
     int nprotect = 0;
     args = CDR(args);  /* skip C_insidesource */
@@ -509,7 +526,7 @@ SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     int sys_parent = asInteger(eval(lang1(sys_parentSymbol), rho));
     if (sys_parent < 1)
-        error("inside.source() cannot be used within the global environment");
+        error("%s() cannot be used within the global environment", name);
 
 
     SEXP expr = lang2(sys_functionSymbol, ScalarInteger(sys_parent));
@@ -517,35 +534,41 @@ SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
     SEXP function = eval(expr, rho);
     PROTECT(function);
     if (TYPEOF(function) != CLOSXP)
-        error("inside.source() cannot be used within a '%s', possible errors with eval?", type2char(TYPEOF(function)));
+        error("%s() cannot be used within a '%s', possible errors with eval?",
+              name, type2char(TYPEOF(function)));
 
 
     /* ensure 'inside.source()' is not called from one of the source-like functions */
     if (identical(function, getInFrame(sourceSymbol, R_BaseEnv, FALSE)))
-        error("inside.source() cannot be called within source()");
+        error("%s() cannot be called within source()", name);
     else if (identical(function, getInFrame(sys_sourceSymbol, R_BaseEnv, FALSE)))
-        error("inside.source() cannot be called within sys.source()");
+        error("%s() cannot be called within sys.source()", name);
 
 
-    SEXP debugSource = get_debugSource;
-    if (gui_rstudio && identical(function, debugSource))
-        error("inside.source() cannot be called within debugSource() in RStudio");
+    init_tools_rstudio(FALSE);
+
+
+    if (has_tools_rstudio) {
+        if (identical(function, get_debugSource)) {
+            error("%s() cannot be called within debugSource() in RStudio", name);
+        }
+    }
 
 
     int testthat_loaded;
     SEXP source_file = get_source_file(testthat_loaded);
     if (testthat_loaded && identical(function, source_file))
-        error("inside.source() cannot be called within source_file() in package testthat");
+        error("%s() cannot be called within source_file() in package testthat", name);
 
 
     int knitr_loaded;
     SEXP knit = get_knit(knitr_loaded);
     if (knitr_loaded && identical(function, knit))
-        error("inside.source() cannot be called within knit() in package knitr");
+        error("%s() cannot be called within knit() in package knitr", name);
 
 
     if (identical(function, get_wrap_source))
-        error("inside.source() cannot be called within wrap.source() in package this.path");
+        error("%s() cannot be called within wrap.source() in package this.path", name);
 
 
     UNPROTECT(2);  /* expr & function */
@@ -560,23 +583,23 @@ SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     /* ensure 'inside.source()' isn't evaluated in an invalid environment */
     if (frame == R_GlobalEnv)
-        error("inside.source() cannot be used within the global environment");
+        error("%s() cannot be used within the global environment", name);
     else if (frame == R_BaseEnv)
-        error("inside.source() cannot be used within the base environment");
+        error("%s() cannot be used within the base environment", name);
     else if (frame == R_EmptyEnv)
-        error("inside.source() cannot be used within the empty environment");
+        error("%s() cannot be used within the empty environment", name);
     else if (R_IsPackageEnv(frame))
-        error("inside.source() cannot be used within a package environment");
+        error("%s() cannot be used within a package environment", name);
     else if (R_IsNamespaceEnv(frame))
-        error("inside.source() cannot be used within a namespace environment");
+        error("%s() cannot be used within a namespace environment", name);
     else if (R_EnvironmentIsLocked(frame))
-        error("inside.source() cannot be used within a locked environment");
+        error("%s() cannot be used within a locked environment", name);
 
 
     if (findVarInFrame(frame, insidesourcewashereSymbol) != R_UnboundValue)
-        error("inside.source() cannot be called more than once within an environment");
+        error("%s() cannot be called more than once within an environment", name);
     if (findVarInFrame(frame, thispathdoneSymbol) != R_UnboundValue)
-        error("inside.source() cannot be called within this environment");
+        error("%s() cannot be called within this environment", name);
 
 
     /* why would this be NA?? idk but might as well test for it anyway */
@@ -639,6 +662,18 @@ SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
     set_thispathn(sys_parent, frame);
     UNPROTECT(nprotect + 1);  /* +1 for returnvalue */
     return returnvalue;
+}
+
+
+SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    return _insidesource(call, op, args, rho, "inside.source");
+}
+
+
+SEXP do_setthispath(SEXP call, SEXP op, SEXP args, SEXP rho)
+{
+    return _insidesource(call, op, args, rho, "set.this.path");
 }
 
 
