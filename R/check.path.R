@@ -1,115 +1,29 @@
 
 
-URL.pattern <- "^((?:ftp|ftps|http|https)://[^/]+)(?:/+(.*))?$"
-#               ^                                            ^ start and end of the string
-#                    ^^^^^^^^^^^^^^^^^^^^^^^                   ftp:// or ftps:// or http:// or https://
-#                                           ^^^^^              series of non-slash characters
-#                ^                               ^             the root of the URL
-#                                                    ^^^^^^    more paths
-#                                                           ^  more paths are optional
+# URL.pattern <- "^((?:ftp|ftps|http|https)://[^/]+)(?:/+(.*))?$"
+# #               ^                                            ^ start and end of the string
+# #                    ^^^^^^^^^^^^^^^^^^^^^^^                   ftp:// or ftps:// or http:// or https://
+# #                                           ^^^^^              series of non-slash characters
+# #                ^                               ^             the root of the URL
+# #                                                    ^^^^^^    more paths
+# #                                                           ^  more paths are optional
 #                  ^^                              ^^          non-capturing groups
 
 
-UNC.pattern <- "^(?:(//[^/]+)/+([^/]+))(?:/+(.*))?$"
-#               ^                                 ^ start and end of the string
-#                    ^^                             two slashes
-#                      ^^^^^    ^^^^^               series of non-slash characters, the host and share name
-#                            ^^                     one or more slashes
-#                                         ^^^^^^    more paths
-#                                                ^  more paths are optional
-#                 ^^                    ^^          non-capturing groups
+# UNC.pattern <- "^(?:(//[^/]+)/+([^/]+))(?:/+(.*))?$"
+# #               ^                                 ^ start and end of the string
+# #                    ^^                             two slashes
+# #                      ^^^^^    ^^^^^               series of non-slash characters, the host and share name
+# #                            ^^                     one or more slashes
+# #                                         ^^^^^^    more paths
+# #                                                ^  more paths are optional
+# #                 ^^                    ^^          non-capturing groups
 
 
-path.split <- function (path)
-{
-    if (!is.character(path))
-        stop(gettextf("invalid '%s' argument", "path"))
-    value <- vector("list", length(path))
-    if (any(URL <- grepl(URL.pattern, path)))
-        value[URL] <- path.split.URL(path[URL])
-    if (any(leftover <- !URL))
-        value[leftover] <- path.split.UNC.and.default(path[leftover])
-    value
-}
-
-
-path.split.1 <- function (path)
-{
-    if (grepl(URL.pattern, path))
-        path.split.URL.1(path)
-    else path.split.UNC.and.default.1(path)
-}
-
-
-path.split.URL <- function (path)
-{
-    # tested a version which uses one call to regmatches and regexec,
-    # thinking it might be faster than two calls to sub
-    #
-    # it's not lmao, this is as fast as it gets
-    root <- sub(URL.pattern, "\\1", path)
-    rest <- sub(URL.pattern, "\\2", path)
-    .mapply(c, list(root, strsplit(rest, "/+")), NULL)
-}
-
-
-path.split.URL.1 <- function (path)
-{
-    # path <- "https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R"
-
-
-    c(sub(URL.pattern, "\\1", path), strsplit(sub(URL.pattern, "\\2", path), "/+")[[1L]])
-}
-
-
-path.split.UNC.and.default <- function (path)
-{
-    value <- vector("list", length(path))
-    path <- if (os.windows)
-        chartr("\\", "/", path.expand(path))
-    else path.expand(path)
-    if (any(UNC <- grepl(UNC.pattern, path)))
-        value[UNC] <- path.split.UNC(path[UNC])
-    if (any(leftover <- !UNC))
-        value[leftover] <- path.split.default(path[leftover])
-    value
-}
-
-
-path.split.UNC.and.default.1 <- function (path)
-{
-    path <- if (os.windows)
-        chartr("\\", "/", path.expand(path))
-    else path.expand(path)
-    if (grepl(UNC.pattern, path))
-        path.split.UNC.1(path)
-    else path.split.default.1(path)
-}
-
-
-path.split.UNC <- function (path)
-{
-    root <- sub(UNC.pattern, "\\1/\\2", path)
-    rest <- sub(UNC.pattern, "\\3"    , path)
-    .mapply(c, list(root, strsplit(rest, "/+")), NULL)
-}
-
-
-path.split.UNC.1 <- function (path)
-{
-    # path <- "//host-name/share-name/path/to/file"
-
-
-    c(sub(UNC.pattern, "\\1/\\2", path), strsplit(sub(UNC.pattern, "\\3", path), "/+")[[1L]])
-}
-
-
-path.split.default <- function (path)
-strsplit(path, "/+")
-
-
-path.split.default.1 <- function (path)
-strsplit(path, "/+")[[1L]]
+# c(
+#     "https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R",
+#     "//host/share/path/to/file"
+# )
 
 
 tmp <- function (x, varname, name)
@@ -119,20 +33,33 @@ tmp <- function (x, varname, name)
         expected <- path.join(...)
         if (!is.character(expected) || length(expected) != 1L)
             stop(gettextf("'%s' must be a character string", "expected", domain = "R"))
+        if (!nzchar(expected))
+            stop(gettextf("'%s' must not be \"\"", "expected"))
         expected <- path.split.1(expected)
+        if (check.wd <- expected[[1L]] == ".")
+            expected <- expected[-1L]
         varname <- .
         varname <- path.split.1(varname)
         if (length(varname) < length(expected) || {
-            varname <- varname[seq.int(to = length(varname), along.with = expected)]
-            any(varname != expected)
+            i <- seq_along(varname) > length(varname) - length(expected)
+            any(varname[i] != expected)
         })
         {
-            expected <- paste(expected, collapse = "/")
-            varname <- paste(varname, collapse = "/")
+            expected <- path.unsplit(expected)
+            varname <- path.unsplit(varname[i])
             stop(msg1,
                 paste0(msg2, {
                     encodeString(c(varname, expected), quote = "\"")
                 }, collapse = "\n"))
+        }
+        if (check.wd) {
+            expected <- path.unsplit(varname[!i])
+            if (relpath(expected) != ".") {
+                stop("'getwd()' and expected path do not match\n",
+                    paste0(c("* getwd() : ", "* expected: "), {
+                        encodeString(c(getwd(), expected), quote = "\"")
+                    }, collapse = "\n"))
+            }
         }
         invisible(TRUE)
     }, list(
@@ -158,7 +85,43 @@ body(check.dir) <- tmp(quote(.this.dir()), "thisdir", "this.dir()")
 rm(tmp)
 
 
-# this.path:::path.split(c(
+check.proj <- function (...)
+{
+    expected <- path.join(...)
+    if (!is.character(expected) || length(expected) != 1L)
+        stop(gettextf("'%s' must be a character string", "expected", domain = "R"))
+    if (!nzchar(expected))
+        stop(gettextf("'%s' must not be \"\"", "expected"))
+    expected <- path.split.1(expected)
+    if (check.wd <- expected[[1L]] == ".")
+        expected <- expected[-1L]
+    thispath <- .this.path()
+    thispath <- path.split.1(thispath)
+    thisproj <- .this.proj()
+    thisproj <- path.split.1(thisproj)
+    i <- seq_along(thispath) > length(thisproj)
+    if (sum(i) != length(expected) || any(thispath[i] != expected))  {
+        expected <- path.unsplit(expected)
+        thispath <- path.unsplit(thispath[i])
+        stop("path within project and expected path do not match\n",
+             paste0(c("* project path: ", "* expected    : "), {
+                 encodeString(c(thispath, expected), quote = "\"")
+             }, collapse = "\n"))
+    }
+    if (check.wd) {
+        expected <- path.unsplit(thispath[!i])
+        if (relpath(expected) != ".") {
+            stop("'getwd()' and expected path do not match\n",
+                 paste0(c("* getwd() : ", "* expected: "), {
+                     encodeString(c(getwd(), expected), quote = "\"")
+                 }, collapse = "\n"))
+        }
+    }
+    invisible(TRUE)
+}
+
+
+# path.split(c(
 #     this.path(),
 #     "~/this.path",
 #     "testing//this/out",

@@ -1,77 +1,91 @@
 \name{this.path-package}
 \alias{this.path-package}
 \docType{package}
-\title{
-Get Executing Script's Path, from \sQuote{Rgui}, \sQuote{RStudio},
-\sQuote{VSCode}, \code{source()}, and \command{Rscript} (Shells Including
-Windows Command Line / / Unix Terminal)
-}
+\title{Get Executing Script's Path, from \sQuote{Rgui}, \sQuote{\RStudio},
+  \sQuote{\VSCode}, \sQuote{\Jupyter}, \sourcelink{}, and
+  \code{\link[utils]{Rscript}} (Shells Including Windows Command-Line / / Unix
+  Terminal)}
 \description{
-Determine the path of the executing script. Works when running a line or
-selection in \sQuote{Rgui}, \sQuote{RStudio}, and \sQuote{VSCode}, when using
-\sourceandlist{}, and when running from a shell.
+  Determine the path of the executing script. Works when running a line or
+  selection in \sQuote{Rgui}, \sQuote{\RStudio}, \sQuote{\VSCode}, and
+  \sQuote{\Jupyter}, when using \sourcesandlistlinks{}, and when running from a
+  shell.
 }
 \details{
-\code{\link{this.path}()} returns the
-\code{\link[base:normalizePath]{normalized}} path of the executing script.
+  The most important functions from \pkg{this.path} are
+  \code{\link{this.path}()}, \code{\link{this.dir}()}, \code{\link{here}()},
+  and \code{\link{this.proj}()}:
 
-\code{\link{this.dir}()} returns the
-\code{\link[base:normalizePath]{normalized}} path of the directory in which the
-executing script is located.
+  \itemize{
+    \item{\code{\link{this.path}()} returns the normalized path of the
+      executing script.}
 
-\code{\link{here}()} constructs file paths relative to the executing script's
-directory.
+    \item{\code{\link{this.dir}()} return the normalized path of the directory
+      in which the executing script is located.}
 
-\code{\link{path.join}()}, \code{\link{basename2}()}, and
-\code{\link{dirname2}()} are replacements for \code{\link{file.path}()},
-\code{\link{basename}()}, and \code{\link{dirname}()} that better handle
-drives, network shares, and a few important edge cases.
+    \item{\code{\link{here}()} constructs file paths against the executing
+      script's directory.}
 
-\code{\link{splitext}()}, \code{\link{removeext}()}, \code{\link{ext}()}, and
-\code{\link{ext<-}()} split paths into root and extension, remove extensions,
-get extensions, and set extensions, respectively.
+    \item{\code{\link{this.proj}()} constructs file paths against the executing
+      project's directory instead of the executing script's directory.}
+  }
 
-\code{\link{check.path}()} and \code{\link{check.dir}()} check that
-\code{\link{this.path}()} and \code{\link{this.dir}()} are functioning
-correctly.
+  \pkg{this.path} also provides functions for constructing and manipulating
+  file paths:
 
-\code{\link{as.rel.path}()} ( or \code{\link{as.relative.path}()} ) will turn
-absolute paths into relative paths.
+  \itemize{
+    \item{\code{\link{path.join}()}, \code{\link{basename2}()}, and
+      \code{\link{dirname2}()} are drop in replacements for
+      \code{\link[base]{file.path}()}, \code{\link[base]{basename}()}, and
+      \code{\link[base:basename]{dirname}()} which better handle drives and
+      network shares.}
 
-\code{\link{asArgs}()}, \code{\link{fileArgs}()}, \code{\link{progArgs}()}, and
-\code{\link{withArgs}()} provide functionality for running scripts with
-arguments in the same session, as opposed to a new one with
-\code{\link[utils]{Rscript}}.
+    \item{\code{\link{splitext}()}, \code{\link{removeext}()},
+      \code{\link{ext}()}, and \code{\link{ext<-}()} split a path into root and
+      extension, remove a file extension, get an extension, or set an extension
+      for a file path.}
 
-\code{\link{is.main}()} and \code{\link{from.shell}()} determine if an \R
-script is the main executing script or is run from a shell.
+    \item{\code{\link{path.split}()}, \code{\link{path.split.1}()}, and
+      \code{\link{path.unsplit}()} split the path to a file into components.}
 
-\code{\link{shFILE}()} extracts \option{FILE} from the command line arguments.
+    \item{\code{\link{relpath}()} and \code{\link{rel2here}()} turn absolute
+      paths into relative paths.}
+  }
 
-\code{\link{tryCatch2}()} adds argument \code{else.} that runs if no error is
-thrown. This helps to run extra code that is not intended to be protected by
-the condition handlers.
+  New additions to \pkg{this.path} include:
+
+  \itemize{
+    \item{\code{\link{LINENO}()} returns the line number of the executing
+      expression in the executing script.}
+
+    \item{\code{\link{wrap.source}()}, \code{\link{inside.source}()},
+      \code{\link{set.this.path}()}, and \code{\link{unset.this.path}()}
+      implement \code{\link{this.path}()} for any \sourcelink{}-like functions
+      outside of \sourcesandlistlinks{}.}
+
+    \item{\code{\link{shFILE}()} looks through the command line arguments,
+      extracting \option{FILE} from either of the following: \option{-f}
+      \option{FILE} or \option{--file=FILE}}
+  }
 }
 \note{
-This package started from a stack overflow posting, found at:
+  This package started from a stack overflow posting, found at:
 
-\href{https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script}{
-https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script
-}
+  \href{https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script}{https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script}
 
-If you like this package, please consider upvoting my answer so that more
-people will see it! If you have an issue with this package, please use
-\code{\link[utils:bug.report]{utils::bug.report}(package = "this.path")} to
-report your issue.
+  If you like this package, please consider upvoting my answer so that more
+  people will see it! If you have an issue with this package, please use
+  \code{\link[utils:bug.report]{utils::bug.report}(package = "this.path")} to
+  report your issue.
 }
 \author{
-\packageAuthor{this.path}
+  \packageAuthor{this.path}
 
-Maintainer: \packageMaintainer{this.path}
+  Maintainer: \packageMaintainer{this.path}
 }
 \keyword{ package }
 \seealso{
-\sourcelinks{}
+  \sourceslistlinks{}
 
-\code{\link{R.from.shell}}
+  \code{\link{R.from.shell}}
 }

@@ -1,94 +1,76 @@
-#include <R.h>
-#include <Rinternals.h>
-#include "translations.h"
+#include "thispathdefn.h"
 
 
-SEXP
-    thispathofileSymbol           = NULL,
-    thispathfileSymbol            = NULL,
-    thispathformsgSymbol          = NULL,
-    thispatherrorSymbol           = NULL,
-    thispathassocwfileSymbol      = NULL,
-    thispathdoneSymbol            = NULL,
-    insidesourcewashereSymbol     = NULL,
-    thispathnSymbol               = NULL,
-    _normalizePathSymbol          = NULL,
-    _normalizeAgainstSymbol       = NULL,
-    stopSymbol                    = NULL,
-    delayedAssignSymbol           = NULL,
-    normalizePathSymbol           = NULL,
-    winslashSymbol                = NULL,
-    mustWorkSymbol                = NULL,
-    normalizeURL_1Symbol          = NULL,
-    sourceSymbol                  = NULL,
-    sys_sourceSymbol              = NULL,
-    gui_rstudioSymbol             = NULL,
-    init_tools_rstudioSymbol      = NULL,
-    tools_rstudioSymbol           = NULL,
-    _rs_api_getActiveDocumentContextSymbol = NULL,
-    _rs_api_getSourceEditorContextSymbol = NULL,
-    debugSourceSymbol             = NULL,
-    testthatSymbol                = NULL,
-    source_fileSymbol             = NULL,
-    testthat_uses_brioSymbol      = NULL,
-    knitr_output_dirSymbol        = NULL,
-    knitrSymbol                   = NULL,
-    knitSymbol                    = NULL,
-    wrap_sourceSymbol             = NULL,
-    sys_callSymbol                = NULL,
-    sys_frameSymbol               = NULL,
-    sys_functionSymbol            = NULL,
-    sys_nframeSymbol              = NULL,
-    sys_parentSymbol              = NULL,
-    sys_parentsSymbol             = NULL,
-    ofileSymbol                   = NULL,
-    owdSymbol                     = NULL,
-    old_dirSymbol                 = NULL,
-    fileSymbol                    = NULL,
-    fileNameSymbol                = NULL,
-    pathSymbol                    = NULL,
-    inputSymbol                   = NULL,
-    missingSymbol                 = NULL,
-    returnSymbol                  = NULL,
-    this_path_toplevelSymbol      = NULL,
-    encodeStringSymbol            = NULL,
-    na_encodeSymbol               = NULL,
-    exprSymbol                    = NULL,
-    on_exitSymbol                 = NULL,
-    External2Symbol               = NULL,
-    C_setprseen2Symbol            = NULL,
-    thispathtempSymbol            = NULL,
-    parent_frameSymbol            = NULL,
-    invisibleSymbol               = NULL,
-    getConnectionSymbol           = NULL,
-    as_environmentSymbol          = NULL,
-    oenvirSymbol                  = NULL,
-    withArgsSymbol                = NULL,
-    thispathhelperSymbol          = NULL,
-    GetConnectionSymbol           = NULL,
-    GetUnderlyingConnectionSymbol = NULL,
-    summary_connectionSymbol      = NULL,
-    require_this_path_helperSymbol= NULL,
-    _asArgsSymbol                 = NULL,
-    commandArgsSymbol             = NULL,
-    maybe_in_shellSymbol          = NULL,
-    _packageName                  = NULL;
+#define R_THIS_PATH_INITIALIZE_SYMBOLS
+#include "symbols.h"
+#undef R_THIS_PATH_INITIALIZE_SYMBOLS
 
 
 SEXP mynamespace = NULL;
 
 
-extern SEXP getInFrame(SEXP sym, SEXP env, int unbound_ok);
+// LibExtern Rboolean utf8locale;
+LibExtern Rboolean mbcslocale;
+// LibExtern Rboolean latin1locale;
 
 
-SEXP do_onload(SEXP call, SEXP op, SEXP args, SEXP rho)
+// SEXP do_utf8locale do_formals
+// {
+//     do_start("utf8locale", 0);
+//     return ScalarLogical(utf8locale);
+// }
+
+
+SEXP do_mbcslocale do_formals
 {
+    do_start("mbcslocale", 0);
+    return ScalarLogical(mbcslocale);
+}
+
+
+// SEXP do_latin1locale do_formals
+// {
+//     do_start("latin1locale", 0);
+//     return ScalarLogical(latin1locale);
+// }
+
+
+#if R_version_at_least(4, 2, 0)
+LibExtern int R_MB_CUR_MAX;
+SEXP do_R_MB_CUR_MAX do_formals
+{
+    do_start("R_MB_CUR_MAX", 0);
+    return ScalarInteger(R_MB_CUR_MAX);
+}
+#else
+SEXP do_R_MB_CUR_MAX do_formals
+{
+    do_start("R_MB_CUR_MAX", 0);
+    return ScalarInteger(MB_CUR_MAX);
+}
+#endif
+
+
+SEXP do_onload do_formals
+{
+    do_start("onload", 2);
+
+
+#define R_THIS_PATH_DEFINE_SYMBOLS
+#include "symbols.h"
+#undef R_THIS_PATH_DEFINE_SYMBOLS
+
+
     /* these arguments are passed from .onLoad() */
-    SEXP libname = CADR(args),
-         pkgname = CADDR(args);
+    SEXP libname = CAR(args),
+         pkgname = CADR(args);
 
 
-    _packageName = installChar(STRING_ELT(pkgname, 0));
+#if R_version_at_least(3, 2, 0)
+    SEXP _packageName = installChar(STRING_ELT(pkgname, 0));
+#else
+    SEXP _packageName = install(CHAR(STRING_ELT(pkgname, 0)));
+#endif
 
 
     /* get my namespace from the namespace registry */
@@ -96,154 +78,94 @@ SEXP do_onload(SEXP call, SEXP op, SEXP args, SEXP rho)
     R_PreserveObject(mynamespace);
 
 
+#define LockCLOENV(symbol, bindings)                           \
+    do {                                                       \
+        SEXP sym = (symbol);                                   \
+        SEXP tmp = getInFrame(sym, mynamespace, FALSE);        \
+        if (TYPEOF(tmp) != CLOSXP)                             \
+            error(_("object '%s' of mode '%s' was not found"), EncodeChar(sym), "function");\
+        R_LockEnvironment(CLOENV(tmp), (bindings));            \
+    } while (0)
+
+
     /* get the function .shFILE and lock its environment and bindings */
-    SEXP _shFILE = getInFrame(install(".shFILE"), mynamespace, FALSE);
-    if (TYPEOF(_shFILE) != CLOSXP)
-        error(_("object '%s' of mode '%s' was not found"), ".shFILE", "function");
-    R_LockEnvironment(CLOENV(_shFILE), TRUE);
+    LockCLOENV(install(".shFILE"), TRUE);
 
 
     /* get the function .this.proj and lock its environment */
-    SEXP _this_proj = getInFrame(install(".this.proj"), mynamespace, FALSE);
-    if (TYPEOF(_this_proj) != CLOSXP)
-        error(_("object '%s' of mode '%s' was not found"), ".this.proj", "function");
-    R_LockEnvironment(CLOENV(_this_proj), FALSE);
+    LockCLOENV(install(".this.proj"), FALSE);
+
+
+    /* get the function find_root and lock its environment and bindings */
+    LockCLOENV(install("find_root"), TRUE);
+
+
+    /* get the function .this.path.toplevel and lock its environment and bindings */
+    LockCLOENV(_this_path_toplevelSymbol, TRUE);
+
+
+    // /* get the function eval.with.message and lock its environment */
+    // LockCLOENV(install("eval.with.message"), FALSE);
 
 
     /* force the promise initwd */
     getInFrame(install("initwd"), mynamespace, FALSE);
 
 
-    /* define a variable and increase its reference counter */
-#define defineVarInc(symbol, value, rho)                       \
-    do {                                                       \
-        SEXP val = (value);                                    \
-        PROTECT(val);                                          \
-        defineVar((symbol), val, (rho));                       \
-        INCREMENT_NAMED(val);                                  \
-        UNPROTECT(1);  /* val */                               \
-    } while (0)
-
-
     /* save libname and pkgname in the namespace */
-    defineVarInc(install("libname"), libname, mynamespace);
-    defineVarInc(install("pkgname"), pkgname, mynamespace);
+    INCREMENT_NAMED_defineVar(install("libname"), libname, mynamespace);
+    INCREMENT_NAMED_defineVar(install("pkgname"), pkgname, mynamespace);
 
 
     /* find and save libpath in the namespace */
-    /* building the call getNamespaceInfo(pkgname, "path") and evaluating in the base environment */
+    /* building the call getNamespaceInfo(pkgname, "path") and evaluating */
     SEXP expr = allocList(3);
     PROTECT(expr);
     SET_TYPEOF(expr, LANGSXP);
     SETCAR  (expr, install("getNamespaceInfo"));
-    SETCADR (expr, pkgname);
+    SETCADR (expr, install("pkgname"));
     SETCADDR(expr, mkString("path"));
-    defineVarInc(install("libpath"), eval(expr, R_BaseEnv), mynamespace);
-    UNPROTECT(1);  /* expr */
+    INCREMENT_NAMED_defineVar(install("libpath"), PROTECT(eval(expr, rho)), mynamespace);
+    UNPROTECT(2);  /* expr & value */
 
 
-    /* code is written this way on purpose, do not reformat */
-#define thispathofileChar                                      \
-    "._this.path::ofile_."
-#define thispathfileChar                                       \
-    "._this.path::file_."
-#define thispathformsgChar                                     \
-    "._this.path::for msg_."
-#define thispatherrorChar                                      \
-    "._this.path::error_."
-#define thispathassocwfileChar                                 \
-    "._this.path::associated with file_."
-#define thispathdoneChar                                       \
-    "._this.path::done_."
-#define insidesourcewashereChar                                \
-    "._this.path::inside.source() was here_."
-#define thispathnChar                                          \
-    "._this.path::n_."
-    thispathofileSymbol           = install(thispathofileChar);
-    thispathfileSymbol            = install(thispathfileChar);
-    thispathformsgSymbol          = install(thispathformsgChar);
-    thispatherrorSymbol           = install(thispatherrorChar);
-    thispathassocwfileSymbol      = install(thispathassocwfileChar);
-    thispathdoneSymbol            = install(thispathdoneChar);
-    insidesourcewashereSymbol     = install(insidesourcewashereChar);
-    thispathnSymbol               = install(thispathnChar);
-    _normalizePathSymbol          = install(".normalizePath");
-    _normalizeAgainstSymbol       = install(".normalizeAgainst");
-    stopSymbol                    = install("stop");
-    delayedAssignSymbol           = install("delayedAssign");
-    normalizePathSymbol           = install("normalizePath");
-    winslashSymbol                = install("winslash");
-    mustWorkSymbol                = install("mustWork");
-    normalizeURL_1Symbol          = install("normalizeURL.1");
-    sourceSymbol                  = install("source");
-    sys_sourceSymbol              = install("sys.source");
-    gui_rstudioSymbol             = install("gui.rstudio");
-    init_tools_rstudioSymbol      = install("init.tools:rstudio");
-    tools_rstudioSymbol           = install("tools:rstudio");
-    _rs_api_getActiveDocumentContextSymbol = install(".rs.api.getActiveDocumentContext");
-    _rs_api_getSourceEditorContextSymbol = install(".rs.api.getSourceEditorContext");
-    debugSourceSymbol             = install("debugSource");
-    testthatSymbol                = install("testthat");
-    source_fileSymbol             = install("source_file");
-    testthat_uses_brioSymbol      = install("testthat.uses.brio");
-    knitr_output_dirSymbol        = install("knitr.output.dir");
-    knitrSymbol                   = install("knitr");
-    knitSymbol                    = install("knit");
-    wrap_sourceSymbol             = install("wrap.source");
-    sys_callSymbol                = install("sys.call");
-    sys_frameSymbol               = install("sys.frame");
-    sys_functionSymbol            = install("sys.function");
-    sys_nframeSymbol              = install("sys.nframe");
-    sys_parentSymbol              = install("sys.parent");
-    sys_parentsSymbol             = install("sys.parents");
-    ofileSymbol                   = install("ofile");
-    owdSymbol                     = install("owd");
-    old_dirSymbol                 = install("old_dir");
-    fileSymbol                    = install("file");
-    fileNameSymbol                = install("fileName");
-    pathSymbol                    = install("path");
-    inputSymbol                   = install("input");
-    missingSymbol                 = install("missing");
-    returnSymbol                  = install("return");
-    this_path_toplevelSymbol      = install(".this.path.toplevel");
-    encodeStringSymbol            = install("encodeString");
-    na_encodeSymbol               = install("na.encode");
-    exprSymbol                    = install("expr");
-    on_exitSymbol                 = install("on.exit");
-    External2Symbol               = install(".External2");
-    C_setprseen2Symbol            = install("C_setprseen2");
-    thispathtempSymbol            = install("._this.path::temp_.");
-    parent_frameSymbol            = install("parent.frame");
-    invisibleSymbol               = install("invisible");
-    getConnectionSymbol           = install("getConnection");
-    as_environmentSymbol          = install("as.environment");
-    oenvirSymbol                  = install("oenvir");
-    withArgsSymbol                = install("withArgs");
-    thispathhelperSymbol          = install("this.path.helper");
-    GetConnectionSymbol           = install("GetConnection");
-    GetUnderlyingConnectionSymbol = install("GetUnderlyingConnection");
-    summary_connectionSymbol      = install("summary.connection");
-    require_this_path_helperSymbol= install("require.this.path.helper");
-    _asArgsSymbol                 = install(".asArgs");
-    commandArgsSymbol             = install("commandArgs");
-    maybe_in_shellSymbol          = install("maybe.in.shell");
-
-
-#include "requirethispathhelper.h"
-
-
-    requirethispathhelper;
-
-
-    /* save HAVE_AQUA and PATH_MAX in my namespace */
+    /* save HAVE_AQUA, PATH_MAX, and NAMEDMAX in my namespace */
 #if defined(HAVE_AQUA)
-    defineVarInc(install("HAVE_AQUA"), ScalarLogical(TRUE ), mynamespace);
+    INCREMENT_NAMED_defineVar(install("HAVE_AQUA"), PROTECT(ScalarLogical(TRUE)), mynamespace);
 #else
-    defineVarInc(install("HAVE_AQUA"), ScalarLogical(FALSE), mynamespace);
+    INCREMENT_NAMED_defineVar(install("HAVE_AQUA"), PROTECT(ScalarLogical(FALSE)), mynamespace);
 #endif
+    UNPROTECT(1);
 
 
-    defineVarInc(install("PATH_MAX"), ScalarInteger(PATH_MAX), mynamespace);
+    INCREMENT_NAMED_defineVar(install("PATH_MAX"), PROTECT(ScalarInteger(PATH_MAX)), mynamespace);
+    UNPROTECT(1);
+
+
+#if R_version_less_than(3, 0, 0)
+    INCREMENT_NAMED_defineVar(install("NAMEDMAX"), PROTECT(ScalarInteger(NA_INTEGER)), mynamespace);
+#else
+    INCREMENT_NAMED_defineVar(install("NAMEDMAX"), PROTECT(ScalarInteger(NAMEDMAX)), mynamespace);
+#endif
+    UNPROTECT(1);
+
+
+#define convertclosure2activebinding(symbol)                   \
+    do {                                                       \
+        SEXP sym = (symbol);                                   \
+        SEXP fun = getInFrame(sym, mynamespace, FALSE);        \
+        if (TYPEOF(fun) != CLOSXP)                             \
+            error(_("object '%s' of mode '%s' was not found"), EncodeChar(sym), "function");\
+        R_removeVarFromFrame(sym, mynamespace);                \
+        R_MakeActiveBinding(sym, fun, mynamespace);            \
+    } while (0)
+
+
+    // convertclosure2activebinding(install("utf8locale"));
+    convertclosure2activebinding(install("mbcslocale"));
+    // convertclosure2activebinding(install("latin1locale"));
+    convertclosure2activebinding(install("R_MB_CUR_MAX"));
+    convertclosure2activebinding(install("utf8"));
 
 
     SEXP value = allocVector(VECSXP, 13);
@@ -397,8 +319,7 @@ SEXP do_onload(SEXP call, SEXP op, SEXP args, SEXP rho)
 #endif
 
 
-    MARK_NOT_MUTABLE(value);
-    defineVar(install("OS.type"), value, mynamespace);
+    MARK_NOT_MUTABLE_defineVar(install("OS.type"), value, mynamespace);
     UNPROTECT(1);  /* value */
 
 
@@ -406,9 +327,12 @@ SEXP do_onload(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_onunload(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_onunload do_formals
 {
-    // SEXP libpath = CADR(args);
+    do_start("onunload", 1);
+
+
+    // SEXP libpath = CAR(args);
 
 
     R_ReleaseObject(mynamespace);

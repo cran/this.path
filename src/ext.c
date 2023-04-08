@@ -1,11 +1,8 @@
-#include <R.h>
-#include <Rinternals.h>
+#include "thispathdefn.h"
+#include "drivewidth.h"
 
 
 #define debug 0
-
-
-#include "drivewidth.h"
 
 
 
@@ -16,25 +13,7 @@
 #define EXT 2
 #define EXTGETS 3
 #define ext(windows, op)                                       \
-{                                                              \
-    if (debug) {                                               \
-        if (op == SPLITEXT) {                                  \
-            Rprintf((windows) ? "in do_windowssplitext\n\n" : "in do_unixsplitext\n\n");\
-        }                                                      \
-        else if (op == REMOVEEXT) {                            \
-            Rprintf((windows) ? "in do_windowsremoveext\n\n" : "in do_unixremoveext\n\n");\
-        }                                                      \
-        else if (op == EXT) {                                  \
-            Rprintf((windows) ? "in do_windowsext\n\n" : "in do_unixext\n\n");\
-        }                                                      \
-        else if (op == EXTGETS) {                              \
-            Rprintf((windows) ? "in do_windowsextgets\n\n" : "in do_unixextgets\n\n");\
-        }                                                      \
-    }                                                          \
-                                                               \
-                                                               \
     int nprotect = 0;                                          \
-    args = CDR(args);                                          \
                                                                \
                                                                \
     if (op == EXTGETS) {                                       \
@@ -45,48 +24,47 @@
     }                                                          \
                                                                \
                                                                \
-    SEXP path = CAR(args);                                     \
+    SEXP path = CAR(args); args = CDR(args);                   \
     if (TYPEOF(path) != STRSXP)                                \
-        error("a character vector argument expected");         \
+        error(_("a character vector argument expected"));      \
                                                                \
                                                                \
-    Rboolean compression = asLogical(CADR(args));              \
+    Rboolean compression = asLogical(CAR(args)); args = CDR(args);\
     if (compression == NA_LOGICAL)                             \
-        error("invalid 'compression' value");                  \
+        error(_("invalid '%s' value"), "compression");         \
                                                                \
                                                                \
     SEXP newext;                                               \
     int length_newext;                                         \
     if (op == EXTGETS) {                                       \
-        if (!isString(CADDR(args))) {                          \
-            if (OBJECT(CADDR(args))) {                         \
+        if (!isString(CAR(args))) {                            \
+            if (OBJECT(CAR(args))) {                           \
                 SEXP expr = allocList(2);                      \
                 PROTECT(expr);                                 \
                 SET_TYPEOF(expr, LANGSXP);                     \
                 SETCAR(expr, findVarInFrame(R_BaseEnv, R_AsCharacterSymbol));\
-                SEXP expr2 = allocList(2);                     \
-                PROTECT(expr2);                                \
+                SEXP expr2;                                    \
+                SETCADR(expr, expr2 = allocList(2));           \
                 SET_TYPEOF(expr2, LANGSXP);                    \
                 SETCAR(expr2, findVarInFrame(R_BaseEnv, R_QuoteSymbol));\
-                SETCADR(expr2, CADDR(args));                   \
-                SETCADR(expr, expr2);                          \
-                SETCADDR(args, eval(expr, rho));               \
-                UNPROTECT(2);                                  \
+                SETCADR(expr2, CAR(args));                     \
+                SETCAR(args, eval(expr, rho));                 \
+                UNPROTECT(1);                                  \
             }                                                  \
-            else if (isSymbol(CADDR(args)))                    \
-                SETCADDR(args, ScalarString(PRINTNAME(CADDR(args))));\
-            else SETCADDR(args, coerceVector(CADDR(args), STRSXP));\
-            if (!isString(CADDR(args)))                        \
-                errorcall(call, "non-string argument to '%s'", "C_extgets");\
+            else if (isSymbol(CAR(args)))                      \
+                SETCAR(args, ScalarString(PRINTNAME(CAR(args))));\
+            else SETCAR(args, coerceVector(CAR(args), STRSXP));\
+            if (!isString(CAR(args)))                        \
+                errorcall(call, _("non-string argument to '%s'"), "C_extgets");\
         }                                                      \
                                                                \
                                                                \
-        length_newext = length(CADDR(args));                   \
+        length_newext = length(CAR(args));                     \
         if (!length_newext) {                                  \
-            SETCADDR(args, mkString(""));                      \
+            SETCAR(args, mkString(""));                        \
             length_newext = 1;                                 \
         }                                                      \
-        newext = CADDR(args);                                  \
+        newext = CAR(args);                                    \
     }                                                          \
                                                                \
                                                                \
@@ -117,8 +95,12 @@
     }                                                          \
                                                                \
                                                                \
+    char _buf_ext[PATH_MAX + 1];                               \
+                                                               \
+                                                               \
     for (i = 0; i < n; i++) {                                  \
         if (debug) {                                           \
+            Rprintf("\n");                                     \
             Rprintf("string %d: ", i + 1);                     \
         }                                                      \
         if (STRING_ELT(path, i) == NA_STRING) {                \
@@ -142,7 +124,6 @@
                     Rprintf("assigning: NA\n");                \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -172,7 +153,6 @@
                     Rprintf("assigning: \"\"\n");              \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -207,7 +187,6 @@
                     Rprintf("assigning: \"%s\"\n", ptr);       \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -255,9 +234,10 @@
                             }                                  \
                         }                                      \
                         if (add_dot) {                         \
-                            char _buf[strlen(ptr_ext) + 2];    \
-                            buf = _buf;                        \
-                            cext = _buf;                       \
+                            if (strlen(ptr_ext) >= PATH_MAX)   \
+                                error("file extension is too long");\
+                            buf = _buf_ext;                    \
+                            cext = _buf_ext;                   \
                             *buf = '.';                        \
                             strcpy(buf + 1, ptr_ext);          \
                         }                                      \
@@ -301,9 +281,10 @@
                             }                                  \
                         }                                      \
                         if (add_dot) {                         \
-                            char _buf[strlen(ptr_ext) + 2];    \
-                            buf = _buf;                        \
-                            cext = _buf;                       \
+                            if (strlen(ptr_ext) >= PATH_MAX)   \
+                                error("file extension is too long");\
+                            buf = _buf_ext;                    \
+                            cext = _buf_ext;                   \
                             *buf = '.';                        \
                             strcpy(buf + 1, ptr_ext);          \
                         }                                      \
@@ -390,7 +371,6 @@
                     Rprintf("assigning: \"%s\"\n", ptr);       \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -459,7 +439,6 @@
                     Rprintf("assigning: \"%s\"\n", buf);       \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -533,7 +512,6 @@
                                 Rprintf("assigning: \"%s\"\n", buf);\
                             }                                  \
                         }                                      \
-                        if (debug) Rprintf("\n");              \
                         continue;                              \
                     }                                          \
                 }                                              \
@@ -581,7 +559,6 @@
                     Rprintf("assigning: \"%s\"\n", buf);       \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -620,7 +597,6 @@
                     Rprintf("assigning: \"%s\"\n", buf);       \
                 }                                              \
             }                                                  \
-            if (debug) Rprintf("\n");                          \
             continue;                                          \
         }                                                      \
                                                                \
@@ -654,7 +630,6 @@
                 Rprintf("assigning: \"%s\"\n", buf);           \
             }                                                  \
         }                                                      \
-        if (debug) Rprintf("\n");                              \
     }                                                          \
                                                                \
                                                                \
@@ -662,28 +637,36 @@
                                                                \
                                                                \
     UNPROTECT(nprotect);                                       \
-    return value;                                              \
+    return value
+
+
+
+
+
+SEXP do_windowssplitext do_formals
+{
+    do_start("windowssplitext", 2);
+    if (debug) Rprintf("in do_windowssplitext\n\n");
+    ext(1, SPLITEXT);
 }
 
 
-
-
-
-SEXP do_windowssplitext(SEXP call, SEXP op, SEXP args, SEXP rho) ext(1, SPLITEXT)
-
-
-SEXP do_unixsplitext(SEXP call, SEXP op, SEXP args, SEXP rho) ext(0, SPLITEXT)
-
-
-SEXP do_splitext(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_unixsplitext do_formals
 {
-    if (debug) {
-        Rprintf("in do_splitext\n\n");
-    }
+    do_start("unixsplitext", 2);
+    if (debug) Rprintf("in do_unixsplitext\n\n");
+    ext(0, SPLITEXT);
+}
+
+
+SEXP do_splitext do_formals
+{
+    do_start("splitext", 2);
+    if (debug) Rprintf("in do_splitext\n\n");
 #ifdef _WIN32
-    return do_windowssplitext(call, op, args, rho);
+    ext(1, SPLITEXT);
 #else
-    return do_unixsplitext(call, op, args, rho);
+    ext(0, SPLITEXT);
 #endif
 }
 
@@ -691,21 +674,30 @@ SEXP do_splitext(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
 
-SEXP do_windowsremoveext(SEXP call, SEXP op, SEXP args, SEXP rho) ext(1, REMOVEEXT)
-
-
-SEXP do_unixremoveext(SEXP call, SEXP op, SEXP args, SEXP rho) ext(0, REMOVEEXT)
-
-
-SEXP do_removeext(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_windowsremoveext do_formals
 {
-    if (debug) {
-        Rprintf("in do_removeext\n\n");
-    }
+    do_start("windowsremoveext", 2);
+    if (debug) Rprintf("in do_windowsremoveext\n\n");
+    ext(1, REMOVEEXT);
+}
+
+
+SEXP do_unixremoveext do_formals
+{
+    do_start("unixremoveext", 2);
+    if (debug) Rprintf("in do_unixremoveext\n\n");
+    ext(0, REMOVEEXT);
+}
+
+
+SEXP do_removeext do_formals
+{
+    do_start("removeext", 2);
+    if (debug) Rprintf("in do_removeext\n\n");
 #ifdef _WIN32
-    return do_windowsremoveext(call, op, args, rho);
+    ext(1, REMOVEEXT);
 #else
-    return do_unixremoveext(call, op, args, rho);
+    ext(0, REMOVEEXT);
 #endif
 }
 
@@ -713,21 +705,30 @@ SEXP do_removeext(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
 
-SEXP do_windowsext(SEXP call, SEXP op, SEXP args, SEXP rho) ext(1, EXT)
-
-
-SEXP do_unixext(SEXP call, SEXP op, SEXP args, SEXP rho) ext(0, EXT)
-
-
-SEXP do_ext(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_windowsext do_formals
 {
-    if (debug) {
-        Rprintf("in do_ext\n\n");
-    }
+    do_start("windowsext", 2);
+    if (debug) Rprintf("in do_windowsext\n\n");
+    ext(1, EXT);
+}
+
+
+SEXP do_unixext do_formals
+{
+    do_start("unixext", 2);
+    if (debug) Rprintf("in do_unixext\n\n");
+    ext(0, EXT);
+}
+
+
+SEXP do_ext do_formals
+{
+    do_start("ext", 2);
+    if (debug) Rprintf("in do_ext\n\n");
 #ifdef _WIN32
-    return do_windowsext(call, op, args, rho);
+    ext(1, EXT);
 #else
-    return do_unixext(call, op, args, rho);
+    ext(0, EXT);
 #endif
 }
 
@@ -735,20 +736,29 @@ SEXP do_ext(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
 
-SEXP do_windowsextgets(SEXP call, SEXP op, SEXP args, SEXP rho) ext(1, EXTGETS)
-
-
-SEXP do_unixextgets(SEXP call, SEXP op, SEXP args, SEXP rho) ext(0, EXTGETS)
-
-
-SEXP do_extgets(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_windowsextgets do_formals
 {
-    if (debug) {
-        Rprintf("in do_extgets\n\n");
-    }
+    do_start("windowsextgets", 3);
+    if (debug) Rprintf("in do_windowsextgets\n\n");
+    ext(1, EXTGETS);
+}
+
+
+SEXP do_unixextgets do_formals
+{
+    do_start("unixextgets", 3);
+    if (debug) Rprintf("in do_unixextgets\n\n");
+    ext(0, EXTGETS);
+}
+
+
+SEXP do_extgets do_formals
+{
+    do_start("extgets", 3);
+    if (debug) Rprintf("in do_extgets\n\n");
 #ifdef _WIN32
-    return do_windowsextgets(call, op, args, rho);
+    ext(1, EXTGETS);
 #else
-    return do_unixextgets(call, op, args, rho);
+    ext(0, EXTGETS);
 #endif
 }

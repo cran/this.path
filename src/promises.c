@@ -1,50 +1,86 @@
-#include <R.h>
-#include <Rinternals.h>
-#include "translations.h"
 #include "thispathdefn.h"
 
 
-extern void (SET_PRSEEN)(SEXP x, int v);
 
 
 
+#if R_version_less_than(3, 0, 0)
+#define XLENGTH LENGTH
+#endif
+
+
+SEXP R_getS4DataSlot(SEXP obj, SEXPTYPE type)
+{
+    SEXP value = getAttrib(obj, _DataSymbol);
+    if (value == R_NilValue)
+        value = getAttrib(obj, _xDataSymbol);
+    if (value != R_NilValue &&
+        (type == ANYSXP || type == TYPEOF(value)))
+    {
+        return value;
+    }
+    else return R_NilValue;
+}
+
+
+#define simple_as_environment(arg) (IS_S4_OBJECT(arg) && (TYPEOF(arg) == S4SXP) ? R_getS4DataSlot(arg, ENVSXP) : R_NilValue)
 
 
 #define _get_sym(elsecode)                                     \
-    sym = CADR(args);                                          \
+    sym = CAR(args);                                           \
     if (TYPEOF(sym) == SYMSXP) {}                              \
     else if (isValidStringF(sym)) {                            \
         if (XLENGTH(sym) > 1)                                  \
-            errorcall(call, "first argument has length > 1");  \
+            errorcall(call, _("first argument has length > 1"));\
         sym = installTrChar(STRING_ELT(sym, 0));               \
     }                                                          \
     else elsecode
 
 
-#define get_sym _get_sym(errorcall(call, "invalid first argument"))
+#define get_sym _get_sym(errorcall(call, _("invalid first argument")))
+
+
+#define get_env                                                \
+        env = CADR(args);                                      \
+        if (!isEnvironment(env) &&                             \
+            !isEnvironment(env = simple_as_environment(env)))  \
+            errorcall(call, "invalid second argument")
+
+
+#define get_inherits                                           \
+        inherits = asLogical(CADDR(args));                     \
+        if (inherits == NA_LOGICAL)                            \
+            errorcall(call, "invalid third argument")
 
 
 #define handles_nargs(one_arg_env, name)                       \
-    switch (length(args) - 1) {                                \
+    SEXP sym, env;                                             \
+    Rboolean inherits;                                         \
+    switch (length(args)) {                                    \
     case 1:                                                    \
         get_sym;                                               \
         env = (one_arg_env);                                   \
+        inherits = FALSE;                                      \
         break;                                                 \
     case 2:                                                    \
         get_sym;                                               \
-        env = CADDR(args);                                     \
-        if (TYPEOF(env) != ENVSXP)                             \
-            errorcall(call, "invalid second argument");        \
+        get_env;                                               \
+        inherits = FALSE;                                      \
+        break;                                                 \
+    case 3:                                                    \
+        get_sym;                                               \
+        get_env;                                               \
+        get_inherits;                                          \
         break;                                                 \
     default:                                                   \
-        errorcall(call, wrong_nargs_to_External(length(args) - 1, (name), "1 or 2"));\
+        errorcall(call, wrong_nargs_to_External(length(args), (name), "1, 2, or 3"));\
     }
 
 
 
 
 
-SEXP do_isunevaluatedpromise(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_isunevaluatedpromise do_formals
 {
     /*
     return TRUE if get(sym, env, inherits = FALSE) will force a promise
@@ -52,13 +88,15 @@ SEXP do_isunevaluatedpromise(SEXP call, SEXP op, SEXP args, SEXP rho)
      */
 
 
-    SEXP sym, env;
+    do_start("isunevaluatedpromise", -1);
+
+
     handles_nargs(rho, "C_isunevaluatedpromise");
 
 
-    SEXP value = findVarInFrame(env, sym);
+    SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (value == R_UnboundValue)
-        errorcall(call, _("object '%s' not found"), CHAR(PRINTNAME(sym)));
+        errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
 
 
     return ScalarLogical(TYPEOF(value) == PROMSXP &&
@@ -66,29 +104,31 @@ SEXP do_isunevaluatedpromise(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_promiseisunevaluated(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_promiseisunevaluated do_formals
 {
     /* similar to do_isunevaluatedpromise, but the binding MUST be a promise */
 
 
-    SEXP sym, env;
-    handles_nargs(rho, "C_promiseisunevaluated");
+    do_start("promiseisunevaluated", -1);
 
 
-    SEXP value = findVarInFrame(env, sym);
+    handles_nargs(ENCLOS(rho), "C_promiseisunevaluated");
+
+
+    SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (value == R_UnboundValue)
-        errorcall(call, _("object '%s' not found"), CHAR(PRINTNAME(sym)));
+        errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
 
 
     if (TYPEOF(value) != PROMSXP)
-        errorcall(call, "'%s' is not a promise", CHAR(PRINTNAME(sym)));
+        errorcall(call, "'%s' is not a promise", EncodeChar(PRINTNAME(sym)));
 
 
     return ScalarLogical(PRVALUE(value) == R_UnboundValue);
 }
 
 
-SEXP do_getpromisewithoutwarning(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_getpromisewithoutwarning do_formals
 {
     /* return the result of getting a promise, silencing a possible warning
      * about "restarting interrupted promise evaluation"
@@ -97,17 +137,19 @@ SEXP do_getpromisewithoutwarning(SEXP call, SEXP op, SEXP args, SEXP rho)
      */
 
 
-    SEXP sym, env;
+    do_start("getpromisewithoutwarning", -1);
+
+
     handles_nargs(ENCLOS(rho), "C_getpromisewithoutwarning");
 
 
-    SEXP value = findVarInFrame(env, sym);
+    SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (value == R_UnboundValue)
-        errorcall(call, _("object '%s' not found"), CHAR(PRINTNAME(sym)));
+        errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
 
 
     if (TYPEOF(value) != PROMSXP)
-        errorcall(call, "'%s' is not a promise", CHAR(PRINTNAME(sym)));
+        errorcall(call, "'%s' is not a promise", EncodeChar(PRINTNAME(sym)));
 
 
     if (PRVALUE(value) == R_UnboundValue) {
@@ -181,32 +223,12 @@ SEXP PRINFO(SEXP e)
 }
 
 
-SEXP R_getS4DataSlot(SEXP obj, SEXPTYPE type)
+SEXP do_prinfo do_formals
 {
-    static SEXP _xDataSymbol = NULL,
-                _DataSymbol  = NULL;
-    if (_xDataSymbol == NULL) {
-        _xDataSymbol = install(".xData");
-        _DataSymbol  = install(".Data");
-    }
+    do_start("prinfo", -1);
 
 
-    SEXP value = getAttrib(obj, _DataSymbol);
-    if (value == R_NilValue)
-        value = getAttrib(obj, _xDataSymbol);
-    if (value != R_NilValue &&
-        (type == ANYSXP || type == TYPEOF(value)))
-    {
-        return value;
-    }
-    else return R_NilValue;
-}
-#define simple_as_environment(arg) (IS_S4_OBJECT(arg) && (TYPEOF(arg) == S4SXP) ? R_getS4DataSlot(arg, ENVSXP) : R_NilValue)
-
-
-SEXP do_prinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
-{
-    int nargs = length(args) - 1;
+    int nargs = length(args);
 
 
     SEXP sym, env = rho;
@@ -215,11 +237,11 @@ SEXP do_prinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     switch (nargs) {
     case 3:
-        inherits = asLogical(CADDDR(args));
+        inherits = asLogical(CADDR(args));
         if (inherits == NA_LOGICAL)
             errorcall(call, _("invalid '%s' argument"), "inherits");
     case 2:
-        env = CADDR(args);
+        env = CADR(args);
         if (!isEnvironment(env) &&
             !isEnvironment(env = simple_as_environment(env)))
         {
@@ -243,10 +265,103 @@ SEXP do_prinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     SEXP e = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (e == R_UnboundValue)
-        error(_("object '%s' not found"), CHAR(PRINTNAME(sym)));
+        error(_("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
     if (TYPEOF(e) != PROMSXP)
-        error("'%s' is not a promise", CHAR(PRINTNAME(sym)));
+        error("'%s' is not a promise", EncodeChar(PRINTNAME(sym)));
 
 
     return PRINFO(e);
+}
+
+
+
+
+
+Rboolean validJupyterRNotebook(SEXP path)
+{
+    SEXP expr = allocList(2);
+    PROTECT(expr);
+    SET_TYPEOF(expr, LANGSXP);
+    SETCAR(expr, validJupyterRNotebookSymbol);
+    SETCADR(expr, path);
+    SEXP value = eval(expr, mynamespace);
+    if (TYPEOF(value) != LGLSXP || LENGTH(value) != 1L || LOGICAL(value)[0] == NA_LOGICAL)
+        errorcall(expr, "invalid return value");
+    UNPROTECT(1);
+    return LOGICAL(value)[0];
+}
+
+
+#include "drivewidth.h"
+
+
+SEXP do_setthispathjupyter do_formals
+{
+    do_start("setthispathjupyter", -1);
+
+
+    SEXP path;
+    Rboolean skipCheck = FALSE;
+    switch (length(args)) {
+    case 1:
+        path = CAR(args);
+        break;
+    case 2:
+        path = CAR(args);
+        skipCheck = asLogical(CADR(args));
+        if (skipCheck == NA_LOGICAL)
+            errorcall(call, _("invalid '%s' argument"), "skipCheck");
+        break;
+    default:
+        errorcall(call, wrong_nargs_to_External(length(args), "C_setthispathjupyter", "1 or 2"));
+    }
+
+
+    if (TYPEOF(path) != STRSXP || LENGTH(path) != 1L)
+        errorcall(call, _("'%s' must be a character string"), "path");
+    if (STRING_ELT(path, 0) == NA_STRING) {}
+#ifdef _WIN32
+    else if (is_abs_path_windows(CHAR(STRING_ELT(path, 0)))) {}
+#else
+    else if (is_abs_path_unix(CHAR(STRING_ELT(path, 0)))) {}
+#endif
+    else errorcall(call, _("invalid '%s' argument"), "path");
+
+
+    if (skipCheck || STRING_ELT(path, 0) == NA_STRING || validJupyterRNotebook(path)) {}
+    else errorcall(call, "invalid '%s' argument; must be a valid Jupyter R notebook", "path");
+
+
+    SEXP sym, env = getInFrame(_this_path_toplevelSymbol, mynamespace, FALSE);
+    if (TYPEOF(env) != CLOSXP)
+        errorcall(call, "'%s' is not a closure", EncodeChar(PRINTNAME(_this_path_toplevelSymbol)));
+    env = CLOENV(env);
+
+
+    /* attempt to get the promise */
+    sym = thispathfilejupyterSymbol;
+    SEXP e = findVarInFrame(env, sym);
+    if (e == R_UnboundValue)
+        errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
+    if (TYPEOF(e) != PROMSXP)
+        errorcall(call, "'%s' is not a promise", EncodeChar(PRINTNAME(sym)));
+
+
+    /* attempt to unlock the original file's binding */
+    sym = thispathofilejupyterSymbol;
+    R_unLockBinding(sym, env);
+
+
+    /* restore the promise to its original state */
+    SET_PRENV(e, env);
+    SET_PRVALUE(e, R_UnboundValue);
+
+
+    /* define the variable and re-lock the binding */
+    INCREMENT_NAMED_defineVar(sym, path, env);
+    R_LockBinding(sym, env);
+
+
+    set_R_Visible(0);
+    return path;
 }

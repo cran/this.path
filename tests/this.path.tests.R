@@ -4,17 +4,16 @@ local({
         message("cannot 'chdir' as current directory is unknown")
         return(invisible())
     } else on.exit(setwd(owd), add = TRUE)
-    .unload <- !isNamespaceLoaded("testthat")
-    if (.unload)
-        on.exit(unloadNamespace("testthat"), add = TRUE)
 
 
     fun <- function(expr, envir = parent.frame()) {
         if (!is.environment(envir))
-            stop(gettextf("invalid '%s' argument", "envir", domain = "R"))
-        expr <- call("bquote", substitute(expr), as.symbol("envir"), splice = TRUE)
+            stop("not an environment", domain = "R")
+        expr <- call("bquote", substitute(expr), as.symbol("envir"))
         expr <- eval(expr)
-        dep <- deparse1(expr, "\n", 60L)
+        # dep <- deparse1(expr, "\n", 60L)
+        # replace with this for R < 4.0.0:
+        dep <- paste(deparse(expr, 60L), collapse = "\n")
         dep <- gsub("\n", "\n+ ", dep, fixed = TRUE, useBytes = TRUE)
         dep <- paste0("> ", dep)
         cat("\n\n\n\n\n\n\n\n\n\n", dep, "\n", sep = "")
@@ -70,7 +69,7 @@ local({
     ## the directories that lead to the 3 paths from above
     base.path.dir  <- dirname(full.path)
     short.path.dir <- dirname(base.path.dir)
-    full.path.dir  <- tempdir(check = TRUE)
+    full.path.dir  <- if (getRversion() >= "3.5.0") tempdir(check = TRUE) else tempdir()
 
 
     ## try using source in all possible manners

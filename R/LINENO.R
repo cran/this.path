@@ -7,7 +7,7 @@
     tryCatch({
         normalizePath(path, "/")
     }, warning = function(w) {
-        if (.Platform$OS.type == "windows")
+        if (os.windows)
             chartr("\\", "/", path)
         else path
     })
@@ -44,7 +44,7 @@ LINENO <- function ()
     }
 
 
-    return(NA_integer_)
+    NA_integer_
 }
 
 

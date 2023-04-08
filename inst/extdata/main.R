@@ -24,32 +24,27 @@ languages <- matrix(dimnames = list(NULL, c(
 rownames(languages) <- languages[, "LANGUAGE"]
 
 
-languageEnvvars <- function (LANGUAGE = Sys.getenv("LANGUAGE"), ucrt = identical(R.version[["crt"]], "ucrt"))
+locales <- languages[, "locale"]
+
+
+languageEnvvars <- function (LANGUAGE = Sys.getenv("LANGUAGE"), utf8 = identical(R.version[["crt"]], "ucrt"))
 {
+    if (!is.character(LANGUAGE) || length(LANGUAGE) != 1L)
+        stop(gettextf("'%s' must be a character string", "LANGUAGE", domain = "R"), domain = NA)
     if (.Platform$OS.type == "windows") {
-        if (is.character(LANGUAGE) &&
-            length(LANGUAGE) == 1L &&
-            !is.na(LANGUAGE) &&
-            LANGUAGE == "")
-        {
+        if (!nzchar(LANGUAGE))
             return(c("LANGUAGE=", "LC_ALL="))
-        }
         LANGUAGE <- match.arg(LANGUAGE, c(rownames(languages), NA))
         if (is.na(LANGUAGE))
             return(c("LANGUAGE=", "LC_ALL="))
         paste0(
             c("LANGUAGE=", "LC_ALL="),
-            c(LANGUAGE, languages[[LANGUAGE, "locale"]]),
-            if (ucrt) c("", ".utf8") else ""
+            c(LANGUAGE, locales[[LANGUAGE]]),
+            if (utf8 && nzchar(locales[[LANGUAGE]])) c("", ".utf8")
         )
     } else {
-        if (is.character(LANGUAGE) &&
-            length(LANGUAGE) == 1L &&
-            !is.na(LANGUAGE) &&
-            LANGUAGE == "")
-        {
+        if (!nzchar(LANGUAGE))
             return("LANGUAGE=")
-        }
         LANGUAGE <- match.arg(LANGUAGE, c(rownames(languages), NA))
         if (is.na(LANGUAGE))
             return("LANGUAGE=")
@@ -68,15 +63,16 @@ Sys.putenv <- function (x)
                                     "invalid environment variables:\n"),
              paste(utils::capture.output(x[invalid]), collapse = "\n"))
     }
+    y <- .mapply(`Encoding<-`, list(y, Encoding(x)), NULL)
     args <- lapply(y, `[[`, 2L)
     names(args) <- vapply(y, `[[`, 1L, FUN.VALUE = "", USE.NAMES = FALSE)
     do.call("Sys.setenv", args)
 }
 
 
-if (!(isNamespace(environment()) &&
-      getNamespaceName(environment()) == "this.path"))
-{
+if (sys.nframe() != 0L) {
+} else if (isNamespace(environment()) && getNamespaceName(environment()) == "this.path") {
+} else {
     stopifnot(.Platform$OS.type == "windows")
 
 
@@ -108,11 +104,28 @@ if (!(isNamespace(environment()) &&
         stopifnot(bindtextdomain("RGui") != "")
 
 
+        exe <- "Rscript.exe"
         path <- R.home("..")
         path <- list.files(path, full.names = TRUE)
-        path <- file.path(path, "bin", "Rscript.exe")
+        path <- file.path(path, "bin", exe)
         path <- path[file.exists(path)]
-        path <- c(file.path(R.home("bin"), "Rscript.exe"), path)
+        path <- c(file.path(R.home("bin"), exe), path)
+
+
+        # args <- c("--version")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "writeLines(.Platform$r_arch)")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "strrep")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "formals(file.info)")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "formals(sys.source)")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "isTRUE")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "tools:::.read_description")
+        # args <- c("--default-packages=NULL", "--vanilla", "-e", "sys.source")
+        # args <- paste(shQuote(args), collapse = " ")
+        # command <- paste(shQuote(path), args)
+        # names(command) <- path
+        # x <- lapply(command, system, intern = TRUE)
+        # print(x, quote = FALSE, width = 10)
+        # stop("comment this out later")
 
 
         FILE <- tempfile(fileext = ".R")
@@ -248,7 +261,7 @@ if (!(isNamespace(environment()) &&
 
             n <- 0L
             for (language in rownames(languages)) {
-                args <- c(rgui, options, languageEnvvars(language, ucrt = ucrt))
+                args <- c(rgui, options, languageEnvvars(language, ucrt))
                 command <- paste(shQuote(args), collapse = " ")
                 ans <- system(command)
                 if (ans) {
@@ -382,7 +395,7 @@ if (!(isNamespace(environment()) &&
                         # plus its encoding
                         conn <- file(path, "wb", encoding = "")
                         on.exit(close(conn))
-                        writeLines(rbind(x, Encoding(x)), conn, useBytes = TRUE)
+                        writeLines(rbind(x, Encoding(x)), conn, sep = "\r\n", useBytes = TRUE)
                     }
 
 

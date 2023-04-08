@@ -10,10 +10,12 @@ rm.list.append("rm.list.append")
 
 
 
-tmp <- readLines("./src/hooks-for-namespace-events.c", warn = FALSE)
+tmp <- readLines("./src/symbols.h")
 tmp <- list(
-    thispathofile       = str2lang(tmp[[grep("^[ \t]*#[ \t]*define[ \t]+thispathofileChar[ \t]*\\\\[ \t]*$", tmp) + 1L]]),
-    thispathfile        = str2lang(tmp[[grep("^[ \t]*#[ \t]*define[ \t]+thispathfileChar[ \t]*\\\\[ \t]*$" , tmp) + 1L]])
+    thispathofile        = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathofileSymbol"       , "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]]),
+    thispathfile         = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathfileSymbol"        , "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]]),
+    thispathofilejupyter = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathofilejupyterSymbol", "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]]),
+    thispathfilejupyter  = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathfilejupyterSymbol" , "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]])
 )
 if (!all(vapply(tmp, function(x) is.character(x) && length(x) == 1 && !is.na(x), NA)))
     stop("could not determine variable names")
@@ -25,13 +27,22 @@ rm(i, tmp)
 
 
 
-.Defunct2 <- function (new, old = as.character(sys.call(sys.parent()))[1L])
+defunctError <- function (new, package = NULL, msg, old = as.character(sys.call(sys.parent()))[1L])
 {
-    .Defunct(msg = c(
-        gettextf("'%s' is defunct.\n", old, domain = "R-base"),
-        gettextf("Use '%s' instead.\n", new, domain = "R-base"),
-        gettextf("See help(\"Defunct\")", domain = "R-base")
-    ))
+    msg <- if (missing(msg)) {
+        msg <- gettextf("'%s' is defunct.\n", old, domain = "R-base")
+        if (!missing(new))
+            msg <- c(msg, gettextf("Use '%s' instead.\n", new, domain = "R-base"))
+        c(msg, if (!is.null(package))
+            gettextf("See help(\"Defunct\") and help(\"%s-defunct\").", package, domain = "R-base")
+        else gettext("See help(\"Defunct\")", domain = "R-base"))
+    }
+    else as.character(msg)
+    msg <- paste(msg, collapse = "")
+    if (missing(new))
+        new <- NULL
+    errorCondition(msg, old = old, new = new, package = package,
+        class = "defunctError")
 }
 
 
@@ -40,43 +51,47 @@ rm(i, tmp)
 
 .shFILE <- function (original = TRUE, for.msg = FALSE)
 .External2(C_shfile, original, for.msg)
-
-
 evalq(envir = environment(.shFILE) <- new.env(), {
-    delayedAssign(thispathofile, shINFO[["FILE"]])
+    delayedAssign(thispathofile, if (in.shell) shINFO[["FILE"]] else NA_character_)
     eval(call("delayedAssign", thispathfile, call(".normalizePath", as.symbol(thispathofile))))
 })
 
 
+delayedAssign("has.shFILE", !is.na(.shFILE()))
+
+
 shFILE <- function (original = FALSE, for.msg = FALSE, default, else.)
 {
-    if (missing(default))
+    if (missing(default)) {
         if (missing(else.))
             .shFILE(original, for.msg)
         else stop("'shFILE' with 'else.' but not 'default' makes no sense")
+    }
     else {
         if (missing(else.)) {
-            if (is.na(.shFILE()))
-                default
-            else .shFILE(original, for.msg)
+            if (has.shFILE)
+                .shFILE(original, for.msg)
+            else if (for.msg)
+                NA_character_
+            else default
         }
         else {
-            if (is.na(.shFILE()))
-                default
-            else {
+            if (has.shFILE) {
                 value <- .shFILE(original, for.msg)
                 (else.)(value)
             }
+            else if (for.msg) {
+                value <- NA_character_
+                (else.)(value)
+            }
+            else default
         }
     }
 }
 
 
-delayedAssign("has.shFILE", in.shell && !is.na(.shFILE()))
-
-
 normalized.shFILE <- function (...)
-.Defunct2("shFILE", old = "normalized.shFILE")
+stop(defunctError("shFILE", pkgname, old = "normalized.shFILE"))
 
 
 
@@ -130,13 +145,6 @@ delayedAssign("untitled", {
         else untitled_msvcrt
     }
 })
-delayedAssign("nchar_r.editor", {
-    if (gui.rgui) {
-        nchar(r.editor)
-    }
-})
-is.r.editor <- function (x)
-vapply(x, function(xx) any(endsWith(xx, r.editor)), NA)
 
 
 
@@ -216,7 +224,7 @@ is.clipboard <- function (file)
 
 rm.list.append("this_path_used_in_an_inappropriate_fashion")
 this_path_used_in_an_inappropriate_fashion <- local({
-    tmp <- readLines("./src/thispathdefn.h", warn = FALSE)
+    tmp <- readLines("./src/thispathdefn.h")
     tmp <- tmp[[grep("^[ \t]*#[ \t]*define[ \t]+this_path_used_in_an_inappropriate_fashion[ \t]*\\\\[ \t]*$", tmp) + 1L]]
     tmp <- str2lang(tmp)
     if (!is.character(tmp) || length(tmp) != 1L ||
@@ -228,12 +236,134 @@ this_path_used_in_an_inappropriate_fashion <- local({
 })
 
 
+getContents <- function (file, encoding = getOption("encoding"))
+{
+    if (identical(encoding, "unknown")) {
+        enc <- utils::localeToCharset()
+        encoding <- enc[length(enc)]
+    }
+    else enc <- encoding
+    if (length(enc) > 1L) {
+        encoding <- NA
+        owarn <- options(warn = 2)
+        for (e in enc) {
+            if (is.na(e))
+                next
+            zz <- file(file, encoding = e)
+            res <- tryCatch(readLines(zz, warn = FALSE),
+                error = identity)
+            close(zz)
+            if (!inherits(res, "error")) {
+                encoding <- e
+                break
+            }
+        }
+        options(owarn)
+    }
+    if (is.na(encoding))
+        stop("unable to find a plausible encoding")
+    filename <- file
+    file <- file(filename, "r", encoding = encoding)
+    on.exit(close(file))
+    readLines(file, warn = FALSE)
+}
+
+
+getIPythonNotebookContents <- function (..., do.unlist = TRUE, give.f = TRUE)
+{
+    lines <- getContents(...)
+    source <- jsonlite::fromJSON(lines)[[c("cells", "source")]]
+    if (do.unlist) {
+        value <- unlist(source)
+        if (give.f)
+            attr(value, "f") <- as.factor(rep(seq_along(source), lengths(source)))
+        value
+    } else source
+}
+
+
+removeSource <- function (fn)
+{
+    recurse <- function(part) {
+        if (is.name(part))
+            return(part)
+        attr(part, "srcref") <- NULL
+        attr(part, "wholeSrcref") <- NULL
+        attr(part, "srcfile") <- NULL
+        if (is.language(part) && is.recursive(part)) {
+            for (i in seq_along(part)) part[i] <- list(recurse(part[[i]]))
+        }
+        part
+    }
+    if (is.function(fn)) {
+        if (!is.primitive(fn)) {
+            attr(fn, "srcref") <- NULL
+            at <- attributes(fn)
+            attr(body(fn), "wholeSrcref") <- NULL
+            attr(body(fn), "srcfile") <- NULL
+            body(fn) <- recurse(body(fn))
+            if (!is.null(at))
+                attributes(fn) <- at
+        }
+        fn
+    }
+    else if (is.language(fn)) {
+        recurse(fn)
+    }
+    else stop("argument is not a function or language object:",
+        typeof(fn))
+}
+
+
+getNamedElement <- function (x, names)
+{
+    for (name in names) {
+        if (i <- match(name, names(x), 0L, c("", NA_character_)))
+            x <- x[[i]]
+        else return()
+    }
+    x
+}
+
+
 # this.path(), this.dir(), and here() ----
 
 
-.this.path.rgui <- function (verbose = FALSE, for.msg = FALSE)
+isJupyterLoaded <- function ()
+gui.jupyter && isNamespaceLoaded("IRkernel") && (identical2)(sys.function(1L), IRkernel::main)
+
+
+validJupyterRNotebook <- function (path)
+{
+    contents <- tryCatch(getContents(path), error = identity)
+    if (!inherits(contents, "error")) {
+        contents <- tryCatch(jsonlite::parse_json(contents, simplifyVector = TRUE),
+            error = identity)
+        if (!inherits(contents, "error")) {
+            language <- getNamedElement(contents, c("metadata", "kernelspec", "language"))
+            name <- getNamedElement(contents, c("metadata", "language_info", "name"))
+            version <- getNamedElement(contents, c("metadata", "language_info", "version"))
+            source <- getNamedElement(contents, c("cells", "source"))
+            if (is.character(language) && length(language) == 1L && !is.na(language) && language == "R" &&
+                is.character(name)     && length(name)     == 1L && !is.na(name)     && name     == "R" &&
+                is.character(version)  && length(version)  == 1L && !is.na(version)  && version  == as.character(getRversion()) &&
+                is.list(source)        && length(source)         && all(vapply(source, is.character, NA, USE.NAMES = FALSE)))
+            {
+                return(TRUE)
+            }
+        }
+    }
+    FALSE
+}
+
+
+# `utils::getWindowsHandles` (Windows exclusive) returns a list of
+# external pointers containing the windows handles. the thing of
+# interest are the names of this list, these should be the names of the
+# windows belonging to the current R process.
+.this.path.rgui <- function (verbose = FALSE, original = FALSE, for.msg = FALSE)
 .External2(C_thispathrgui, names(utils::getWindowsHandles(minimized = TRUE)),
-    untitled, r.editor, verbose, for.msg)
+    untitled, r.editor, verbose, original, for.msg)
 
 
 .this.path.toplevel <- function (verbose = FALSE, original = FALSE, for.msg = FALSE) NULL
@@ -245,7 +375,7 @@ body(.this.path.toplevel) <- bquote({
             stop(thisPathNotExistsError(
                 ..(this_path_used_in_an_inappropriate_fashion),
                 "* R is being run from a shell and argument 'FILE' is missing",
-                call = sys.call(sys.nframe())))
+                call = sys.call()))
         })
         if (verbose) cat("Source: shell argument 'FILE'\n")
         return(value)
@@ -275,10 +405,10 @@ body(.this.path.toplevel) <- bquote({
 
         # this might look stupid af, but we need to do this so the byte
         # compiler doesn't try to evaluate these promises early
-        context <- (.rs.api.getActiveDocumentContext)()
+        context <- .rs.api.getActiveDocumentContext()
         active <- context[["id"]] != "#console"
         if (!active) {
-            context <- (.rs.api.getSourceEditorContext)()
+            context <- .rs.api.getSourceEditorContext()
             if (is.null(context)) {
                 if (for.msg)
                     return(NA_character_)
@@ -304,10 +434,12 @@ body(.this.path.toplevel) <- bquote({
                     else
                         "Source: source document in RStudio\n"
                 )
-            return(normalizePath(path, winslash = "/", mustWork = FALSE))
+            if (original)
+                path
+            else .normalizePath(path)
         }
         else if (for.msg)
-            return(NA_character_)
+            gettext("Untitled", domain = "RGui", trim = FALSE)
         else stop(
             ..(this_path_used_in_an_inappropriate_fashion),
             if (active)
@@ -333,7 +465,7 @@ body(.this.path.toplevel) <- bquote({
 
         if (startsWith(context[["id"]], "untitled:")) {
             if (for.msg)
-                return(NA_character_)
+                return(gettext("Untitled", domain = "RGui", trim = FALSE))
             else stop(
                 ..(this_path_used_in_an_inappropriate_fashion),
                 "* document in VSCode does not exist")
@@ -346,13 +478,119 @@ body(.this.path.toplevel) <- bquote({
 
         if (nzchar(path)) {
             if (verbose) cat("Source: document in VSCode\n")
-            return(normalizePath(path, winslash = "/", mustWork = FALSE))
+            if (original)
+                path
+            else .normalizePath(path)
         }
         else if (for.msg)
-            return(NA_character_)
+            gettext("Untitled", domain = "RGui", trim = FALSE)
         else stop(
             ..(this_path_used_in_an_inappropriate_fashion),
             "* document in VSCode does not exist")
+    }
+
+
+    # running from 'jupyter'
+    else if (gui.jupyter) {
+
+
+        if (!is.na(.(as.symbol(thispathofilejupyter)))) {
+            if (verbose) cat("Source: document in Jupyter\n")
+            if (original)
+                return(.(as.symbol(thispathofilejupyter)))
+            else return(.External2(C_getpromisewithoutwarning, .(thispathfilejupyter)))
+        }
+
+
+        if (is.null(initwd)) {
+            if (for.msg)
+                return(NA_character_)
+            else stop(thisPathNotExistsError(
+                ..(this_path_used_in_an_inappropriate_fashion),
+                "* R is being run from Jupyter but the initial working directory is unknown"))
+        }
+
+
+        if (!isJupyterLoaded()) {
+            if (for.msg)
+                return(NA_character_)
+            else stop("Jupyter has not finished loading")
+        }
+
+
+        n <- sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 2L
+        ocall <- sys.call(n)
+        call <- removeSource(ocall)
+
+
+        files <- list.files(initwd, all.files = TRUE, full.names = TRUE,
+            ..(
+                if (getRversion() < "3.0.0")
+                    expression()
+                else expression(no.. = TRUE)
+            )
+        )
+        files <- files[!dir.exists(files)]
+        i <- grepl("\\.ipynb$", files, useBytes = TRUE)
+        ipynb <- files[i]
+        files <- files[!i]
+        i <- grepl("\\.ipynb$", files, ignore.case = TRUE, useBytes = TRUE)
+        IPYNB <- files[i]
+        files <- files[!i]
+
+
+        for (file in c(ipynb, IPYNB, files)) {
+            contents <- tryCatch(getContents(file), error = identity)
+            if (!inherits(contents, "error")) {
+                contents <- tryCatch(jsonlite::parse_json(contents, simplifyVector = TRUE),
+                    error = identity)
+                if (!inherits(contents, "error")) {
+
+
+                    language <- getNamedElement(contents, c("metadata", "kernelspec", "language"))
+                    name <- getNamedElement(contents, c("metadata", "language_info", "name"))
+                    version <- getNamedElement(contents, c("metadata", "language_info", "version"))
+                    source <- getNamedElement(contents, c("cells", "source"))
+
+
+                    # withAutoprint( { language; name; version; source } , spaced = TRUE, verbose = FALSE, width.cutoff = 60L); cat("\n\n\n\n\n")
+
+
+                    if (is.character(language) && length(language) == 1L && !is.na(language) && language == "R" &&
+                        is.character(name)     && length(name)     == 1L && !is.na(name)     && name     == "R" &&
+                        is.character(version)  && length(version)  == 1L && !is.na(version)  && version  == as.character(getRversion()) &&
+                        is.list(source)        && length(source)         && all(vapply(source, is.character, NA, USE.NAMES = FALSE)))
+                    {
+                        for (source0 in source) {
+                            exprs <- tryCatch(parse(text = source0, n = -1, keep.source = FALSE, srcfile = NULL),
+                                error = identity)
+                            if (!inherits(exprs, "error")) {
+                                for (expr in exprs) {
+                                    if (identical(expr, call)) {
+                                        .External2(C_setthispathjupyter, file, skipCheck = TRUE)
+                                        if (verbose) cat("Source: document in Jupyter\n")
+                                        if (original)
+                                            return(.(as.symbol(thispathofilejupyter)))
+                                        else return(.External2(C_getpromisewithoutwarning, .(thispathfilejupyter)))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+
+        if (for.msg)
+            NA_character_
+        else stop(thisPathNotExistsError(
+            ..(this_path_used_in_an_inappropriate_fashion),
+            sprintf("* R is being run from Jupyter with initial working directory '%s'\n but could not find a file with contents matching:\n", encodeString(initwd)),
+            {
+                t <- attr(ocall, "srcref", exact = TRUE)
+                paste(if (is.integer(t)) as.character(t) else deparse(ocall), collapse = "\n")
+            }))
     }
 
 
@@ -360,13 +598,7 @@ body(.this.path.toplevel) <- bquote({
     else if (gui.rgui) {
 
 
-        # "getWindowsHandles" from "utils" (Windows exclusive) returns a list
-        # of external pointers containing the windows handles. the thing of
-        # interest are the names of this list, these should be the names of the
-        # windows belonging to the current R process.
-
-
-        .this.path.rgui(verbose, for.msg)
+        .this.path.rgui(verbose, original, for.msg)
     }
 
 
@@ -400,6 +632,31 @@ body(.this.path.toplevel) <- bquote({
         else stop(thisPathUnrecognizedMannerError())
     }
 }, splice = TRUE)
+evalq(envir = environment(.this.path.toplevel) <- new.env(), {
+    assign(thispathofilejupyter, NA_character_)
+    eval(call("delayedAssign", thispathfilejupyter, call(".normalizePath", as.symbol(thispathofilejupyter))))
+})
+
+
+set.this.path.jupyter <- function (...)
+{
+    if (!gui.jupyter)
+        stop(gettextf("'%s' can only be called in Jupyter",
+            "set.this.path.jupyter"))
+    if (!isJupyterLoaded())
+        stop(gettextf("'%s' can only be called after Jupyter has finished loading",
+            "set.this.path.jupyter"))
+    n <- sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 2L
+    if (sys.nframe() != n)
+        stop(gettextf("'%s' can only be called from a top-level context",
+            "set.this.path.jupyter"))
+    path <- if (missing(...) || ...length() == 1L && (is.null(..1) || is.atomic(..1) && length(..1) == 1L && is.na(..1)))
+        NA_character_
+    else if (is.null(initwd))
+        path.join(...)
+    else path.join(initwd, ...)
+    .External2(C_setthispathjupyter, path)
+}
 
 
 delayedAssign("identical2", {
@@ -457,8 +714,17 @@ identical(x, y)
 
 
 
-.normalizePath <- function (path)
-normalizePath(path, winslash = "/", mustWork = TRUE)
+.normalizePath <- function (path, winslash = "/", mustWork = TRUE)
+normalizePath(path, winslash, mustWork)
+
+
+.normalizeNotDirectory <- function (path, winslash = "/", mustWork = TRUE)
+{
+    x <- normalizePath(path, winslash, mustWork)
+    if (!is.na(isdir <- is.dir(x)) && !isdir)
+        x
+    else stop(sprintf("'%s' is not a regular file", path), domain = NA)
+}
 
 
 .normalizeAgainst <- function (ofile, owd)
@@ -493,13 +759,11 @@ get.frame.number <- function (N = sys.nframe() - 1L)
 
 .this.dir <- function (verbose = FALSE)
 {
-    path <- .this.path(verbose = FALSE)
-    if (grepl("^(ftp|ftps|http|https)://", path)) {
-        # path <- normalizeURL.1("https://raw.githubusercontent.com////////////ArcadeAntics///testing/.././this.path/./main/tests/this.path_w_URLs.R")
-
-
-        y <- strsplit(sub(URL.pattern, "\\2", path), "/+")[[1L]]
-        paste(c(sub(URL.pattern, "\\1", path), y[-length(y)]), collapse = "/")
+    path <- .this.path(verbose)
+    if (grepl("^(https|http|ftp|ftps)://", path)) {
+        # path <- "https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R"
+        p <- path.split.1(path)
+        path.unsplit(if (length(p) >= 2L) p[-length(p)] else p)
     }
     else dirname2(path)
 }
@@ -525,7 +789,7 @@ faster.subsequent.times.test <- function ()
 
 
 
-this.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg = FALSE, default, else.)
+this.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg = FALSE, default, else., local = FALSE)
 tryCatch({
     .this.path(verbose, original, for.msg)
 }, function(c) default)
@@ -538,7 +802,7 @@ tryCatch({
 
 
 local({
-    tmp <- readLines("./src/thispathdefn.h", warn = FALSE)
+    tmp <- readLines("./src/thispathdefn.h")
     tmp <- tmp[[grep("^[ \t]*#[ \t]*define[ \t]+thisPathNotExistsErrorCls[ \t]*\\\\[ \t]*$", tmp) + 1L]]
     tmp <- str2lang(tmp)
     if (!is.character(tmp) || length(tmp) != 1L ||
@@ -556,10 +820,11 @@ tmp <- body(this.path)
 tmp[[1L]] <- as.name("tryCatch2")
 tmp[[2L]] <- call("<-", as.name("value"), tmp[[2L]])
 body(this.path) <- bquote({
-    if (missing(default))
+    if (missing(default)) {
         if (missing(else.))
-            .(body(this.path)[[2L]])
+            .(body(this.path)[[c(2L, 2L)]])
         else stop("'this.path' with 'else.' but not 'default' makes no sense")
+    }
     else {
         if (missing(else.))
             .(body(this.path))
@@ -575,10 +840,11 @@ tmp <- body(this.dir)
 tmp[[1L]] <- as.name("tryCatch2")
 tmp[[2L]] <- call("<-", as.name("value"), tmp[[2L]])
 body(this.dir) <- bquote({
-    if (missing(default))
+    if (missing(default)) {
         if (missing(else.))
-            .(body(this.dir)[[2L]])
+            .(body(this.dir)[[c(2L, 2L)]])
         else stop("'this.dir' with 'else.' but not 'default' makes no sense")
+    }
     else {
         if (missing(else.))
             .(body(this.dir))
@@ -594,15 +860,15 @@ rm(tmp)
 
 
 this.path2 <- function (...)
-.Defunct2("this.path(..., default = NULL)", old = "this.path2(...)")
+stop(defunctError("this.path(..., default = NULL)", pkgname, old = "this.path2(...)"))
 
 
 this.dir2 <- function (...)
-.Defunct2("this.dir(..., default = NULL)", old = "this.dir2(...)")
+stop(defunctError("this.dir(..., default = NULL)", pkgname, old = "this.dir2(...)"))
 
 
 this.dir3 <- function (...)
-.Defunct2("this.dir(..., default = getwd())", old = "this.dir3(...)")
+stop(defunctError("this.dir(..., default = getwd())", pkgname, old = "this.dir3(...)"))
 
 
 
@@ -611,23 +877,21 @@ this.dir3 <- function (...)
 here <- ici <- function (..., .. = 0L)
 {
     base <- .this.path()
-    if (grepl("^(ftp|ftps|http|https)://", base)) {
-        # base <- normalizeURL.1("https://raw.githubusercontent.com////////////ArcadeAntics///testing/.././this.path/./main/tests/this.path_w_URLs.R")
+    base <- if (grepl("^(https|http|ftp|ftps)://", base)) {
+        # base <- "https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R"
         # .. <- "2"
 
 
-        y <- strsplit(sub(URL.pattern, "\\2", base), "/+")[[1L]]
-        len <- length(y) - length(seq_len(..)) - 1L
-        base <- if (len <= 0L)
-            sub(URL.pattern, "\\1", base)
-        else paste(c(sub(URL.pattern, "\\1", base), y[seq_len(len)]), collapse = "/")
+        p <- path.split.1(base)
+        n <- length(p) - length(seq_len(..)) - 1L
+        path.unsplit(if (n < 1L) p[1L] else p[seq_len(n)])
     }
 
 
-    # base <- "//host-name/share-name/path/to/file"
-    # base <- "C:/Users/andre/Documents/this.path/man/this.path.Rd"
+    # base <- "//host/share/path/to/file"
+    # base <- "C:/Users/iris/Documents/this.path/man/this.path.Rd"
     # .. <- "10"
-    else base <- .External2(C_dirname2, base, ..)
+    else .External2(C_dirname2, base, ..)
     path.join(base, ...)
 }
 
@@ -641,6 +905,57 @@ Sys.path <- function ()
 
 Sys.dir <- function ()
 .this.dir()
+
+
+
+
+
+try.shFILE <- function ()
+tryCatch(.shFILE(FALSE), error = function(e) .shFILE())
+
+
+try.this.path <- function ()
+tryCatch(.this.path(), error = function(e) .this.path(for.msg = TRUE))
+
+
+
+
+
+local.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg = FALSE, default, else.)
+{
+    if (missing(default)) {
+        if (missing(else.))
+            .External2(C_localpath, verbose, original, for.msg)
+        else stop("'local.path' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        if (missing(else.)) {
+            value <- .External2(C_localpath, verbose, original, for.msg)
+            if (!is.na(value))
+                value
+            else if (for.msg)
+                NA_character_
+            else default
+        }
+        else {
+            value <- .External2(C_localpath, verbose, original, for.msg)
+            if (!is.na(value))
+                (else.)(value)
+            else if (for.msg) {
+                value <- NA_character_
+                (else.)(value)
+            }
+            else default
+        }
+    }
+}
+
+
+body(this.path) <- bquote({
+    if (local)
+        .(`[[<-`(body(local.path), c(2, 3, 2, 4, 2), body(this.path)[[c(2, 3, 2, 4, 2)]]))
+    else .(body(this.path))
+})
 
 
 

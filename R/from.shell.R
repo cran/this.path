@@ -26,3 +26,14 @@ is.main <- function ()
         NA
     else TRUE
 }
+
+
+toplevel.context.number <- function ()
+{
+    if (gui.jupyter) {
+        if (isJupyterLoaded())
+            sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 1L
+        else 0L
+    }
+    else 0L
+}

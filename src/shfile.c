@@ -1,7 +1,3 @@
-#include <R.h>
-#include <Rinternals.h>
-
-
 #include "thispathdefn.h"
 
 
@@ -10,7 +6,7 @@
 
 void Rprint(SEXP x, SEXP rho)
 {
-    SEXP expr = lang2(install("print"), x);
+    SEXP expr = lang2(printSymbol, x);
     PROTECT(expr);
     eval(expr, rho);
     UNPROTECT(1);
@@ -35,7 +31,7 @@ void Rprint(SEXP x, SEXP rho)
 
 
 
-SEXP do_shfile(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_shfile do_formals
 {
     /*
     do_shfile {this.path}                                        C Documentation
@@ -54,9 +50,12 @@ SEXP do_shfile(SEXP call, SEXP op, SEXP args, SEXP rho)
      */
 
 
+    do_start("shfile", 2);
+
+
     /* see ?shFILE */
-    int original = asLogical(CADR(args));
-    int for_msg  = asLogical(CADDR(args));
+    int original = asLogical(CAR(args)); args = CDR(args);
+    int for_msg  = asLogical(CAR(args)); args = CDR(args);
     if (for_msg == NA_LOGICAL)
         error(_("invalid '%s' argument"), "for.msg");
 
@@ -145,9 +144,13 @@ static void env_command_line(int *pac, const char **argv)
 
 
 // https://github.com/wch/r-source/blob/trunk/src/main/CommandLineArgs.c#L94
-void my_R_common_command_line(int *pac, const char **argv)
+void common_command_line(int *pac, const char **argv, char *enc, Rboolean *has_enc)
 {
+    *has_enc = FALSE;
+
+
     int ac = *pac, newac = 1;
+    const char *p;
     const char **av = argv;
     Rboolean processing = TRUE;
 
@@ -195,11 +198,14 @@ void my_R_common_command_line(int *pac, const char **argv)
             else if (!strcmp(*av, "--debug-init")) {
             }
             else if (!strncmp(*av, "--encoding", 10)) {
+                *has_enc = TRUE;
                 if (strlen(*av) < 12) {
-                    if (ac > 1) {
-                        ac--;
-                        av++;
-                    }
+                    if (ac > 1) { ac--; av++; p = *av; } else p = NULL;
+                } else p = &(*av)[11];
+                if (p == NULL) {
+                } else {
+                    strncpy(enc, p, 30);
+                    enc[30] = '\0';
                 }
             }
 #ifdef _WIN32
@@ -279,7 +285,7 @@ static char *unescape_arg(char *p, const char *avp)
 #endif
 
 
-SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_shinfo do_formals
 {
     /*
     do_shinfo {this.path}                                        C Documentation
@@ -308,17 +314,28 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     A list with at least the following components:
 
+    ENC
+
+        character string; command line argument 'ENC' or NA_character_
+
     FILE
 
-        character string; command line argument FILE or NA_character_
+        character string; command line argument 'FILE' or NA_character_
 
-    no.input
+    EXPR
 
-        length-one logical vector
+        character string; command line argument 'EXPR' or NA_character_
+
+    has.input
+
+        length-one logical vector; was 'FILE' or 'EXPR' provided?
      */
 
 
-    if (!is_maybe_in_shell) {
+    do_start("shinfo", 0);
+
+
+    if (!is_maybe_unembedded_shell) {
 
 
 #ifdef debug
@@ -328,23 +345,32 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 #endif
 
 
-#define return_shinfo(_FILE_, _no_input_)                      \
+#define return_shinfo(_ENC_, _FILE_, _EXPR_, _HAS_INPUT_)      \
         do {                                                   \
-            SEXP value = allocVector(VECSXP, 2);               \
+            SEXP value = allocVector(VECSXP, 4);               \
             PROTECT(value);                                    \
-            SEXP names = allocVector(STRSXP, 2);               \
+            SEXP names = allocVector(STRSXP, 4);               \
             setAttrib(value, R_NamesSymbol, names);            \
-            SET_STRING_ELT(names, 0, mkChar("FILE"));          \
-            SET_VECTOR_ELT(value, 0, (_FILE_));                \
-            SET_STRING_ELT(names, 1, mkChar("no.input"));      \
-            SET_VECTOR_ELT(value, 1, (_no_input_));            \
+            SET_STRING_ELT(names, 0, mkChar("ENC"));           \
+            SET_VECTOR_ELT(value, 0, (_ENC_));                 \
+            SET_STRING_ELT(names, 1, mkChar("FILE"));          \
+            SET_VECTOR_ELT(value, 1, (_FILE_));                \
+            SET_STRING_ELT(names, 2, mkChar("EXPR"));          \
+            SET_VECTOR_ELT(value, 2, (_EXPR_));                \
+            SET_STRING_ELT(names, 3, mkChar("has.input"));     \
+            SET_VECTOR_ELT(value, 3, (_HAS_INPUT_));           \
             debugRprint(value, R_BaseEnv);                     \
             UNPROTECT(1);                                      \
             return value;                                      \
         } while (0)
 
 
-        return_shinfo(ScalarString(NA_STRING), ScalarLogical(NA_LOGICAL));
+        return_shinfo(
+            ScalarString(NA_STRING),
+            ScalarString(NA_STRING),
+            ScalarString(NA_STRING),
+            ScalarLogical(NA_LOGICAL)
+        );
     }
 
 
@@ -365,13 +391,22 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 #endif
 
 
+    char enc[31] = "";
+    Rboolean has_enc = FALSE;
     const char *FILE = NULL;
-    int no_input = TRUE;
+    char cmdlines[10000];
+    cmdlines[0] = '\0';
+    Rboolean has_input = FALSE;
 
 
     if (ARGC <= 1) {
         UNPROTECT(1);
-        return_shinfo(ScalarString(FILE ? mkChar(FILE) : NA_STRING), ScalarLogical(no_input));
+        return_shinfo(
+            ScalarString(has_enc ? mkChar(enc) : NA_STRING),
+            ScalarString(FILE ? mkChar(FILE) : NA_STRING),
+            ScalarString(strlen(cmdlines) ? mkChar(cmdlines) : NA_STRING),
+            ScalarLogical(has_input)
+        );
     }
 
 
@@ -403,7 +438,7 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 #endif
 
 
-#ifdef _WIN32
+#if defined(_WIN32)
 
 
 // https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1064
@@ -421,7 +456,8 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
 // https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1176
-    my_R_common_command_line(&ac, av);
+    common_command_line(&ac, av, enc, &has_enc);
+    // Rprintf("--encoding=%s\nhas encoding: %s\n", enc, has_enc ? "TRUE" : "FALSE");
 
 
 #ifdef debug
@@ -445,29 +481,32 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
             if (!strcmp(*av, "--args")) {
                 break;
             } else if (!strcmp(*av, "-f")) {
-                no_input = FALSE;
+                has_input = TRUE;
                 ac--;
                 av++;
                 if (!ac) {
-                    error("internal error, this should have been caught earlier");
+                    errorcall(call, "option '-f' requires a filename argument");
                 }
                 /* if (av != "-") */
                 if (strcmp(*av, "-")) {
                     FILE = *av;
                 }
             } else if (!strncmp(*av, "--file=", 7)) {
-                no_input = FALSE;
-                /* if (av != "-") */
-                if (strcmp((*av)+7, "-")) {
+                has_input = TRUE;
+                if (strcmp((*av)+7, "-")) {  /* av != "--file=-" */
                     FILE = (*av)+7;
                 }
             // } else if (!strncmp(*av, "--workspace=", 12)) {
             } else if (!strcmp(*av, "-e")) {
-                no_input = FALSE;
+                has_input = TRUE;
                 ac--;
                 av++;
-                if (!ac) {
-                    error("internal error, this should have been caught earlier");
+                if (!ac || !strlen(*av)) {
+                    error("option '-e' requires a non-empty argument");
+                }
+                if (strlen(cmdlines) + strlen(*av) + 2 <= 10000) {
+                    strcat(cmdlines, *av);
+                    strcat(cmdlines, "\n");
                 }
             }
         }
@@ -514,7 +553,8 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
 // https://github.com/wch/r-source/blob/trunk/src/unix/system.c#L405
-    my_R_common_command_line(&ac, av);
+    common_command_line(&ac, av, enc, &has_enc);
+    // Rprintf("--encoding=%s\nhas encoding: %s\n", enc, has_enc ? "TRUE" : "FALSE");
 
 
 #ifdef debug
@@ -532,9 +572,12 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
             // if (!strcmp(*av, "--no-readline")) {
             // } else
             if (!strcmp(*av, "-f")) {
-                no_input = FALSE;
+                has_input = TRUE;
                 ac--;
                 av++;
+                if (!ac) {
+                    errorcall(call, "option '-f' requires a filename argument");
+                }
 #define R_INIT_TREAT_F(_AV_)                                   \
                 if (strcmp(_AV_, "-")) {                       \
                     if (strlen(_AV_) >= PATH_MAX) {            \
@@ -548,14 +591,22 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
                 R_INIT_TREAT_F(*av);
 
             } else if (!strncmp(*av, "--file=", 7)) {
-                no_input = FALSE;
+                has_input = TRUE;
 
                 R_INIT_TREAT_F((*av)+7);
 
             } else if (!strcmp(*av, "-e")) {
-                no_input = FALSE;
+                has_input = TRUE;
                 ac--;
                 av++;
+                if (!ac) {
+                    error("option '-e' requires a non-empty argument");
+                }
+                if (strlen(cmdlines) + strlen(*av) + 2 <= 10000) {
+                    char *p = cmdlines + strlen(cmdlines);
+                    p = unescape_arg(p, *av);
+                    *p++ = '\n'; *p = '\0';
+                }
             } else if (!strcmp(*av, "--args")) {
                 break;
             } else if (!strcmp(*av, "--interactive")) {
@@ -580,7 +631,9 @@ SEXP do_shinfo(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
     return_shinfo(
+        ScalarString(has_enc ? mkChar(enc) : NA_STRING),
         ScalarString(FILE ? mkChar(FILE) : NA_STRING),
-        ScalarLogical(no_input)
+        ScalarString(strlen(cmdlines) ? mkChar(cmdlines) : NA_STRING),
+        ScalarLogical(has_input)
     );
 }

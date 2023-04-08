@@ -1,72 +1,70 @@
-#include <R.h>
-#include <Rinternals.h>
-
-
 #include "thispathdefn.h"
-
-
-static R_INLINE int asFlag(SEXP x, const char *name)
-{
-    int val = asLogical(x);
-    if (val == NA_LOGICAL)
-        error(_("invalid '%s' value"), name);
-    return val;
-}
+#include "drivewidth.h"
 
 
 #define errorbody                                              \
-    args = CDR(args);                                          \
     if (!isString(CAR(args)) || LENGTH(CAR(args)) != 1 ||      \
         STRING_ELT(CAR(args), 0) == NA_STRING)                 \
     {                                                          \
-        errorcall(call, "invalid first argument");             \
+        errorcall(call, _("invalid first argument"));          \
     }                                                          \
-    const char *msg = translateChar(STRING_ELT(CAR(args), 0)); \
-    args = CDR(args);                                          \
-    SEXP call2 = CAR(args);                                    \
+    const char *msg = translateChar(STRING_ELT(CAR(args), 0)); args = CDR(args);                                          \
+    SEXP call2 = CAR(args); args = CDR(args);                  \
     ENSURE_NAMEDMAX(call2)
 
 
-SEXP do_thispathunrecognizedconnectionclasserror(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathunrecognizedconnectionclasserror do_formals
 {
-    args = CDR(args);
-    SEXP call2 = CAR(args);
+    do_start("thispathunrecognizedconnectionclasserror", 2);
+
+
+    SEXP call2 = CAR(args); args = CDR(args);
     ENSURE_NAMEDMAX(call2);
-    args = CDR(args);
-    if (findVarInFrame(R_NamespaceRegistry, thispathhelperSymbol) != R_UnboundValue)
-        return thisPathUnrecognizedConnectionClassError(call2, R_GetConnection2(CAR(args)));
-    else
-        return thisPathUnrecognizedConnectionClassError2(call2, summaryconnection2(CAR(args)));
+#if defined(R_CONNECTIONS_VERSION_1)
+    return thisPathUnrecognizedConnectionClassError(call2, R_GetConnection(CAR(args)));
+#else
+    return thisPathUnrecognizedConnectionClassError(call2, summaryconnection(CAR(args)));
+#endif
 }
 
 
-SEXP do_thispathunrecognizedmannererror(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathunrecognizedmannererror do_formals
 {
-    op = CADR(args);
+    do_start("thispathunrecognizedmannererror", 1);
+
+
+    op = CAR(args);
     ENSURE_NAMEDMAX(op);
     return thisPathUnrecognizedMannerError(op);
 }
 
 
-SEXP do_thispathnotimplementederror(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathnotimplementederror do_formals
 {
+    do_start("thispathnotimplementederror", 2);
+
+
     errorbody;
     return thisPathNotImplementedError(msg, call2);
 }
 
 
-SEXP do_thispathnotexistserror(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathnotexistserror do_formals
 {
+    do_start("thispathnotexistserror", 2);
+
+
     errorbody;
     return thisPathNotExistsError(msg, call2);
 }
 
 
-SEXP do_thispathinzipfileerror(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathinzipfileerror do_formals
 {
-    args = CDR(args);
-    SEXP call2 = CAR(args);
-    args = CDR(args);
+    do_start("thispathinzipfileerror", 2);
+
+
+    SEXP call2 = CAR(args); args = CDR(args);
     if (!isString(CAR(args)) || LENGTH(CAR(args)) != 1 ||
         STRING_ELT(CAR(args), 0) == NA_STRING)
     {
@@ -77,18 +75,24 @@ SEXP do_thispathinzipfileerror(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_thispathinaquaerror(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathinaquaerror do_formals
 {
-    return thisPathInAQUAError(lazy_duplicate(CADR(args)));
+    do_start("thispathinaquaerror", 1);
+
+
+    return thisPathInAQUAError(lazy_duplicate(CAR(args)));
 }
 
 
 #undef errorbody
 
 
-SEXP do_isclipboard(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_isclipboard do_formals
 {
-    SEXP file = CADR(args);
+    do_start("isclipboard", 1);
+
+
+    SEXP file = CAR(args);
     if (TYPEOF(file) != STRSXP)
         error(_("a character vector argument expected"));
     int n = LENGTH(file);
@@ -105,31 +109,56 @@ SEXP do_isclipboard(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP thispath(Rboolean verbose, Rboolean original, Rboolean for_msg, int N,
+    Rboolean get_frame_number, Rboolean local, SEXP rho)
 {
-    SEXP returnthis = NULL;
-    SEXP returnvalue;  /* this is never used */
-
-
-    args = CDR(args);
-
-
-    int verbose  = asFlag(CAR(args), "verbose");
-    int original = asLogical(CADR(args));
-    int for_msg  = asFlag(CADDR(args), "for.msg");
-    int N        = asInteger(CADDDR(args));
+    if (verbose == NA_LOGICAL)
+        error(_("invalid '%s' value"), "verbose");
+    if (for_msg == NA_LOGICAL)
+        error(_("invalid '%s' value"), "for.msg");
     if (N == NA_INTEGER || N < 0)
         error(_("invalid '%s' argument"), "N");
-    int get_frame_number = asFlag(CAD4R(args), "get.frame.number");
+    if (get_frame_number == NA_LOGICAL)
+        error(_("invalid '%s' value"), "get.frame.number");
+    if (local == NA_LOGICAL)
+        error(_("invalid '%s' value"), "local");
 
 
-    if (get_frame_number && (original || for_msg)) {
-        if (!for_msg)
-            error("'%s' must be FALSE when '%s' is TRUE", "original", "get.frame.number");
-        else if (!original)
-            error("'%s' must be FALSE when '%s' is TRUE", "for.msg", "get.frame.number");
-        else
-            error("'%s' and '%s' must be FALSE when '%s' is TRUE", "original", "for.msg", "get.frame.number");
+    SEXP returnthis = NULL;
+    SEXP returnvalue;  /* checkfile() creates a variable 'returnvalue' that is
+                          used in insidesource() (see ./src/wrapsource.c).
+                          not used elsewhere but must be declared */
+
+
+    if (get_frame_number) {
+        if (original) {
+            if (for_msg) {
+                if (local)
+                    error("'%s', '%s', and '%s' must be FALSE when '%s' is TRUE", "original", "for.msg", "local", "get.frame.number");
+                else
+                    error("'%s' and '%s' must be FALSE when '%s' is TRUE", "original", "for.msg", "get.frame.number");
+            }
+            else {
+                if (local)
+                    error("'%s' and '%s' must be FALSE when '%s' is TRUE", "original", "local", "get.frame.number");
+                else
+                    error("'%s' must be FALSE when '%s' is TRUE", "original", "get.frame.number");
+            }
+        }
+        else {
+            if (for_msg) {
+                if (local)
+                    error("'%s' and '%s' must be FALSE when '%s' is TRUE", "for.msg", "local", "get.frame.number");
+                else
+                    error("'%s' must be FALSE when '%s' is TRUE", "for.msg", "get.frame.number");
+            }
+            else {
+                if (local)
+                    error("'%s' must be FALSE when '%s' is TRUE", "local", "get.frame.number");
+                else
+                    ;
+            }
+        }
     }
 
 
@@ -137,18 +166,19 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
 #define toplevel                                               \
+        if (local) error("'local.path' used in an inappropriate fashion");\
         if (get_frame_number) return ScalarInteger(0);         \
         SEXP expr;                                             \
         if (for_msg)                                           \
-            expr = lang4(this_path_toplevelSymbol, ScalarLogical(verbose), ScalarLogical(original), ScalarLogical(for_msg));\
+            expr = lang4(_this_path_toplevelSymbol, ScalarLogical(verbose), ScalarLogical(original), ScalarLogical(for_msg));\
         else if (original)                                     \
-            expr = lang3(this_path_toplevelSymbol, ScalarLogical(verbose), ScalarLogical(original));\
+            expr = lang3(_this_path_toplevelSymbol, ScalarLogical(verbose), ScalarLogical(original));\
         else if (verbose)                                      \
-            expr = lang2(this_path_toplevelSymbol, ScalarLogical(verbose));\
+            expr = lang2(_this_path_toplevelSymbol, ScalarLogical(verbose));\
         else                                                   \
-            expr = lang1(this_path_toplevelSymbol);            \
+            expr = lang1(_this_path_toplevelSymbol);            \
         PROTECT(expr);                                         \
-        returnthis = eval(expr, rho);                          \
+        returnthis = eval(expr, mynamespace);                  \
         UNPROTECT(1);                                          \
         return returnthis
 
@@ -160,7 +190,8 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
     SEXP thispathofile ,
          thispathfile  ,
          thispathformsg,
-         thispatherror ;
+         thispatherror ,
+         insidesourcewashere;
 
 
     int nprotect = 0;
@@ -169,21 +200,35 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
     init_tools_rstudio(FALSE);
 
 
-    int testthat_loaded, knitr_loaded;
+    SEXP source      = getInFrame(sourceSymbol    , R_BaseEnv, FALSE),
+         sys_source  = getInFrame(sys_sourceSymbol, R_BaseEnv, FALSE),
+         debugSource = get_debugSource,
+         wrap_source = getInFrame(wrap_sourceSymbol, mynamespace, FALSE);
 
 
-    SEXP source     = getInFrame(sourceSymbol    , R_BaseEnv, FALSE),
-         sys_source = getInFrame(sys_sourceSymbol, R_BaseEnv, FALSE),
-         debugSource,
-         source_file,
-         knit       ,
-         wrap_source;
+    SEXP ns;
+    Rboolean testthat_loaded, knitr_loaded, box_loaded      , compiler_loaded;
+    SEXP     source_file    , knit        , load_from_source, loadcmp        ;
 
 
-    debugSource = get_debugSource;
-    source_file = get_source_file(testthat_loaded);
-    knit        = get_knit(knitr_loaded);
-    wrap_source = get_wrap_source;
+    ns = findVarInFrame(R_NamespaceRegistry, testthatSymbol);
+    testthat_loaded = (ns == R_UnboundValue ? FALSE : TRUE);
+    source_file = (testthat_loaded ? getInFrame(source_fileSymbol, ns, FALSE) : R_UnboundValue);
+
+
+    ns = findVarInFrame(R_NamespaceRegistry, knitrSymbol);
+    knitr_loaded = (ns == R_UnboundValue ? FALSE : TRUE);
+    knit = (knitr_loaded ? getInFrame(knitSymbol, ns, FALSE) : R_UnboundValue);
+
+
+    ns = findVarInFrame(R_NamespaceRegistry, boxSymbol);
+    box_loaded = (ns == R_UnboundValue ? FALSE : TRUE);
+    load_from_source = (box_loaded ? getInFrame(load_from_sourceSymbol, ns, FALSE) : R_UnboundValue);
+
+
+    ns = findVarInFrame(R_NamespaceRegistry, compilerSymbol);
+    compiler_loaded = (ns == R_UnboundValue ? FALSE : TRUE);
+    loadcmp = (compiler_loaded ? getInFrame(loadcmpSymbol, ns, FALSE) : R_UnboundValue);
 
 
     SEXP which = allocVector(INTSXP, 1);
@@ -196,16 +241,26 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     SEXP frame, function;
     SEXP ofile;
-    for (iwhich[0] = N; iwhich[0] >= 1; iwhich[0]--) {
+
+
+    if (local) INCREMENT_NAMED_defineVar(for_msgSymbol, ScalarLogical(for_msg), rho);
+    int to = ((local) ? N : 1);
+
+
+    for (iwhich[0] = N; iwhich[0] >= to; iwhich[0]--) {
         frame = eval(getframe, rho);
         // PROTECT(frame);
         function = eval(getfunction, rho);
         PROTECT(function);
+/* the number of objects protected in each iteration (that must be unprotected
+   before moving to the next iteration) */
+#define nprotect_loop 1
         if (identical(function, source)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
                 ofile = findVarInFrame(frame, ofileSymbol);
                 if (ofile == R_UnboundValue) {
-                    UNPROTECT(1);
+                    UNPROTECT(nprotect_loop);
                     continue;
                 }
                 if (TYPEOF(ofile) == PROMSXP) {
@@ -216,10 +271,10 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 }
                 checkfile(
                     /* SEXP call                  = */ sys_call(which, rho),
-                    /* SEXP rho                   = */ rho,
                     /* SEXP sym                   = */ ofileSymbol,
                     /* SEXP ofile                 = */ ofile,
                     /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
                     /* int forcepromise           = */ FALSE,
                     /* int assign_returnvalue     = */ FALSE,
                     /* int maybe_chdir            = */ TRUE,
@@ -257,7 +312,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
             if (!file_only) {                                  \
                 /* if file_only is TRUE, thispathofile cannot be NULL */\
                 if (thispathofile == R_NilValue) {             \
-                    UNPROTECT(1);                              \
+                    UNPROTECT(nprotect_loop);                  \
                     continue;                                  \
                 }                                              \
             }                                                  \
@@ -270,36 +325,40 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                         thispathformsg = findVarInFrame(frame, thispathformsgSymbol);\
                         if (thispathformsg == R_UnboundValue)  \
                             error(_("object '%s' not found"), EncodeChar(PRINTNAME(thispathformsgSymbol)));\
-                        UNPROTECT(nprotect + 1);               \
+                        UNPROTECT(nprotect + nprotect_loop);   \
                         return thispathformsg;                 \
                     }                                          \
                     else if (get_frame_number) {               \
-                        UNPROTECT(nprotect + 1);               \
+                        UNPROTECT(nprotect + nprotect_loop);   \
                         if (findVarInFrame(frame, thispathassocwfileSymbol) == R_UnboundValue)\
                             return ScalarInteger(NA_INTEGER);  \
                         return (which);                        \
                     }                                          \
                     else {                                     \
+                        if (local) {                           \
+                            UNPROTECT(nprotect + nprotect_loop);\
+                            return ScalarString(NA_STRING);    \
+                        }                                      \
                         thispatherror = duplicate(thispatherror);\
                         PROTECT(thispatherror);                \
                         SET_VECTOR_ELT(thispatherror, 1, getCurrentCall(rho));\
                         stop(thispatherror);                   \
+                        UNPROTECT(1);  /* thispatherror */     \
                         /* should not reach here */            \
-                        UNPROTECT(1);                          \
-                        UNPROTECT(nprotect + 1);               \
+                        UNPROTECT(nprotect + nprotect_loop);   \
                         return R_NilValue;                     \
                     }                                          \
                 }                                              \
             }                                                  \
             if (get_frame_number) {                            \
-                UNPROTECT(nprotect + 1);                       \
+                UNPROTECT(nprotect + nprotect_loop);           \
                 return (which);                                \
             }                                                  \
             if (thispathofile == R_UnboundValue)               \
                 error(_("object '%s' not found"), EncodeChar(PRINTNAME(thispathofileSymbol)));\
             if (for_msg) {                                     \
                 if (original == TRUE) {                        \
-                    UNPROTECT(nprotect + 1);                   \
+                    UNPROTECT(nprotect + nprotect_loop);       \
                     return thispathofile;                      \
                 }                                              \
                 thispathfile = findVarInFrame(frame, thispathfileSymbol);\
@@ -310,11 +369,11 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 if (promise_must_be_forced) {                  \
                     if (PRVALUE(thispathfile) == R_UnboundValue)\
                         error("invalid '%s', this promise should have already been forced", EncodeChar(PRINTNAME(thispathfileSymbol)));\
-                    UNPROTECT(nprotect + 1);                   \
+                    UNPROTECT(nprotect + nprotect_loop);       \
                     return PRVALUE(thispathfile);              \
                 }                                              \
                 else {                                         \
-                    UNPROTECT(nprotect + 1);                   \
+                    UNPROTECT(nprotect + nprotect_loop);       \
                     /* if thispathfile has already been evaluated, return it */\
                     /* otherwise, return the original file */  \
                     if (PRVALUE(thispathfile) == R_UnboundValue)\
@@ -337,14 +396,22 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                     returnthis = PRVALUE(thispathfile);        \
                 }                                              \
                 else {                                         \
-                    if (PRVALUE(thispathfile) == R_UnboundValue)\
-                        returnthis = (original ? thispathofile : eval(thispathfile, R_EmptyEnv));\
-                    else                                       \
-                        returnthis = PRVALUE(thispathfile);    \
+                    if (PRVALUE(thispathfile) == R_UnboundValue) {\
+                        if (original)                          \
+                            returnthis = thispathofile;        \
+                        else {                                 \
+                            if (PRSEEN(thispathfile)) {        \
+                                if (PRSEEN(thispathfile) == 1) {}\
+                                else SET_PRSEEN(thispathfile, 0);\
+                            }                                  \
+                            returnthis = eval(thispathfile, R_EmptyEnv);\
+                        }                                      \
+                    }                                          \
+                    else returnthis = PRVALUE(thispathfile);   \
                 }                                              \
             }                                                  \
             if (verbose) Rprintf("Source: call to function %s\n", fun_name);\
-            UNPROTECT(nprotect + 1);                           \
+            UNPROTECT(nprotect + nprotect_loop);               \
             return returnthis
 
 
@@ -360,6 +427,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
         else if (identical(function, sys_source)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
                 ofile = findVarInFrame(frame, fileSymbol);
                 if (ofile == R_UnboundValue)
@@ -367,7 +435,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 if (TYPEOF(ofile) == PROMSXP) {
                     if (PRSEEN(ofile) == 1) {
                         /* if ofile is a promise already under evaluation */
-                        UNPROTECT(1);
+                        UNPROTECT(nprotect_loop);
                         continue;
                     }
                     if (PRVALUE(ofile) == R_UnboundValue)
@@ -377,10 +445,10 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 }
                 checkfile(
                     /* SEXP call                  = */ sys_call(which, rho),
-                    /* SEXP rho                   = */ rho,
                     /* SEXP sym                   = */ fileSymbol,
                     /* SEXP ofile                 = */ ofile,
                     /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
                     /* int forcepromise           = */ FALSE,
                     /* int assign_returnvalue     = */ FALSE,
                     /* int maybe_chdir            = */ TRUE,
@@ -420,6 +488,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
         else if (has_tools_rstudio && identical(function, debugSource)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
                 ofile = findVarInFrame(frame, fileNameSymbol);
                 if (ofile == R_UnboundValue)
@@ -427,7 +496,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 if (TYPEOF(ofile) == PROMSXP) {
                     if (PRSEEN(ofile) == 1) {
                         /* if ofile is a promise already under evaluation */
-                        UNPROTECT(1);
+                        UNPROTECT(nprotect_loop);
                         continue;
                     }
                     if (PRVALUE(ofile) == R_UnboundValue)
@@ -437,10 +506,10 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 }
                 checkfile(
                     /* SEXP call                  = */ sys_call(which, rho),
-                    /* SEXP rho                   = */ rho,
                     /* SEXP sym                   = */ fileNameSymbol,
                     /* SEXP ofile                 = */ ofile,
                     /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
                     /* int forcepromise           = */ FALSE,
                     /* int assign_returnvalue     = */ FALSE,
                     /* int maybe_chdir            = */ FALSE,
@@ -480,6 +549,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
         else if (testthat_loaded && identical(function, source_file)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
                 ofile = findVarInFrame(frame, pathSymbol);
                 if (ofile == R_UnboundValue)
@@ -487,7 +557,7 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 if (TYPEOF(ofile) == PROMSXP) {
                     if (PRSEEN(ofile) == 1) {
                         /* if ofile is a promise already under evaluation */
-                        UNPROTECT(1);
+                        UNPROTECT(nprotect_loop);
                         continue;
                     }
                     if (PRVALUE(ofile) == R_UnboundValue)
@@ -495,13 +565,13 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                     else
                         ofile = PRVALUE(ofile);
                 }
-                int ignore_all = asLogical(eval(lang1(testthat_uses_brioSymbol), rho));
+                int ignore_all = asLogical(eval(lang1(testthat_uses_brioSymbol), mynamespace));
                 checkfile(
                     /* SEXP call                  = */ sys_call(which, rho),
-                    /* SEXP rho                   = */ rho,
                     /* SEXP sym                   = */ pathSymbol,
                     /* SEXP ofile                 = */ ofile,
                     /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
                     /* int forcepromise           = */ FALSE,
                     /* int assign_returnvalue     = */ FALSE,
                     /* int maybe_chdir            = */ TRUE,
@@ -535,39 +605,39 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 /* SEXP which                 = */ which,
                 /* int promise_must_be_forced = */ FALSE,
                 /* const char *fun_name       = */
-                "source_file in package testthat"
+                "source_file from package testthat"
             );
         }
 
 
         else if (knitr_loaded && identical(function, knit)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
                 if (findVarInFrame(frame, oenvirSymbol) == R_UnboundValue) {
-                    UNPROTECT(1);
+                    UNPROTECT(nprotect_loop);
                     continue;
                 }
                 /* missing(input) */
                 SEXP expr = lang2(missingSymbol, inputSymbol);
                 PROTECT(expr);
                 int missing_input = asLogical(eval(expr, frame));
-                UNPROTECT(1);
+                UNPROTECT(1);  /* expr */
                 if (missing_input) {
                     assign_null(frame);
-                    assign_done(frame);
-                    UNPROTECT(1);
+                    UNPROTECT(nprotect_loop);
                     continue;
                 }
                 ofile = getInFrame(inputSymbol, frame, FALSE);
                 checkfile(
                     /* SEXP call                  = */ sys_call(which, rho),
-                    /* SEXP rho                   = */ rho,
                     /* SEXP sym                   = */ inputSymbol,
                     /* SEXP ofile                 = */ ofile,
                     /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
                     /* int forcepromise           = */ FALSE,
                     /* int assign_returnvalue     = */ FALSE,
                     /* int maybe_chdir            = */ TRUE,
-                    /* SEXP getowd                = */ eval(lang1(knitr_output_dirSymbol), rho),
+                    /* SEXP getowd                = */ eval(lang1(knitr_output_dirSymbol), mynamespace),
                     /* int hasowd                 = */ ((owd) != R_NilValue),
                     /* int character_only         = */ FALSE,
                     /* int conv2utf8              = */ FALSE,
@@ -597,14 +667,15 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 /* SEXP which                 = */ which,
                 /* int promise_must_be_forced = */ FALSE,
                 /* const char *fun_name       = */
-                "knit in package knitr"
+                "knit from package knitr"
             );
         }
 
 
         else if (identical(function, wrap_source)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
             if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
-                UNPROTECT(1);
+                UNPROTECT(nprotect_loop);
                 continue;
             }
             returnfile(
@@ -613,16 +684,136 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 /* SEXP which                 = */ getInFrame(thispathnSymbol, frame, FALSE),
                 /* int promise_must_be_forced = */ TRUE,
                 /* const char *fun_name       = */
-                "wrap.source in package this.path"
+                "wrap.source from package this.path"
             );
         }
 
 
-        else if (findVarInFrame(frame, insidesourcewashereSymbol) != R_UnboundValue) {
+        else if (box_loaded && identical(function, load_from_source)) {
+            if (local) error("'local.path' used in an inappropriate fashion");
+            if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
+                /* info$source_path */
+                SEXP expr = lang3(R_DollarSymbol, infoSymbol, source_pathSymbol);
+                PROTECT(expr);
+                SEXP ofile = eval(expr, frame);
+                UNPROTECT(1);  /* expr */
+                PROTECT(ofile);
+                checkfile(
+                    /* SEXP call                  = */ sys_call(which, rho),
+                    /* SEXP sym                   = */ info_source_pathSymbol,
+                    /* SEXP ofile                 = */ ofile,
+                    /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
+                    /* int forcepromise           = */ TRUE,
+                    /* int assign_returnvalue     = */ FALSE,
+                    /* int maybe_chdir            = */ FALSE,
+                    /* SEXP getowd                = */ NULL,
+                    /* int hasowd                 = */ FALSE,
+                    /* int character_only         = */ TRUE,
+                    /* int conv2utf8              = */ FALSE,
+                    /* int allow_blank_string     = */ FALSE,
+                    /* int allow_clipboard        = */ FALSE,
+                    /* int allow_stdin            = */ FALSE,
+                    /* int allow_url              = */ FALSE,
+                    /* int allow_file_uri         = */ FALSE,
+                    /* int allow_unz              = */ FALSE,
+                    /* int allow_pipe             = */ FALSE,
+                    /* int allow_terminal         = */ FALSE,
+                    /* int allow_textConnection   = */ FALSE,
+                    /* int allow_rawConnection    = */ FALSE,
+                    /* int allow_sockconn         = */ FALSE,
+                    /* int allow_servsockconn     = */ FALSE,
+                    /* int allow_customConnection = */ FALSE,
+                    /* int ignore_blank_string    = */ FALSE,
+                    /* int ignore_clipboard       = */ FALSE,
+                    /* int ignore_stdin           = */ FALSE,
+                    /* int ignore_url             = */ FALSE,
+                    /* int ignore_file_uri        = */ FALSE
+                )
+                UNPROTECT(1);  /* ofile */
+            }
+            returnfile(
+                /* int character_only         = */ TRUE,
+                /* int file_only              = */ TRUE,
+                /* SEXP which                 = */ which,
+                /* int promise_must_be_forced = */ TRUE,
+                /* const char *fun_name       = */
+                "load_from_source from package box"
+            );
+        }
+
+
+        else if (compiler_loaded && identical(function, loadcmp)) {
+            /* much the same as sys.source() */
+            if (local) error("'local.path' used in an inappropriate fashion");
+            if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue) {
+                ofile = findVarInFrame(frame, fileSymbol);
+                if (ofile == R_UnboundValue)
+                    error(_("object '%s' not found"), EncodeChar(PRINTNAME(fileSymbol)));
+                if (TYPEOF(ofile) == PROMSXP) {
+                    if (PRSEEN(ofile) == 1) {
+                        /* if ofile is a promise already under evaluation */
+                        UNPROTECT(nprotect_loop);
+                        continue;
+                    }
+                    if (PRVALUE(ofile) == R_UnboundValue)
+                        ofile = eval(ofile, R_EmptyEnv);
+                    else
+                        ofile = PRVALUE(ofile);
+                }
+                checkfile(
+                    /* SEXP call                  = */ sys_call(which, rho),
+                    /* SEXP sym                   = */ fileSymbol,
+                    /* SEXP ofile                 = */ ofile,
+                    /* SEXP frame                 = */ frame,
+                    /* int check_not_directory    = */ FALSE,
+                    /* int forcepromise           = */ FALSE,
+                    /* int assign_returnvalue     = */ FALSE,
+                    /* int maybe_chdir            = */ TRUE,
+                    /* SEXP getowd                = */ findVarInFrame(frame, owdSymbol),
+                    /* int hasowd                 = */ ((owd) != R_UnboundValue),
+                    /* int character_only         = */ TRUE,
+                    /* int conv2utf8              = */ FALSE,
+                    /* int allow_blank_string     = */ FALSE,
+                    /* int allow_clipboard        = */ FALSE,
+                    /* int allow_stdin            = */ FALSE,
+                    /* int allow_url              = */ FALSE,
+                    /* int allow_file_uri         = */ FALSE,
+                    /* int allow_unz              = */ FALSE,
+                    /* int allow_pipe             = */ FALSE,
+                    /* int allow_terminal         = */ FALSE,
+                    /* int allow_textConnection   = */ FALSE,
+                    /* int allow_rawConnection    = */ FALSE,
+                    /* int allow_sockconn         = */ FALSE,
+                    /* int allow_servsockconn     = */ FALSE,
+                    /* int allow_customConnection = */ FALSE,
+                    /* int ignore_blank_string    = */ FALSE,
+                    /* int ignore_clipboard       = */ FALSE,
+                    /* int ignore_stdin           = */ FALSE,
+                    /* int ignore_url             = */ FALSE,
+                    /* int ignore_file_uri        = */ FALSE
+                )
+            }
+            returnfile(
+                /* int character_only         = */ TRUE,
+                /* int file_only              = */ TRUE,
+                /* SEXP which                 = */ which,
+                /* int promise_must_be_forced = */ FALSE,
+                /* const char *fun_name       = */
+                "loadcmp from package compiler"
+            );
+        }
+
+
+        else if ((insidesourcewashere = findVarInFrame(frame, insidesourcewashereSymbol)) != R_UnboundValue) {
+            if (insidesourcewashere == R_MissingArg) {
+                UNPROTECT(nprotect_loop);
+                continue;
+            }
             SEXP thispathn = getInFrame(thispathnSymbol, frame, FALSE);
             /* this could happen with eval() or similar */
             if (iwhich[0] != asInteger(thispathn)) {
-                UNPROTECT(1);
+                UNPROTECT(nprotect_loop);
                 continue;
             }
             returnfile(
@@ -630,13 +821,12 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
                 /* int file_only              = */ FALSE,
                 /* SEXP which                 = */ thispathn,
                 /* int promise_must_be_forced = */ TRUE,
-                /* const char *fun_name       = */
-                "inside.source in package this.path"
+                /* const char *fun_name       = */ CHAR(insidesourcewashere)
             );
         }
 
 
-        UNPROTECT(1);
+        UNPROTECT(nprotect_loop);
     }
 
 
@@ -649,52 +839,99 @@ SEXP do_thispath(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_inittoolsrstudio(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispath do_formals
 {
+    do_start("thispath", 5);
+
+
+    Rboolean verbose          = asLogical(CAR(args)); args = CDR(args);
+    Rboolean original         = asLogical(CAR(args)); args = CDR(args);
+    Rboolean for_msg          = asLogical(CAR(args)); args = CDR(args);
+    int      N                = asInteger(CAR(args)); args = CDR(args);
+    Rboolean get_frame_number = asLogical(CAR(args)); args = CDR(args);
+    Rboolean local            = FALSE;
+
+
+    return thispath(verbose, original, for_msg, N, get_frame_number, local, rho);
+}
+
+
+SEXP do_localpath do_formals
+{
+    do_start("localpath", 3);
+
+
+    Rboolean verbose          = asLogical(CAR(args)); args = CDR(args);
+    Rboolean original         = asLogical(CAR(args)); args = CDR(args);
+    Rboolean for_msg          = asLogical(CAR(args)); args = CDR(args);
+    int      N                = asInteger(eval(lang1(sys_parentSymbol), rho));
+    Rboolean get_frame_number = FALSE;
+    Rboolean local            = TRUE;
+
+
+    return thispath(verbose, original, for_msg, N, get_frame_number, local, rho);
+}
+
+
+SEXP do_inittoolsrstudio do_formals
+{
+    do_start("inittoolsrstudio", -1);
+
+
     Rboolean skipCheck = FALSE;
-    int nargs = length(args) - 1;
-    if (nargs == 0) {
+    switch (length(args)) {
+    case 0:
+        break;
+    case 1:
+        skipCheck = asLogical(CAR(args));
+        if (skipCheck == NA_LOGICAL)
+            errorcall(call, _("invalid '%s' argument"), "skipCheck");
+        break;
+    default:
+        errorcall(call, wrong_nargs_to_External(length(args), "C_inittoolsrstudio", "0 or 1"));
     }
-    else if (nargs == 1) {
-        skipCheck = asLogical(CADR(args));
-    }
-    else errorcall(call, wrong_nargs_to_External(nargs, "C_inittoolsrstudio", "0 or 1"));
     return ScalarLogical(init_tools_rstudio(skipCheck));
 }
 
 
-#include "drivewidth.h"
-
-
-SEXP do_thispathrgui(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_thispathrgui do_formals
 {
-    args = CDR(args);
+    do_start("thispathrgui", 6);
+
+
+    SEXP wintitle, untitled, r_editor;
+    Rboolean verbose, original, for_msg;
 
 
     /* titles of the windows in RGui */
-    SEXP wintitle = CAR(args); args = CDR(args);
+    wintitle = CAR(args); args = CDR(args);
     if (!(TYPEOF(wintitle) == STRSXP || wintitle == R_NilValue))
-        errorcall(call, _("invalid first argument, must be %s"), "'character' / / NULL");
+        errorcall(call, "%s, must be %s", _("invalid first argument"), "'character' / / NULL");
 
 
     /* strings representing non-existent files in RGui */
-    SEXP untitled = CAR(args); args = CDR(args);
+    untitled = CAR(args); args = CDR(args);
     if (!(TYPEOF(untitled) == STRSXP || untitled == R_NilValue))
-        errorcall(call, _("invalid second argument, must be %s"), "'character' / / NULL");
+        errorcall(call, "%s, must be %s", "invalid second argument", "'character' / / NULL");
 
 
     /* strings representing R scripts in RGui */
-    SEXP r_editor = CAR(args); args = CDR(args);
+    r_editor = CAR(args); args = CDR(args);
     if (!(TYPEOF(r_editor) == STRSXP || r_editor == R_NilValue))
-        errorcall(call, _("invalid third argument, must be %s"), "'character' / / NULL");
+        errorcall(call, "%s, must be %s", "invalid third argument", "'character' / / NULL");
 
 
-    Rboolean verbose = asLogical(CAR(args)); args = CDR(args);
+    verbose = asLogical(CAR(args)); args = CDR(args);
     if (verbose == NA_LOGICAL)
         errorcall(call, _("invalid '%s' value"), "verbose");
 
 
-    Rboolean for_msg = asLogical(CAR(args)); args = CDR(args);
+    original = asLogical(CAR(args)); args = CDR(args);
+    if (verbose == NA_LOGICAL)
+        errorcall(call, _("invalid '%s' value"), "original");
+
+
+    for_msg = asLogical(CAR(args)); args = CDR(args);
     if (for_msg == NA_LOGICAL)
         errorcall(call, _("invalid '%s' value"), "for.msg");
 
@@ -718,7 +955,7 @@ SEXP do_thispathrgui(SEXP call, SEXP op, SEXP args, SEXP rho)
             if (untitled0 == NA_STRING || untitled0 == R_BlankString) continue;
             // if (wintitle0 == untitled0) {
             if (!strcmp(title, CHAR(untitled0))) {
-                if (for_msg) return ScalarString(NA_STRING);
+                if (for_msg) return mkString(_RGui("Untitled"));
                 error("%s%s",
                     this_path_used_in_an_inappropriate_fashion,
                     (active) ? "* active document in Rgui does not exist" :
@@ -747,6 +984,8 @@ SEXP do_thispathrgui(SEXP call, SEXP op, SEXP args, SEXP rho)
                     if (verbose)                               \
                         Rprintf((active) ? "Source: active document in Rgui\n" :\
                                            "Source: source document in Rgui\n");\
+                    if (original)                              \
+                        return ScalarString((charsxp));        \
                     SEXP expr = allocList(2);                  \
                     PROTECT(expr);                             \
                     SET_TYPEOF(expr, LANGSXP);                 \
@@ -786,17 +1025,13 @@ SEXP do_thispathrgui(SEXP call, SEXP op, SEXP args, SEXP rho)
     if (for_msg) return ScalarString(NA_STRING);
 
 
-    SEXP expr = allocList(2);
-    PROTECT(expr);
-    SET_TYPEOF(expr, LANGSXP);
-    SETCAR(expr, stopSymbol);
     char msg[256];
     snprintf(msg, 256, "%s%s",
         this_path_used_in_an_inappropriate_fashion,
         "* R is being run from Rgui with no documents open");
-    SEXP call2 = PROTECT(getCurrentCall(rho));
-    SETCADR(expr, thisPathNotExistsError(msg, call2));
-    eval(expr, mynamespace);
+    SEXP cond = thisPathNotExistsError(msg, PROTECT(getCurrentCall(rho)));
+    PROTECT(cond);
+    stop(cond);
     UNPROTECT(2);
     return R_NilValue;  /* should not be reached */
 }

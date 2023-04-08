@@ -1,17 +1,11 @@
-find_root <- function (criterion, path = getwd(), verbose = FALSE)
+find_root <- function (path = normalizePath(getwd()), verbose = FALSE, criterion = default.criterion)
 {
-    criterion <- rprojroot::as_root_criterion(criterion)
+    # path <- "\\\\host\\share\\path\\to\\file\\"
+    criterion <- rprojroot::as.root_criterion(criterion)
     opath <- path
-    components <- path.split.1(path)
-    add.slash <- !( grepl(URL.pattern, components[[1L]]) ||
-                    grepl(UNC.pattern, components[[1L]]) )
-    if (grepl(UNC.pattern, components[[1L]]))
-        substr(components[[1L]], 1L, 2L) <- substr(opath, 1L, 2L)
-    while (len <- length(components)) {
-        path <- if (len == 1L) {
-            if (add.slash) paste0(components, "/") else components
-        }
-        else paste(components, collapse = "/")
+    p <- path.split.1(path)
+    while (n <- length(p)) {
+        path <- path.unsplit(p)
         if (verbose) {
             for (i in seq_along(criterion$testfun)) {
                 if (criterion$testfun[[i]](path)) {
@@ -26,36 +20,46 @@ find_root <- function (criterion, path = getwd(), verbose = FALSE)
                     return(path)
             }
         }
-        components <- components[-len]
+        p <- p[-n]
     }
     stop(sprintf("no root directory found in %s or its parent directories\n%s",
         encodeString(opath, quote = "\""),
         paste(format(criterion), collapse = "\n")))
 }
-
-
-.this.proj <- evalq(envir = new.env(),
-function (path, verbose = FALSE)
-{
-    if (path %in% names(table))
-        table[[path]]
-    else (table[[path]] <<- find_root(
-        criterion = rprojroot::has_file(".here") | rprojroot::is_rstudio_project |
-            rprojroot::is_r_package | rprojroot::is_remake_project |
-            rprojroot::is_projectile_project | rprojroot::is_vcs_root,
-        path = path,
-        verbose = verbose
-    ))
-}
-)
-evalq(envir = environment(.this.proj), {
-    table <- structure(character(), names = character())
+evalq(envir = environment(find_root) <- new.env(), {
+    delayedAssign("default.criterion", rprojroot::has_file(".here")     |
+                                       rprojroot::is_rstudio_project    |
+                                       rprojroot::is_r_package          |
+                                       rprojroot::is_remake_project     |
+                                       rprojroot::is_projectile_project |
+                                       rprojroot::is_vcs_root           )
 })
-lockEnvironment(environment(.this.proj))
+
+
+.this.proj <- function (verbose = FALSE)
+{
+    path <- .this.dir()
+    if (indx <- match(path, names(x), 0L))
+        x[[indx]]
+    else (x[[path]] <<- find_root(path, verbose))
+}
+evalq(envir = environment(.this.proj) <- new.env(), {
+    x <- structure(character(0), names = character(0))
+})
+
+
+reset.this.proj <- function ()
+{
+    if (sys.nframe() != toplevel.context.number() + 1L)
+        stop(gettextf("'%s' can only be called from a top-level context",
+            "reset.this.proj"))
+    x <<- structure(character(0), names = character(0))
+}
+environment(reset.this.proj) <- environment(.this.proj)
 
 
 this.proj <- function (...)
 {
-    base <- .this.proj(.this.dir())
+    base <- .this.proj()
     path.join(base, ...)
 }

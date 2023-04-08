@@ -44,6 +44,26 @@
 # }
 
 
+# utf8locale <- function ()
+# .External2(C_utf8locale)
+
+
+mbcslocale <- function ()
+.External2(C_mbcslocale)
+
+
+# latin1locale <- function ()
+# .External2(C_latin1locale)
+
+
+R_MB_CUR_MAX <- function ()
+.External2(C_R_MB_CUR_MAX)
+
+
+utf8 <- function ()
+switch(utils::localeToCharset()[1L], `UTF-8` = TRUE, FALSE)
+
+
 .onLoad <- function (libname, pkgname)
 .External2(C_onload, libname, pkgname)
 # {
@@ -60,6 +80,5 @@
 .onUnload <- function (libpath)
 {
     .External2(C_onunload, libpath)
-    try(unloadNamespace("this.path.helper"), silent = TRUE)
     library.dynam.unload(pkgname, libpath)
 }

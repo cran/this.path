@@ -1,4 +1,4 @@
-.Rscript <- function (options = NULL, trailing = character(), dry.run = FALSE, ...)
+.Rscript <- function (options = NULL, trailing = character(), dry.run = FALSE, print.command = TRUE, ...)
 {
     command <- path.join(R.home("bin"), if (os.windows)
         "Rscript.exe"
@@ -8,28 +8,30 @@
     command <- paste(args, collapse = " ")
     if (dry.run)
         return(command)
-    cat(command, "\n", sep = "")
+    if (print.command)
+        cat(command, "\n", sep = "")
     invisible(system(command = command, ...))
 }
 
 
-.Rterm <- function (options = NULL, trailing = character(), dry.run = FALSE, ...)
-{
-    command <- path.join(R.home("bin"), if (os.windows)
-        "Rterm.exe"
-    else "R")
-    args <- c(command, options)
-    args <- c(shQuote(args), trailing)
-    command <- paste(args, collapse = " ")
-    if (dry.run)
-        return(command)
-    cat(command, "\n", sep = "")
-    invisible(system(command = command, ...))
-}
+# .Rterm <- function (options = NULL, trailing = character(), dry.run = FALSE, print.command = TRUE, ...)
+# {
+#     command <- path.join(R.home("bin"), if (os.windows)
+#         "Rterm.exe"
+#     else "R")
+#     args <- c(command, options)
+#     args <- c(shQuote(args), trailing)
+#     command <- paste(args, collapse = " ")
+#     if (dry.run)
+#         return(command)
+#     if (print.command)
+#         cat(command, "\n", sep = "")
+#     invisible(system(command = command, ...))
+# }
 
 
-build_this <- function (chdir = FALSE, file = here(), which = "tar")
-{
+build_this <- function(chdir = FALSE, file = here(), which = "tar") NULL
+body(build_this) <- bquote({
     # build_this {this.path}                                     R Documentation
     #
     # Building Packages
@@ -101,7 +103,7 @@ build_this <- function (chdir = FALSE, file = here(), which = "tar")
 
     # check that 'file' is valid, and 'chdir' if required
     if (!is.character(file) || length(file) != 1L) {
-        stop("invalid 'file'")
+        stop(gettextf("'%s' must be a character string", "file", domain = "R"), domain = NA)
     } else if (grepl("^(ftp|ftps|http|https)://", file)) {
         stop("cannot 'build_this' on a URL")
     } else if (chdir && (path <- file) != ".") {
@@ -287,7 +289,12 @@ build_this <- function (chdir = FALSE, file = here(), which = "tar")
 
     # create a new directory to hold the temporary files and archives
     dir.create(my.tmpdir <- tempfile("dir"))
-    on.exit(unlink(my.tmpdir, recursive = TRUE, force = TRUE), add = TRUE)
+    on.exit(
+        if (getRversion() >= "4.0.0")
+            (unlink)(my.tmpdir, recursive = TRUE, force = TRUE, expand = FALSE)
+        else unlink(my.tmpdir, recursive = TRUE, force = TRUE),
+        add = TRUE
+    )
 
 
     # create another directory to hold the temporary files
@@ -304,18 +311,33 @@ build_this <- function (chdir = FALSE, file = here(), which = "tar")
     # fill the directory and sub-directories with their files,
     # while maintaining file modify time
     if (any(i <- !file.copy(
-        path.join(file  , files[!isdir]),
-        path.join(pkgdir, files[!isdir]),
-        copy.date = TRUE
+        ..(
+            if (getRversion() < "3.1.0")
+                expression(
+                    from <- path.join(file  , files[!isdir]),
+                    to <- path.join(pkgdir, files[!isdir])
+                )
+            else
+                expression(
+                    path.join(file  , files[!isdir]),
+                    path.join(pkgdir, files[!isdir]),
+                    copy.date = TRUE
+                )
+        )
     )))
         stop(ngettext(sum(i), "unable to copy file: ", "unable to copy files:\n  "),
              paste(encodeString(files[!isdir][i], quote = "\""), collapse = "\n  "))
+    else ..(
+        if (getRversion() < "3.1.0")
+            expression(Sys.setFileTime(to, file.info(from)$mtime))
+        else expression()
+    )
 
 
     # set the modify time of the sub-directories to their original values
     Sys.setFileTime(
-                  path.join(pkgdir, dirs),
-        file.info(path.join(file  , dirs), extra_cols = FALSE)$mtime
+                   path.join(pkgdir, dirs),
+        file.mtime(path.join(file  , dirs))
     )
 
 
@@ -364,7 +386,7 @@ build_this <- function (chdir = FALSE, file = here(), which = "tar")
             }
         }, stop("invalid 'which'; should not happen, please report!"))
     }
-}
+}, splice = TRUE)
 
 
 build.this <- build_this
@@ -427,6 +449,12 @@ maybeQuote <- function (expr, evaluated, simplify.brace = TRUE)
     }
     else expr
 }
+
+
+# this function does not exist in R < 4.0.0
+deparse1 <- function (expr, collapse = " ", width.cutoff = 500L, ...)
+paste(deparse(expr, width.cutoff, ...), collapse = collapse)
+environment(deparse1) <- getNamespace("base")
 
 
 code2character <- function (x, width.cutoff = 60L,
@@ -519,6 +547,20 @@ write.code <- function (x, file = stdout(), evaluated, simplify.brace = TRUE,
         writeLines(x, file, useBytes = !utf8)
         invisible(x)
     }
+}
+
+
+if (getRversion() < "3.2.0") {
+
+
+    tmp <- formals(code2character)[["deparseCtrl"]]
+    formals(code2character)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
+
+
+    tmp <- formals(write.code)[["deparseCtrl"]]
+    formals(write.code)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
+
+
 }
 
 

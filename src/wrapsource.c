@@ -1,8 +1,9 @@
-#include <R.h>
-#include <Rinternals.h>
-
-
 #include "thispathdefn.h"
+
+
+#if R_version_less_than(3, 0, 0)
+#define XLENGTH LENGTH
+#endif
 
 
 static R_INLINE int asFlag(SEXP x, const char *name)
@@ -14,9 +15,12 @@ static R_INLINE int asFlag(SEXP x, const char *name)
 }
 
 
-SEXP do_setprseen2(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_setprseen2 do_formals
 {
-    SEXP ptr = CADR(args);
+    do_start("setprseen2", 1);
+
+
+    SEXP ptr = CAR(args);
     if (TYPEOF(ptr) != EXTPTRSXP)
         errorcall(call, "invalid first argument, must be an external pointer");
     SEXP promises = R_ExternalPtrProtected(ptr);
@@ -42,8 +46,11 @@ SEXP do_setprseen2(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_wrapsource do_formals
 {
+    do_start("wrapsource", 20);
+
+
     SEXP expr = findVarInFrame(rho, exprSymbol);
     if (expr == R_UnboundValue)
         error(_("object '%s' not found"), EncodeChar(PRINTNAME(exprSymbol)));
@@ -52,7 +59,6 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
     int nprotect = 0;
-    args = CDR(args);  /* skip C_wrapsource */
 
 
     /* determine context number for .this.path(get.frame.number = TRUE) */
@@ -158,13 +164,22 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
      * and make an on.exit() call that will restore said promise
      */
     {
-        /* on.exit(.External2(C_setprseen2, ptr)) */
+#if R_version_at_least(3, 0, 0)
+        /* .External2(C_setprseen2, ptr) */
         SEXP expr = allocList(3);
         PROTECT(expr);
         SET_TYPEOF(expr, LANGSXP);
         SETCAR(expr, External2Symbol);
         SETCADR(expr, C_setprseen2Symbol);
         SETCADDR(expr, ptr);
+#else
+        /* setprseen2(ptr) */
+        SEXP expr = allocList(2);
+        PROTECT(expr);
+        SET_TYPEOF(expr, LANGSXP);
+        SETCAR(expr, setprseen2Symbol);
+        SETCADR(expr, ptr);
+#endif
 
 
         SEXP expr2 = allocList(2);
@@ -175,6 +190,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 
         eval(expr2, rho);
+        UNPROTECT(2);
     }
 
 
@@ -197,9 +213,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
 
 #define set_thispathn(n, frame)                                \
     do {                                                       \
-        SEXP thispathn = ScalarInteger((n));                   \
-        INCREMENT_NAMED(thispathn);                            \
-        defineVar(thispathnSymbol, thispathn, (frame));        \
+        INCREMENT_NAMED_defineVar(thispathnSymbol, ScalarInteger((n)), (frame));\
         R_LockBinding(thispathnSymbol, (frame));               \
     } while (0)
 
@@ -244,7 +258,6 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
 
     if (length(expr) < 2) {
         assign_null(frame);
-        assign_done(frame);
         set_R_Visible(1);
         set_prvalues_then_return(eval(PRCODE(promise), env));
     }
@@ -309,7 +322,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
                     for (dot = dots ; dot != R_NilValue ; dot = CDR(dot)) {
                         if (TAG(dot) != R_NilValue && pmatch(tag, TAG(dot), 1)) {
                             if (s != NULL)
-                                errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), CHAR(PRINTNAME(tag)));
+                                errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), EncodeChar(PRINTNAME(tag)));
                             else
                                 s = CAR(dot);
                             if (TYPEOF(s) != PROMSXP)
@@ -322,7 +335,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
             }
             else if (TAG(b) != R_NilValue && pmatch(tag, TAG(b), 1)) {
                 if (s != NULL)
-                    errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), CHAR(PRINTNAME(tag)));
+                    errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), EncodeChar(PRINTNAME(tag)));
                 else
                     s = CAR(b);
                 n = i;
@@ -342,7 +355,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
                         for (dot = dots ; dot != R_NilValue ; dot = CDR(dot)) {
                             if (TAG(dot) != R_NilValue && pmatch(tag, TAG(dot), 0)) {
                                 if (s != NULL)
-                                    errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), CHAR(PRINTNAME(tag)));
+                                    errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), EncodeChar(PRINTNAME(tag)));
                                 else
                                     s = CAR(dot);
                                 if (TYPEOF(s) != PROMSXP)
@@ -355,7 +368,7 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
                 }
                 else if (TAG(b) != R_NilValue && pmatch(tag, TAG(b), 0)) {
                     if (s != NULL)
-                        errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), CHAR(PRINTNAME(tag)));
+                        errorcall(oexpr, _("formal argument \"%s\" matched by multiple actual arguments"), EncodeChar(PRINTNAME(tag)));
                     else
                         s = CAR(b);
                     n = i;
@@ -422,7 +435,6 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
     }
     if (s == NULL) {
         assign_null(frame);
-        assign_done(frame);
         set_R_Visible(1);
         set_prvalues_then_return(eval(expr, env));
     }
@@ -477,12 +489,17 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
     SEXP returnvalue;  /* this is never used */
 
 
+#if R_version_at_least(3, 4, 0)
+#define checkfile_call R_CurrentExpression
+#else
+#define checkfile_call R_NilValue
+#endif
     checkfile(
-        /* SEXP call                  = */ R_CurrentExpression,
-        /* SEXP rho                   = */ rho,
+        /* SEXP call                  = */ checkfile_call,
         /* SEXP sym                   = */ fileSymbol,
         /* SEXP ofile                 = */ ofile,
         /* SEXP frame                 = */ frame,
+        /* int check_not_directory    = */ TRUE,
         /* int forcepromise           = */ TRUE,
         /* int assign_returnvalue     = */ FALSE,
         /* int maybe_chdir            = */ FALSE,
@@ -518,10 +535,9 @@ SEXP do_wrapsource(SEXP call, SEXP op, SEXP args, SEXP rho)
 }
 
 
-SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
+SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rboolean unset, SEXP backup)
 {
     int nprotect = 0;
-    args = CDR(args);  /* skip C_insidesource */
 
 
     int sys_parent = asInteger(eval(lang1(sys_parentSymbol), rho));
@@ -555,20 +571,36 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
     }
 
 
-    int testthat_loaded;
-    SEXP source_file = get_source_file(testthat_loaded);
-    if (testthat_loaded && identical(function, source_file))
-        error("%s() cannot be called within source_file() in package testthat", name);
+    SEXP ns;
 
 
-    int knitr_loaded;
-    SEXP knit = get_knit(knitr_loaded);
-    if (knitr_loaded && identical(function, knit))
-        error("%s() cannot be called within knit() in package knitr", name);
+    ns = findVarInFrame(R_NamespaceRegistry, testthatSymbol);
+    if (ns == R_UnboundValue ? FALSE : TRUE) {
+        if (identical(function, getInFrame(source_fileSymbol, ns, FALSE))) {
+            error("%s() cannot be called within source_file() from package testthat", name);
+        }
+    }
 
 
-    if (identical(function, get_wrap_source))
-        error("%s() cannot be called within wrap.source() in package this.path", name);
+    ns = findVarInFrame(R_NamespaceRegistry, knitrSymbol);
+    if (ns == R_UnboundValue ? FALSE : TRUE) {
+        if (identical(function, getInFrame(knitSymbol, ns, FALSE))) {
+            error("%s() cannot be called within knit() from package knitr", name);
+        }
+    }
+
+
+    if (identical(function, getInFrame(wrap_sourceSymbol, mynamespace, FALSE))) {
+        error("%s() cannot be called within wrap.source() from package this.path", name);
+    }
+
+
+    ns = findVarInFrame(R_NamespaceRegistry, boxSymbol);
+    if (ns == R_UnboundValue ? FALSE : TRUE) {
+        if (identical(function, getInFrame(load_from_sourceSymbol, ns, FALSE))) {
+            error("%s() cannot be called within load_from_source() from package box", name);
+        }
+    }
 
 
     UNPROTECT(2);  /* expr & function */
@@ -596,6 +628,40 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
         error("%s() cannot be used within a locked environment", name);
 
 
+    if (unset) {
+        if (findVarInFrame(frame, insidesourcewashereSymbol) == R_UnboundValue)
+            error("%s() cannot be called before inside.source() / / set.this.path()", name);
+        if (findVarInFrame(frame, thispathdoneSymbol) == R_UnboundValue)
+            error("%s() cannot be called within this environment", name);
+#if defined(R_THIS_PATH_USE_removeFromFrame)
+        SEXP names[] = {
+            thispathofileSymbol      ,
+            thispathfileSymbol       ,
+            thispathformsgSymbol     ,
+            thispatherrorSymbol      ,
+            thispathassocwfileSymbol ,
+            thispathdoneSymbol       ,
+            insidesourcewashereSymbol,
+            thispathnSymbol          ,
+            NULL
+        };
+        removeFromFrame(names, frame);
+#else
+        R_removeVarFromFrame(thispathofileSymbol      , frame);
+        R_removeVarFromFrame(thispathfileSymbol       , frame);
+        R_removeVarFromFrame(thispathformsgSymbol     , frame);
+        R_removeVarFromFrame(thispatherrorSymbol      , frame);
+        R_removeVarFromFrame(thispathassocwfileSymbol , frame);
+        R_removeVarFromFrame(thispathdoneSymbol       , frame);
+        R_removeVarFromFrame(insidesourcewashereSymbol, frame);
+        R_removeVarFromFrame(thispathnSymbol          , frame);
+#endif
+        UNPROTECT(nprotect);
+        set_R_Visible(0);
+        return R_NilValue;
+    }
+
+
     if (findVarInFrame(frame, insidesourcewashereSymbol) != R_UnboundValue)
         error("%s() cannot be called more than once within an environment", name);
     if (findVarInFrame(frame, thispathdoneSymbol) != R_UnboundValue)
@@ -606,7 +672,8 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
     int missing_file = asFlag(eval(lang2(missingSymbol, fileSymbol), rho), "missing(file)");
     if (missing_file) {
         assign_null(frame);
-        assign_done(frame);
+        defineVar(insidesourcewashereSymbol, R_MissingArg, frame);
+        R_LockBinding(insidesourcewashereSymbol, frame);
         set_thispathn(sys_parent, frame);
         set_R_Visible(1);
         UNPROTECT(nprotect);
@@ -616,6 +683,73 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
 
     flag_declarations;
     flag_definitions;
+    SEXP Function = CAR(args); args = CDR(args);
+    SEXP fun_name;
+    switch (TYPEOF(Function)) {
+    case NILSXP:
+        fun_name = PRINTNAME(backup);
+        PROTECT(fun_name); nprotect++;
+        break;
+    case SYMSXP:
+        {
+            Function = PRINTNAME(Function);
+            if (Function == NA_STRING || Function == R_BlankString)
+                error(_("invalid '%s' argument"), "Function");
+            const char *tmp = EncodeChar(Function);
+            int pwidth = 1 + ((int) strlen(tmp)) + 2;
+            char buf[pwidth];
+            snprintf(buf, pwidth, "'%s'", tmp);
+            fun_name = mkChar(buf);
+            PROTECT(fun_name); nprotect++;
+        }
+        break;
+    case STRSXP:
+        {
+            switch (XLENGTH(Function)) {
+            case 1:
+                {
+                    if (STRING_ELT(Function, 0) == NA_STRING ||
+                        STRING_ELT(Function, 0) == R_BlankString)
+                    {
+                        error(_("invalid '%s' argument"), "Function");
+                    }
+                    const char *tmp = EncodeChar(STRING_ELT(Function, 0));
+                    int pwidth = 1 + ((int) strlen(tmp)) + 2;
+                    char buf[pwidth];
+                    snprintf(buf, pwidth, "'%s'", tmp);
+                    fun_name = mkChar(buf);
+                    PROTECT(fun_name); nprotect++;
+                }
+                break;
+            case 2:
+                {
+                    if (STRING_ELT(Function, 0) == NA_STRING ||
+                        STRING_ELT(Function, 0) == R_BlankString)
+                    {
+                        error(_("invalid '%s' value"), "Function[1]");
+                    }
+                    if (STRING_ELT(Function, 1) == NA_STRING ||
+                        STRING_ELT(Function, 1) == R_BlankString)
+                    {
+                        error(_("invalid '%s' value"), "Function[2]");
+                    }
+                    const char *tmp0 = EncodeChar(STRING_ELT(Function, 0));
+                    const char *tmp1 = EncodeChar(STRING_ELT(Function, 1));
+                    int pwidth = 1 + ((int) strlen(tmp0)) + 16 + ((int) strlen(tmp1)) + 2;
+                    char buf[pwidth];
+                    snprintf(buf, pwidth, "'%s' from package '%s'", tmp0, tmp1);
+                    fun_name = mkChar(buf);
+                    PROTECT(fun_name); nprotect++;
+                }
+                break;
+            default:
+                error("invalid '%s'; must be of length 1 or 2", "Function");
+            }
+        }
+        break;
+    default:
+        error("invalid '%s' argument of type %s", "Function", type2char(TYPEOF(Function)));
+    }
 
 
     ofile = getInFrame(fileSymbol, rho, FALSE);
@@ -624,11 +758,11 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
 
     SEXP returnvalue = R_NilValue;
     checkfile(
-        /* SEXP call                  = */ R_CurrentExpression,
-        /* SEXP rho                   = */ rho,
+        /* SEXP call                  = */ checkfile_call,
         /* SEXP sym                   = */ fileSymbol,
         /* SEXP ofile                 = */ ofile,
         /* SEXP frame                 = */ frame,
+        /* int check_not_directory    = */ TRUE,
         /* int forcepromise           = */ TRUE,
         /* int assign_returnvalue     = */ TRUE,
         /* int maybe_chdir            = */ FALSE,
@@ -657,7 +791,7 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
     )
 
 
-    defineVar(insidesourcewashereSymbol, R_NilValue, frame);
+    INCREMENT_NAMED_defineVar(insidesourcewashereSymbol, fun_name, frame);
     R_LockBinding(insidesourcewashereSymbol, frame);
     set_thispathn(sys_parent, frame);
     UNPROTECT(nprotect + 1);  /* +1 for returnvalue */
@@ -665,15 +799,26 @@ SEXP _insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name)
 }
 
 
-SEXP do_insidesource(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_insidesource do_formals
 {
-    return _insidesource(call, op, args, rho, "inside.source");
+    do_start("insidesource", 21);
+    return insidesource(call, op, args, rho, "inside.source", FALSE, insidesourcefrompackageSymbol);
 }
 
 
-SEXP do_setthispath(SEXP call, SEXP op, SEXP args, SEXP rho)
+SEXP do_setthispath do_formals
 {
-    return _insidesource(call, op, args, rho, "set.this.path");
+    do_start("setthispath", 21);
+    return insidesource(call, op, args, rho, "set.this.path", FALSE, setthispathfrompackageSymbol);
+}
+
+
+SEXP do_unsetthispath do_formals
+{
+    do_start("unsetthispath", 0);
+
+
+    return insidesource(call, op, args, rho, "unset.this.path", TRUE, NULL);
 }
 
 
