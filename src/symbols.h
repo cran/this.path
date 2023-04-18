@@ -122,7 +122,8 @@ extern0 SEXP0
     listSymbol                             INI_as(install("list")),
     envirSymbol                            INI_as(install("envir")),
     inheritsSymbol                         INI_as(install("inherits")),
-    for_msgSymbol                          INI_as(install("for.msg"));
+    for_msgSymbol                          INI_as(install("for.msg")),
+    getContentsSymbol                      INI_as(install("getContents"));
 
 
 #undef extern0

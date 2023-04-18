@@ -17,7 +17,7 @@ static R_INLINE int asFlag(SEXP x, const char *name)
 
 SEXP do_setprseen2 do_formals
 {
-    do_start("setprseen2", 1);
+    do_start_no_op_rho("setprseen2", 1);
 
 
     SEXP ptr = CAR(args);
@@ -48,7 +48,7 @@ SEXP do_setprseen2 do_formals
 
 SEXP do_wrapsource do_formals
 {
-    do_start("wrapsource", 20);
+    do_start_no_call_op("wrapsource", 20);
 
 
     SEXP expr = findVarInFrame(rho, exprSymbol);
@@ -70,19 +70,19 @@ SEXP do_wrapsource do_formals
     if (nframe < 2)
         context_number = 1;
     else {
-        int sys_parent = asInteger(eval(lang1(sys_parentSymbol), rho));
-        // Rprintf("sys.parent() = %d\n", sys_parent);
-        /* this will happen for something like:
-           wrapper <- function(...) {
-               force(wrap.source(sourcelike(...)))
-           }
-
-           but won't for something like this:
-           wrapper <- function(...) {
-               wrap.source(sourcelike(...))
-           }
-         */
+        int sys_parent = get_sys_parent(1, rho);
+        // Rprintf("\nsys.parent(): %d\n", sys_parent);
         if (nframe - 1 != sys_parent)
+            /* this will happen for something like:
+               wrapper <- function(...) {
+                   force(wrap.source(sourcelike(...)))
+               }
+
+               but won't for something like this:
+               wrapper <- function(...) {
+                   wrap.source(sourcelike(...))
+               }
+             */
             context_number = nframe;
         else {
             SEXP tmp = lang2(sys_functionSymbol, ScalarInteger(sys_parent));
@@ -258,7 +258,7 @@ SEXP do_wrapsource do_formals
 
     if (length(expr) < 2) {
         assign_null(frame);
-        set_R_Visible(1);
+        set_R_Visible(TRUE);
         set_prvalues_then_return(eval(PRCODE(promise), env));
     }
 
@@ -271,7 +271,7 @@ SEXP do_wrapsource do_formals
     SEXP fun     = CAR(expr),
          funargs = CDR(expr);
     if (TYPEOF(fun) == SYMSXP)
-        fun = findFun3(fun, env, expr);
+        fun = findFunction(fun, env, expr);
     else
         fun = eval(fun, env);
     PROTECT(fun); nprotect++;
@@ -435,7 +435,7 @@ SEXP do_wrapsource do_formals
     }
     if (s == NULL) {
         assign_null(frame);
-        set_R_Visible(1);
+        set_R_Visible(TRUE);
         set_prvalues_then_return(eval(expr, env));
     }
 
@@ -495,37 +495,37 @@ SEXP do_wrapsource do_formals
 #define checkfile_call R_NilValue
 #endif
     checkfile(
-        /* SEXP call                  = */ checkfile_call,
-        /* SEXP sym                   = */ fileSymbol,
-        /* SEXP ofile                 = */ ofile,
-        /* SEXP frame                 = */ frame,
-        /* int check_not_directory    = */ TRUE,
-        /* int forcepromise           = */ TRUE,
-        /* int assign_returnvalue     = */ FALSE,
-        /* int maybe_chdir            = */ FALSE,
-        /* SEXP getowd                = */ NULL,
-        /* int hasowd                 = */ FALSE,
-        /* int character_only         = */ character_only,
-        /* int conv2utf8              = */ conv2utf8,
-        /* int allow_blank_string     = */ allow_blank_string,
-        /* int allow_clipboard        = */ allow_clipboard,
-        /* int allow_stdin            = */ allow_stdin,
-        /* int allow_url              = */ allow_url,
-        /* int allow_file_uri         = */ allow_file_uri,
-        /* int allow_unz              = */ allow_unz,
-        /* int allow_pipe             = */ allow_pipe,
-        /* int allow_terminal         = */ allow_terminal,
-        /* int allow_textConnection   = */ allow_textConnection,
-        /* int allow_rawConnection    = */ allow_rawConnection,
-        /* int allow_sockconn         = */ allow_sockconn,
-        /* int allow_servsockconn     = */ allow_servsockconn,
-        /* int allow_customConnection = */ allow_customConnection,
-        /* int ignore_blank_string    = */ ignore_blank_string,
-        /* int ignore_clipboard       = */ ignore_clipboard,
-        /* int ignore_stdin           = */ ignore_stdin,
-        /* int ignore_url             = */ ignore_url,
-        /* int ignore_file_uri        = */ ignore_file_uri
-    )
+        /* call                   */ checkfile_call,
+        /* sym                    */ fileSymbol,
+        /* ofile                  */ ofile,
+        /* frame                  */ frame,
+        /* check_not_directory    */ TRUE,
+        /* forcepromise           */ TRUE,
+        /* assign_returnvalue     */ FALSE,
+        /* maybe_chdir            */ FALSE,
+        /* getowd                 */ NULL,
+        /* hasowd                 */ FALSE,
+        /* character_only         */ character_only,
+        /* conv2utf8              */ conv2utf8,
+        /* allow_blank_string     */ allow_blank_string,
+        /* allow_clipboard        */ allow_clipboard,
+        /* allow_stdin            */ allow_stdin,
+        /* allow_url              */ allow_url,
+        /* allow_file_uri         */ allow_file_uri,
+        /* allow_unz              */ allow_unz,
+        /* allow_pipe             */ allow_pipe,
+        /* allow_terminal         */ allow_terminal,
+        /* allow_textConnection   */ allow_textConnection,
+        /* allow_rawConnection    */ allow_rawConnection,
+        /* allow_sockconn         */ allow_sockconn,
+        /* allow_servsockconn     */ allow_servsockconn,
+        /* allow_customConnection */ allow_customConnection,
+        /* ignore_blank_string    */ ignore_blank_string,
+        /* ignore_clipboard       */ ignore_clipboard,
+        /* ignore_stdin           */ ignore_stdin,
+        /* ignore_url             */ ignore_url,
+        /* ignore_file_uri        */ ignore_file_uri
+    );
 
 
     set_prvalues_then_return(eval(expr, env));
@@ -535,12 +535,12 @@ SEXP do_wrapsource do_formals
 }
 
 
-SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rboolean unset, SEXP backup)
+SEXP insidesource(SEXP args, SEXP rho, const char *name, Rboolean unset, SEXP backup)
 {
     int nprotect = 0;
 
 
-    int sys_parent = asInteger(eval(lang1(sys_parentSymbol), rho));
+    int sys_parent = get_sys_parent(1, rho);
     if (sys_parent < 1)
         error("%s() cannot be used within the global environment", name);
 
@@ -548,6 +548,7 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
     SEXP expr = lang2(sys_functionSymbol, ScalarInteger(sys_parent));
     PROTECT(expr);
     SEXP function = eval(expr, rho);
+    UNPROTECT(1);  /* expr */
     PROTECT(function);
     if (TYPEOF(function) != CLOSXP)
         error("%s() cannot be used within a '%s', possible errors with eval?",
@@ -556,9 +557,11 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
 
     /* ensure 'inside.source()' is not called from one of the source-like functions */
     if (identical(function, getInFrame(sourceSymbol, R_BaseEnv, FALSE)))
-        error("%s() cannot be called within source()", name);
+        error("%s() cannot be called within %s()",
+              name, EncodeChar(PRINTNAME(sourceSymbol)));
     else if (identical(function, getInFrame(sys_sourceSymbol, R_BaseEnv, FALSE)))
-        error("%s() cannot be called within sys.source()", name);
+        error("%s() cannot be called within %s()",
+              name, EncodeChar(PRINTNAME(sys_sourceSymbol)));
 
 
     init_tools_rstudio(FALSE);
@@ -566,7 +569,8 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
 
     if (has_tools_rstudio) {
         if (identical(function, get_debugSource)) {
-            error("%s() cannot be called within debugSource() in RStudio", name);
+            error("%s() cannot be called within %s() in RStudio",
+                  name, EncodeChar(PRINTNAME(debugSourceSymbol)));
         }
     }
 
@@ -577,7 +581,8 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
     ns = findVarInFrame(R_NamespaceRegistry, testthatSymbol);
     if (ns == R_UnboundValue ? FALSE : TRUE) {
         if (identical(function, getInFrame(source_fileSymbol, ns, FALSE))) {
-            error("%s() cannot be called within source_file() from package testthat", name);
+            error("%s() cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(source_fileSymbol)), EncodeChar(PRINTNAME(testthatSymbol)));
         }
     }
 
@@ -585,25 +590,37 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
     ns = findVarInFrame(R_NamespaceRegistry, knitrSymbol);
     if (ns == R_UnboundValue ? FALSE : TRUE) {
         if (identical(function, getInFrame(knitSymbol, ns, FALSE))) {
-            error("%s() cannot be called within knit() from package knitr", name);
+            error("%s() cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(knitSymbol)), EncodeChar(PRINTNAME(knitrSymbol)));
         }
     }
 
 
     if (identical(function, getInFrame(wrap_sourceSymbol, mynamespace, FALSE))) {
-        error("%s() cannot be called within wrap.source() from package this.path", name);
+        error("%s() cannot be called within %s() from package %s",
+              name, EncodeChar(PRINTNAME(wrap_sourceSymbol)), "this.path");
     }
 
 
     ns = findVarInFrame(R_NamespaceRegistry, boxSymbol);
     if (ns == R_UnboundValue ? FALSE : TRUE) {
         if (identical(function, getInFrame(load_from_sourceSymbol, ns, FALSE))) {
-            error("%s() cannot be called within load_from_source() from package box", name);
+            error("%s() cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(load_from_sourceSymbol)), EncodeChar(PRINTNAME(boxSymbol)));
         }
     }
 
 
-    UNPROTECT(2);  /* expr & function */
+    ns = findVarInFrame(R_NamespaceRegistry, compilerSymbol);
+    if (ns == R_UnboundValue ? FALSE : TRUE) {
+        if (identical(function, getInFrame(loadcmpSymbol, ns, FALSE))) {
+            error("%s() cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(loadcmpSymbol)), EncodeChar(PRINTNAME(compilerSymbol)));
+        }
+    }
+
+
+    UNPROTECT(1);  /* function */
 
 
     SEXP ofile, frame;
@@ -656,8 +673,8 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
         R_removeVarFromFrame(insidesourcewashereSymbol, frame);
         R_removeVarFromFrame(thispathnSymbol          , frame);
 #endif
+        set_R_Visible(FALSE);
         UNPROTECT(nprotect);
-        set_R_Visible(0);
         return R_NilValue;
     }
 
@@ -675,7 +692,7 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
         defineVar(insidesourcewashereSymbol, R_MissingArg, frame);
         R_LockBinding(insidesourcewashereSymbol, frame);
         set_thispathn(sys_parent, frame);
-        set_R_Visible(1);
+        set_R_Visible(TRUE);
         UNPROTECT(nprotect);
         return R_MissingArg;
     }
@@ -744,11 +761,13 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
                 break;
             default:
                 error("invalid '%s'; must be of length 1 or 2", "Function");
+                return R_NilValue;
             }
         }
         break;
     default:
         error("invalid '%s' argument of type %s", "Function", type2char(TYPEOF(Function)));
+        return R_NilValue;
     }
 
 
@@ -758,37 +777,37 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
 
     SEXP returnvalue = R_NilValue;
     checkfile(
-        /* SEXP call                  = */ checkfile_call,
-        /* SEXP sym                   = */ fileSymbol,
-        /* SEXP ofile                 = */ ofile,
-        /* SEXP frame                 = */ frame,
-        /* int check_not_directory    = */ TRUE,
-        /* int forcepromise           = */ TRUE,
-        /* int assign_returnvalue     = */ TRUE,
-        /* int maybe_chdir            = */ FALSE,
-        /* SEXP getowd                = */ NULL,
-        /* int hasowd                 = */ FALSE,
-        /* int character_only         = */ character_only,
-        /* int conv2utf8              = */ conv2utf8,
-        /* int allow_blank_string     = */ allow_blank_string,
-        /* int allow_clipboard        = */ allow_clipboard,
-        /* int allow_stdin            = */ allow_stdin,
-        /* int allow_url              = */ allow_url,
-        /* int allow_file_uri         = */ allow_file_uri,
-        /* int allow_unz              = */ allow_unz,
-        /* int allow_pipe             = */ allow_pipe,
-        /* int allow_terminal         = */ allow_terminal,
-        /* int allow_textConnection   = */ allow_textConnection,
-        /* int allow_rawConnection    = */ allow_rawConnection,
-        /* int allow_sockconn         = */ allow_sockconn,
-        /* int allow_servsockconn     = */ allow_servsockconn,
-        /* int allow_customConnection = */ allow_customConnection,
-        /* int ignore_blank_string    = */ ignore_blank_string,
-        /* int ignore_clipboard       = */ ignore_clipboard,
-        /* int ignore_stdin           = */ ignore_stdin,
-        /* int ignore_url             = */ ignore_url,
-        /* int ignore_file_uri        = */ ignore_file_uri
-    )
+        /* call                   */ checkfile_call,
+        /* sym                    */ fileSymbol,
+        /* ofile                  */ ofile,
+        /* frame                  */ frame,
+        /* check_not_directory    */ TRUE,
+        /* forcepromise           */ TRUE,
+        /* assign_returnvalue     */ TRUE,
+        /* maybe_chdir            */ FALSE,
+        /* getowd                 */ NULL,
+        /* hasowd                 */ FALSE,
+        /* character_only         */ character_only,
+        /* conv2utf8              */ conv2utf8,
+        /* allow_blank_string     */ allow_blank_string,
+        /* allow_clipboard        */ allow_clipboard,
+        /* allow_stdin            */ allow_stdin,
+        /* allow_url              */ allow_url,
+        /* allow_file_uri         */ allow_file_uri,
+        /* allow_unz              */ allow_unz,
+        /* allow_pipe             */ allow_pipe,
+        /* allow_terminal         */ allow_terminal,
+        /* allow_textConnection   */ allow_textConnection,
+        /* allow_rawConnection    */ allow_rawConnection,
+        /* allow_sockconn         */ allow_sockconn,
+        /* allow_servsockconn     */ allow_servsockconn,
+        /* allow_customConnection */ allow_customConnection,
+        /* ignore_blank_string    */ ignore_blank_string,
+        /* ignore_clipboard       */ ignore_clipboard,
+        /* ignore_stdin           */ ignore_stdin,
+        /* ignore_url             */ ignore_url,
+        /* ignore_file_uri        */ ignore_file_uri
+    );
 
 
     INCREMENT_NAMED_defineVar(insidesourcewashereSymbol, fun_name, frame);
@@ -801,24 +820,24 @@ SEXP insidesource(SEXP call, SEXP op, SEXP args, SEXP rho, const char *name, Rbo
 
 SEXP do_insidesource do_formals
 {
-    do_start("insidesource", 21);
-    return insidesource(call, op, args, rho, "inside.source", FALSE, insidesourcefrompackageSymbol);
+    do_start_no_call_op("insidesource", 21);
+    return insidesource(args, rho, "inside.source", FALSE, insidesourcefrompackageSymbol);
 }
 
 
 SEXP do_setthispath do_formals
 {
-    do_start("setthispath", 21);
-    return insidesource(call, op, args, rho, "set.this.path", FALSE, setthispathfrompackageSymbol);
+    do_start_no_call_op("setthispath", 21);
+    return insidesource(args, rho, "set.this.path", FALSE, setthispathfrompackageSymbol);
 }
 
 
 SEXP do_unsetthispath do_formals
 {
-    do_start("unsetthispath", 0);
+    do_start_no_call_op("unsetthispath", 0);
 
 
-    return insidesource(call, op, args, rho, "unset.this.path", TRUE, NULL);
+    return insidesource(args, rho, "unset.this.path", TRUE, NULL);
 }
 
 

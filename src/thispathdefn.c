@@ -40,20 +40,7 @@ SEXP installTrChar(SEXP x)
 #endif
 
 
-#if !defined(_WIN32) || R_version_less_than(4, 1, 0)
-SEXP R_getNSValue(SEXP call, SEXP ns, SEXP name, int exported)
-{
-    SEXP expr = lang3(exported ? R_DoubleColonSymbol : R_TripleColonSymbol, ns, name);
-    PROTECT(expr);
-    expr = eval(expr, R_BaseEnv);
-    UNPROTECT(1);
-    return expr;
-}
-#endif
-
-
-#if !defined(_WIN32) || R_version_less_than(3, 4, 0)
-SEXP findFun3(SEXP symbol, SEXP rho, SEXP call)
+SEXP findFunction(SEXP symbol, SEXP rho, SEXP call)
 {
     SEXP vl;
     for (; rho != R_EmptyEnv; rho = ENCLOS(rho)) {
@@ -82,7 +69,6 @@ SEXP findFun3(SEXP symbol, SEXP rho, SEXP call)
         EncodeChar(PRINTNAME(symbol)));
     return R_UnboundValue;
 }
-#endif
 
 
 #if R_version_less_than(4, 1, 0)
@@ -665,3 +651,45 @@ Rboolean init_tools_rstudio(Rboolean skipCheck)
 
 
 int maybe_unembedded_shell = -1;
+
+
+SEXP get_sys_parents(SEXP rho)
+{
+    /* this function PROTECTs value and does not UNPROTECT at the end.
+     * UNPROTECT it yourself when necessary */
+    SEXP value = eval(lang1(findVarInFrame(R_BaseEnv, sys_parentsSymbol)), rho);
+    PROTECT(value);
+    // Rprintf("\n> sys.parents()\n");
+    // eval(lang2(printSymbol, value), rho);
+    // Rprintf("\n> sys.parent()\n");
+    // eval(lang2(printSymbol, lang1(install("sys.parent"))), rho);
+    int previous = 0, n = LENGTH(value);
+    int *ivalue = INTEGER(value);
+    for (int i = 0; i < n; i++) {
+        if (ivalue[i] < previous) {
+            // ivalue[i] = previous;
+            previous = (ivalue[i] = i);
+        } else {
+            previous = ivalue[i];
+        }
+    }
+    return value;
+}
+
+
+// int get_sys_parent(int n, SEXP rho)
+// {
+//     SEXP value = get_sys_parents(rho);
+//     int N = LENGTH(value);
+//     if (n == NA_INTEGER || n < 1 || n > N)
+//         error(_("invalid '%s' value"), "n");
+//     int returnthis = INTEGER(value)[N - n];
+//     UNPROTECT(1);  /* value */
+//     return returnthis;
+// }
+
+
+int get_sys_parent(int n, SEXP rho)
+{
+    return asInteger(eval(lang2(findVarInFrame(R_BaseEnv, sys_parentSymbol), ScalarInteger(n)), rho));
+}
