@@ -1,12 +1,13 @@
 if (getRversion() < "4.2.0") {
 
 
-# gettext(trim = TRUE) was added in R 4.2.0
-gettext <- function (..., domain = NULL, trim = TRUE)
+## gettext(trim = TRUE) was added in R 4.2.0
+gettext <- evalq(envir = .BaseNamespaceEnv,
+function (..., domain = NULL, trim = TRUE)
 {
     gettext(..., domain = domain)
 }
-environment(gettext) <- .BaseNamespaceEnv
+)
 
 
 }
@@ -15,7 +16,7 @@ environment(gettext) <- .BaseNamespaceEnv
 if (getRversion() < "4.1.0") {
 
 
-# bquote(splice = TRUE) was added in R 4.1.0
+## bquote(splice = TRUE) was added in R 4.1.0
 bquote <- function (expr, where = parent.frame(), splice = FALSE)
 {
     if (!is.environment(where))
@@ -62,13 +63,26 @@ bquote <- function (expr, where = parent.frame(), splice = FALSE)
 }
 
 
+if (getRversion() < "4.0.0") {
+
+
+deparse1 <- evalq(envir = .BaseNamespaceEnv,
+function (expr, collapse = " ", width.cutoff = 500L, ...)
+paste(deparse(expr, width.cutoff, ...), collapse = collapse)
+)
+
+
+}
+
+
 if (getRversion() < "3.6.0") {
 
 
-errorCondition <- function (message, ..., class = NULL, call = NULL)
+errorCondition <- evalq(envir = .BaseNamespaceEnv,
+function (message, ..., class = NULL, call = NULL)
 structure(list(message = as.character(message), call = call, ...),
     class = c(class, "error", "condition"))
-environment(errorCondition) <- .BaseNamespaceEnv
+)
 
 
 str2expression <- function (text)
@@ -99,17 +113,19 @@ if (getRversion() < "3.5.0") {
 
 
 ...length <- function ()
-.External2(C_dotslength)
+.External2(.C_dotslength)
 
 
-isTRUE <- function (x)
+isTRUE <- evalq(envir = .BaseNamespaceEnv,
+function (x)
 is.logical(x) && length(x) == 1L && !is.na(x) && x
-environment(isTRUE) <- .BaseNamespaceEnv
+)
 
 
-isFALSE <- function (x)
+isFALSE <- evalq(envir = .BaseNamespaceEnv,
+function (x)
 is.logical(x) && length(x) == 1L && !is.na(x) && !x
-environment(isFALSE) <- .BaseNamespaceEnv
+)
 
 
 }
@@ -118,7 +134,7 @@ environment(isFALSE) <- .BaseNamespaceEnv
 if (getRversion() < "3.4.0") {
 
 
-withAutoprint <- function (exprs, evaluated = FALSE, local = parent.frame(), print. = TRUE,
+.withAutoprint <- function (exprs, evaluated = FALSE, local = parent.frame(), print. = TRUE,
     echo = TRUE, max.deparse.length = Inf, width.cutoff = max(20,
         getOption("width")), deparseCtrl = c("keepInteger", "showAttributes",
         "keepNA"), spaced = FALSE, ...)
@@ -132,14 +148,20 @@ withAutoprint <- function (exprs, evaluated = FALSE, local = parent.frame(), pri
     }
     if (!is.expression(exprs))
         exprs <- as.expression(exprs)
-    conn <- textConnection(code2character(exprs, width.cutoff = width.cutoff, deparseCtrl = deparseCtrl))
+    conn <- textConnection(.code2character(exprs, width.cutoff = width.cutoff, deparseCtrl = deparseCtrl))
     on.exit(close(conn))
     source(file = conn, local = local, print.eval = print., echo = echo,
         max.deparse.length = max.deparse.length, ...)
 }
 
 
-} else withAutoprint <- base::withAutoprint
+} else {
+
+
+.withAutoprint <- withAutoprint
+
+
+}
 
 
 if (getRversion() < "3.3.0") {
@@ -149,16 +171,16 @@ strrep <- function (x, times)
 {
     if (!is.character(x))
         x <- as.character(x)
-    .External2(C_strrep, x, as.integer(times))
+    .External2(.C_strrep, x, as.integer(times))
 }
 
 
 startsWith <- function (x, prefix)
-.External2(C_startsWith, x, prefix)
+.External2(.C_startsWith, x, prefix)
 
 
 endsWith <- function (x, suffix)
-.External2(C_endsWith, x, suffix)
+.External2(.C_endsWith, x, suffix)
 
 
 }
@@ -168,47 +190,47 @@ if (getRversion() < "3.2.0") {
 
 
 isNamespaceLoaded <- function (name)
-.External2(C_isRegisteredNamespace, name)
+.External2(.C_isRegisteredNamespace, name)
 
 
 dir.exists <- function (paths)
-.External2(C_direxists, paths)
+.External2(.C_direxists, paths)
 
 
 lengths <- function (x, use.names = TRUE)
-.External2(C_lengths, x, use.names)
+.External2(.C_lengths, x, use.names)
 
 
-# file.info() did not have argument extra_cols at this time
-file.mtime <- function (...)
+## file.info() did not have argument 'extra_cols' at this time
+file.mtime <- evalq(envir = .BaseNamespaceEnv,
+function (...)
 file.info(...)$mtime
-environment(file.mtime) <- .BaseNamespaceEnv
+)
 
 
-file.info <- function (..., extra_cols = TRUE)
+file.info <- evalq(envir = .BaseNamespaceEnv,
+function (..., extra_cols = TRUE)
 {
     if (extra_cols)
         file.info(...)
     else file.info(...)[1:6]
 }
-environment(file.info) <- .BaseNamespaceEnv
+)
 
 
-is.dir <- function (...)
+.isdir <- evalq(envir = .BaseNamespaceEnv,
+function (...)
 file.info(...)$isdir
-environment(is.dir) <- .BaseNamespaceEnv
+)
 
 
 } else {
 
 
-isNamespaceLoaded <- function (name)
-isNamespaceLoaded(name)
-environment(isNamespaceLoaded) <- .BaseNamespaceEnv
-
-
-is.dir <- function (...)
+.isdir <- evalq(envir = .BaseNamespaceEnv,
+function (...)
 file.info(..., extra_cols = FALSE)$isdir
+)
 
 
 }
@@ -218,7 +240,7 @@ if (getRversion() < "3.1.0") {
 
 
 anyNA <- function (x, recursive = FALSE)
-.External2(C_anyNA, x, recursive)
+.External2(.C_anyNA, x, recursive)
 
 
 }
@@ -227,18 +249,19 @@ anyNA <- function (x, recursive = FALSE)
 if (getRversion() < "3.0.0") {
 
 
-delayedAssign("C_mapply", getNativeSymbolInfo("do_mapply", PACKAGE = "base"))
+delayedAssign(".C_mapply", getNativeSymbolInfo("do_mapply", PACKAGE = "base"))
 
 
 .mapply <- function (FUN, dots, MoreArgs)
-.Call(C_mapply, match.fun(FUN), dots, MoreArgs, environment())
+.Call(.C_mapply, match.fun(FUN), dots, MoreArgs, environment())
 
 
-setprseen2 <- function (ptr)
-.External2(C_setprseen2, ptr)
+.setprseen2 <- function (ptr)
+.External2(.C_setprseen2, ptr)
 
 
-parse <- function (file = "", n = NULL, text = NULL, prompt = "?", keep.source = getOption("keep.source"),
+parse <- evalq(envir = .BaseNamespaceEnv,
+function (file = "", n = NULL, text = NULL, prompt = "?", keep.source = getOption("keep.source"),
     srcfile = NULL, encoding = "unknown")
 {
     if (!missing(keep.source)) {
@@ -252,7 +275,7 @@ parse <- function (file = "", n = NULL, text = NULL, prompt = "?", keep.source =
         parse(file = file, n = n, text = text, prompt = prompt, srcfile = , encoding = encoding)
     else parse(file = file, n = n, text = text, prompt = prompt, srcfile = srcfile, encoding = encoding)
 }
-environment(parse) <- .BaseNamespaceEnv
+)
 
 
 }

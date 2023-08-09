@@ -1,4 +1,11 @@
-find_root <- function (path = normalizePath(getwd()), verbose = FALSE, criterion = default.criterion)
+.find.root <- evalq(envir = new.env(), {
+    delayedAssign("default.criterion", rprojroot::has_file(".here")     |
+                                       rprojroot::is_rstudio_project    |
+                                       rprojroot::is_r_package          |
+                                       rprojroot::is_remake_project     |
+                                       rprojroot::is_projectile_project |
+                                       rprojroot::is_vcs_root           )
+function (path = getwd(), verbose = FALSE, criterion = default.criterion)
 {
     # path <- "\\\\host\\share\\path\\to\\file\\"
     criterion <- rprojroot::as.root_criterion(criterion)
@@ -26,40 +33,76 @@ find_root <- function (path = normalizePath(getwd()), verbose = FALSE, criterion
         encodeString(opath, quote = "\""),
         paste(format(criterion), collapse = "\n")))
 }
-evalq(envir = environment(find_root) <- new.env(), {
-    delayedAssign("default.criterion", rprojroot::has_file(".here")     |
-                                       rprojroot::is_rstudio_project    |
-                                       rprojroot::is_r_package          |
-                                       rprojroot::is_remake_project     |
-                                       rprojroot::is_projectile_project |
-                                       rprojroot::is_vcs_root           )
 })
 
 
-.this.proj <- function (verbose = FALSE)
+if (.Platform$OS.type == "windows") {
+    formals(.find.root)$path <- quote(normalizePath(getwd(), "/", TRUE))
+}
+
+
+.proj <- evalq(envir = new.env(), {
+    x <- structure(character(0), names = character(0))
+function (path, verbose = FALSE)
 {
-    path <- .this.dir()
+    ## 'path' should be normalized
     if (indx <- match(path, names(x), 0L))
         x[[indx]]
-    else (x[[path]] <<- find_root(path, verbose))
+    else (x[[path]] <<- .find.root(path, verbose))
 }
-evalq(envir = environment(.this.proj) <- new.env(), {
-    x <- structure(character(0), names = character(0))
 })
 
 
-reset.this.proj <- function ()
+sys.proj <- function (..., local = FALSE)
 {
-    if (sys.nframe() != toplevel.context.number() + 1L)
-        stop(gettextf("'%s' can only be called from a top-level context",
-            "reset.this.proj"))
-    x <<- structure(character(0), names = character(0))
-}
-environment(reset.this.proj) <- environment(.this.proj)
-
-
-this.proj <- function (...)
-{
-    base <- .this.proj()
+    base <- .External2(.C_syspath, local)
+    base <- .dir(base)
+    base <- .proj(base)
     path.join(base, ...)
 }
+
+
+env.proj <- function (..., n = 0L, envir = parent.frame(n + 1L),
+    matchThisEnv = getOption("topLevelEnvironment"))
+{
+    n <- .External2(.C_asIntegerGE0, n)
+    base <- .External2(.C_envpath, envir, matchThisEnv)
+    base <- .dir(base)
+    base <- .proj(base)
+    path.join(base, ...)
+}
+
+
+src.proj <- function (..., n = 0L, srcfile = sys.call(if (n) sys.parent(n) else 0L))
+{
+    n <- .External2(.C_asIntegerGE0, n)
+    base <- .External2(.C_srcpath, srcfile)
+    base <- .dir(base)
+    base <- .proj(base)
+    path.join(base, ...)
+}
+
+
+this.proj <- function (..., local = FALSE, n = 0L, envir = parent.frame(n + 1L),
+    matchThisEnv = getOption("topLevelEnvironment"),
+    srcfile = sys.call(if (n) sys.parent(n) else 0L))
+{
+    n <- .External2(.C_asIntegerGE0, n)
+    base <- .External2(.C_thispath, local, envir, matchThisEnv, srcfile)
+    base <- .dir(base)
+    base <- .proj(base)
+    path.join(base, ...)
+}
+
+
+reset.proj <- function ()
+{
+    if (sys.nframe() != .toplevel.context.number() + 1L)
+        stop(gettextf("'%s' can only be called from a top level context", "reset.proj"))
+    .External2(.C_resetproj)
+}
+
+
+reset.this.proj <- eval(call("function", NULL, bquote(
+stop(.defunctError("reset.proj", .(.pkgname), old = "reset.this.proj"))
+)))

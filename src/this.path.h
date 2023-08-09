@@ -9,11 +9,11 @@ Each function must:
   * return a SEXP
   * have an argument list (SEXP call, SEXP op, SEXP args, SEXP rho)
 
-call is the LANGSXP that called the C code, like .External2(C_funname, ...)
+call is the LANGSXP that called the C code, like .External2(.C_funname, ...)
 
 op is the operator that called the C code, always .External2
 
-args is the argument list provided to .External2(.), including C_funname
+args is the argument list provided to .External2(.), including .C_funname
 
 rho is the environment in which .External2(.) was evaluated, useful for
 accessing and assigning variables
@@ -33,15 +33,15 @@ the first element of 'args' is '.NAME', as usual. The next 3 elements must be
 the 'call', 'op', and 'rho' that would have been provided if .External2() was
 available. for example:
 
- .External2(C_thispath, verbose, original, for.msg, N, get.frame.number)
+ .External2(.C_syspath, verbose)
 
 becomes:
 
- .External(C_thispath,
-     quote(.External(C_thispath, verbose, original, for.msg, N, get.frame.number)),
+ .External(.C_syspath,
+     quote(.External(.C_syspath, verbose)),
      .External,
      environment(),
-     verbose, original, for.msg, N, get.frame.number)
+     verbose)
  */
 
 
@@ -49,9 +49,9 @@ becomes:
 #define THIS_PATH_H
 
 
-#include <Rinternals.h>
-#include "Rversiondefines.h"
-#include "thispathbackports.h"
+#include <Rinternals.h>         /* need definition of SEXP */
+#include "thispathbackports.h"  /* need definition of do_formals */
+#include "rversiondefines.h"    /* need definition of R_version_less_than */
 
 
 /* aquarootscript.c */
@@ -60,13 +60,12 @@ becomes:
 extern SEXP do_aquarootscript do_formals;
 
 
-/* args.c */
-
-
-extern SEXP do_asargs do_formals;
-
-
 /* backports.c */
+
+
+#if R_version_less_than(3, 5, 0)
+extern SEXP do_dotslength do_formals;
+#endif
 
 
 #if R_version_less_than(3, 3, 0)
@@ -79,6 +78,7 @@ extern SEXP do_endsWith   do_formals;
 #if R_version_less_than(3, 2, 0)
 extern SEXP do_direxists do_formals;
 extern SEXP do_lengths   do_formals;
+extern SEXP do_isRegisteredNamespace do_formals;
 #endif
 
 
@@ -119,24 +119,24 @@ extern SEXP do_unixextgets    do_formals;
 extern SEXP do_extgets        do_formals;
 
 
-/* hooks-for-namespace-events.c */
-
-
-// extern SEXP do_utf8locale   do_formals;
-extern SEXP do_mbcslocale   do_formals;
-// extern SEXP do_latin1locale do_formals;
-extern SEXP do_R_MB_CUR_MAX do_formals;
-
-extern SEXP do_onload   do_formals;
-extern SEXP do_onunload do_formals;
-
-
 /* isabspath.c */
 
 
 extern SEXP do_windowsisabspath do_formals;
 extern SEXP do_unixisabspath    do_formals;
 extern SEXP do_isabspath        do_formals;
+
+
+/* ns-hooks.c */
+
+
+extern SEXP do_mbcslocale   do_formals;
+// extern SEXP do_utf8locale   do_formals;
+// extern SEXP do_latin1locale do_formals;
+extern SEXP do_R_MB_CUR_MAX do_formals;
+
+extern SEXP do_onLoad   do_formals;
+extern SEXP do_onUnload do_formals;
 
 
 /* pathjoin.c */
@@ -163,59 +163,79 @@ extern SEXP do_unixpathunsplit    do_formals;
 extern SEXP do_pathunsplit        do_formals;
 
 
+/* print.c */
+
+
+extern SEXP do_PrintValueEnv do_formals;
+
+
+/* progargs.c */
+
+
+extern SEXP do_asArgs do_formals;
+
+
 /* promises.c */
 
 
 extern SEXP do_isunevaluatedpromise     do_formals;
 extern SEXP do_promiseisunevaluated     do_formals;
 extern SEXP do_getpromisewithoutwarning do_formals;
-extern SEXP do_prinfo                   do_formals;
-extern SEXP do_setthispathjupyter       do_formals;
+extern SEXP do_PRINFO                   do_formals;
+extern SEXP do_setsyspathjupyter        do_formals;
+extern SEXP do_mkPROMISE                do_formals;
+extern SEXP do_mkEVPROMISE              do_formals;
+extern SEXP do_unlockEnvironment        do_formals;
+
+
+/* rprojroot.c */
+
+
+extern SEXP do_resetproj do_formals;
 
 
 /* shfile.c */
 
 
-extern SEXP do_shfile do_formals;
-extern SEXP do_shinfo do_formals;
+extern SEXP do_shFILE do_formals;
+extern SEXP do_shINFO do_formals;
 
 
 /* thispath.c */
 
 
-extern SEXP do_thispathunrecognizedconnectionclasserror do_formals;
-extern SEXP do_thispathunrecognizedmannererror          do_formals;
-extern SEXP do_thispathnotimplementederror              do_formals;
-extern SEXP do_thispathnotexistserror                   do_formals;
-extern SEXP do_thispathinzipfileerror                   do_formals;
-extern SEXP do_thispathinaquaerror                      do_formals;
+extern SEXP do_thisPathUnrecognizedConnectionClassError do_formals;
+extern SEXP do_thisPathUnrecognizedMannerError          do_formals;
+extern SEXP do_thisPathNotImplementedError              do_formals;
+extern SEXP do_thisPathNotExistsError                   do_formals;
+extern SEXP do_thisPathInZipFileError                   do_formals;
+extern SEXP do_thisPathInAQUAError                      do_formals;
 
 extern SEXP do_isclipboard      do_formals;
-extern SEXP do_thispath         do_formals;
-extern SEXP do_getframenumber   do_formals;
 extern SEXP do_inittoolsrstudio do_formals;
-extern SEXP do_thispathrgui     do_formals;
-
-
-/* utils.c */
-
-
-#if R_version_less_than(3, 5, 0)
-extern SEXP do_dotslength do_formals;
-#endif
-#if R_version_less_than(3, 2, 0)
-extern SEXP do_isRegisteredNamespace do_formals;
-#endif
+extern SEXP do_syspathjupyter   do_formals;
+extern SEXP do_syspathrgui      do_formals;
+extern SEXP do_syspath          do_formals;
+extern SEXP do_getframenumber   do_formals;
+extern SEXP do_envpath          do_formals;
+extern SEXP do_srcpath          do_formals;
+extern SEXP do_srclineno        do_formals;
+extern SEXP do_thispath         do_formals;
+extern SEXP do_istrue           do_formals;
+extern SEXP do_isfalse          do_formals;
+extern SEXP do_asInteger        do_formals;
+extern SEXP do_asIntegerGE0     do_formals;
 
 
 /* wrapsource.c */
 
 
-extern SEXP do_setprseen2    do_formals;
-extern SEXP do_wrapsource    do_formals;
-extern SEXP do_insidesource  do_formals;
-extern SEXP do_setthispath   do_formals;
-extern SEXP do_unsetthispath do_formals;
+extern SEXP do_setprseen2   do_formals;
+extern SEXP do_wrapsource   do_formals;
+extern SEXP do_setsyspath   do_formals;
+extern SEXP do_unsetsyspath do_formals;
+extern SEXP do_setenvpath   do_formals;
+extern SEXP do_setsrcpath   do_formals;
 
 
 #endif  /* #ifndef THIS_PATH_H */

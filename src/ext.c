@@ -17,10 +17,7 @@
                                                                \
                                                                \
     if (op == EXTGETS) {                                       \
-        /* ext<-(), duplicate 'path' if we need to */          \
-        if (MAYBE_REFERENCED(CAR(args))) {                     \
-            SETCAR(args, R_shallow_duplicate_attr(CAR(args))); \
-        }                                                      \
+        SETCAR(args, R_shallow_duplicate_attr(CAR(args)));     \
     }                                                          \
                                                                \
                                                                \
@@ -39,15 +36,13 @@
     if (op == EXTGETS) {                                       \
         if (!isString(CAR(args))) {                            \
             if (OBJECT(CAR(args))) {                           \
-                SEXP expr = allocList(2);                      \
-                PROTECT(expr);                                 \
-                SET_TYPEOF(expr, LANGSXP);                     \
-                SETCAR(expr, findVarInFrame(R_BaseEnv, R_AsCharacterSymbol));\
-                SEXP expr2;                                    \
-                SETCADR(expr, expr2 = allocList(2));           \
-                SET_TYPEOF(expr2, LANGSXP);                    \
-                SETCAR(expr2, findVarInFrame(R_BaseEnv, R_QuoteSymbol));\
-                SETCADR(expr2, CAR(args));                     \
+                /* as.character(quote(CAR(args))) */           \
+                SEXP expr;                                     \
+                PROTECT_INDEX indx;                            \
+                PROTECT_WITH_INDEX(expr = CONS(CAR(args), R_NilValue), &indx);\
+                REPROTECT(expr = LCONS(getFromBase(R_QuoteSymbol), expr), indx);\
+                REPROTECT(expr = CONS(expr, R_NilValue), indx);\
+                REPROTECT(expr = LCONS(getFromBase(R_AsCharacterSymbol), expr), indx);\
                 SETCAR(args, eval(expr, rho));                 \
                 UNPROTECT(1);                                  \
             }                                                  \
@@ -55,7 +50,7 @@
                 SETCAR(args, ScalarString(PRINTNAME(CAR(args))));\
             else SETCAR(args, coerceVector(CAR(args), STRSXP));\
             if (!isString(CAR(args)))                        \
-                errorcall(call, _("non-string argument to '%s'"), "C_extgets");\
+                errorcall(call, _("non-string argument to '%s'"), ".C_extgets");\
         }                                                      \
                                                                \
                                                                \

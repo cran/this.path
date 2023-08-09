@@ -1,16 +1,118 @@
 this.path News
 
+CHANGES IN this.path 2.0.0 (2023-08-08):
+
+SIGNIFICANT USER-VISIBLE CHANGES:
+
+    * this.path() was misleading users into believing it returns the
+      path of the script in which it is written. In actuality, it
+      returns the path of the executing script. As such, it was renamed
+      to sys.path() in accordance with the other call stack inspection
+      functions sys.call(), sys.frame(), sys.nframe(), and
+      sys.function(). Related functions that were renamed:
+
+              old                    new
+        [1,]  this.dir               sys.dir
+        [2,]  here                   sys.here
+        [3,]  this.proj              sys.proj
+        [4,]  rel2here               rel2sys.dir
+        [5,]  LINENO                 sys.LINENO
+        [6,]  try.this.path          try.sys.path
+        [7,]  set.this.path          set.sys.path
+        [8,]  unset.this.path        unset.sys.path
+        [9,]  set.this.path.jupyter  set.sys.path.jupyter
+
+      this.path() was replaced by a function that returns the path of
+      the script in which it is written. It does this by looking for a
+      source reference with an appropriate source file, or inspects the
+      environment in which it is called for an associated path, or
+      returns the path of the executing script, as before. Related
+      functions that were replaced:
+
+        [1]  this.dir   here        ici            this.proj
+        [5]  rel2here   LINENO      try.this.path  check.path
+        [9]  check.dir  check.proj
+
+NEW FEATURES:
+
+    * Added env.path() for determining the path associated with the top
+      level environment. Also added env.dir(), env.here(), env.proj(),
+      rel2env.dir(), env.LINENO(), and try.env.path().
+
+    * Added src.path() for determining the path associated with its
+      source reference. Also added src.dir(), src.here(), src.proj(),
+      rel2src.dir(), src.LINENO(), and try.src.path().
+
+    * Added set.env.path() and set.src.path() to work along side
+      set.sys.path().
+
+    * this.path() now accepts arguments 'n', 'envir', 'matchThisEnv',
+      and 'srcfile' to finely control how the path will be retrieved.
+
+    * Added rel2proj() for turning absolute paths into relative paths
+      against the script's project root. Also added rel2sys.proj(),
+      rel2env.proj(), and rel2src.proj().
+
+    * set.sys.path() now accepts argument 'ofile' specifying the
+      original file argument. This overwrites the value returned by
+      sys.path(original = TRUE).
+
+    * Added active bindings 'FILE' and 'LINE' linking to
+      try.this.path() and LINENO() to be used in a similar manner to
+      the macros '__FILE__' and '__LINE__' in C.
+
+    * Added path.functions() which accepts a file path and constructs a
+      set of path-related functions, similar to this.path() and
+      associated.
+
+DEPRECATED AND DEFUNCT:
+
+    * inside.source() and set.this.path() are defunct and should be
+      replaced with set.sys.path().
+
+    * unset.this.path() is defunct and should be replaced with
+      unset.sys.path().
+
+    * set.this.path.jupyter() is defunct and should be replaced with
+      set.sys.path.jupyter().
+
+    * reset.this.proj() is defunct and should be replaced with
+      reset.proj().
+
+BUG FIXES:
+
+    * Fixed display issues in LaTeX and plain text documentation.
+
+    * reset.proj() now has environment
+      <environment: namespace:this.path> as do all other exported
+      functions.
+
+    * Fixed sys.path(contents = TRUE) in 'RStudio' and 'VSCode' having
+      a trailing blank string.
+
+    * Fixed sys.path(contents = TRUE) in 'Jupyter' if the executing
+      script had yet to be determined.
+
+    * Fixed sys.path(original = NA) in 'RStudio', 'VSCode', and
+      'Jupyter' saying 'missing value where TRUE/FALSE needed'.
+
+    * Fixed relpath() on Windows when comparing paths with network
+      shares.
+
+    * Fixed 'this.path' used in site-wide startup profile file, the
+      user profile, or the function .First() on Windows in 'RStudio'.
+
 CHANGES IN this.path 1.4.0 (2023-04-18):
 
-  NEW FEATURES
+NEW FEATURES:
 
     * this.path() now accepts argument 'contents' that returns the
       contents of the executing script.
 
-    * try.this.path() now accepts argument 'contents' to get the
+    * try.this.path() now accepts argument 'contents' that returns the
       contents of the executing script, 'NULL' if that fails.
 
-  DEPRECATED AND DEFUNCT
+DEPRECATED AND DEFUNCT:
 
     * local.path() is defunct and should be replaced with
       this.path(local = TRUE).
@@ -18,7 +120,7 @@ CHANGES IN this.path 1.4.0 (2023-04-18):
     * Sys.path() and Sys.dir() are defunct and should be replaced with
       this.path(verbose = FALSE) and this.dir(verbose = FALSE).
 
-  BUG FIXES
+BUG FIXES:
 
     * inside.source() / / set.this.path() / / this.path(local = TRUE)
       more rigorously check that they are called from a valid context.
@@ -28,26 +130,27 @@ CHANGES IN this.path 1.4.0 (2023-04-18):
 
 CHANGES IN this.path 1.3.0 (2023-04-08):
 
-  SIGNIFICANT USER-VISIBLE CHANGES
+SIGNIFICANT USER-VISIBLE CHANGES:
 
     * this.path() no longer throws an error when multiple '-f' 'FILE',
-      '--file=FILE' arguments are provided to a shell, and instead
-      returns the last 'FILE' (ignoring '-f' '-' and '--file=-').
+      '--file=FILE' arguments are provided to a shell, instead
+      returning the last 'FILE' (ignoring '-f' '-' and '--file=-').
 
-  NEW FEATURES
+NEW FEATURES:
 
     * Added path.split(), path.split.1(), and path.unsplit() for
       splitting and unsplitting paths into components.
 
-    * this.path() now works when run in 'VSCode' with the 'radian'
+    * this.path() is now compatible with GUI 'VSCode' with the 'radian'
       console.
 
-    * this.path() now works in 'Jupyter'. Added set.this.path.jupyter()
-      for explicitly declaring the path of the 'Jupyter' notebook.
+    * this.path() is now compatible with GUI 'Jupyter'. Added
+      set.this.path.jupyter() for explicitly declaring the path of the
+      'Jupyter' notebook.
 
-    * this.path() now works inside compiler::loadcmp().
+    * this.path() is now compatible with function compiler::loadcmp().
 
-    * this.path() now works inside box::use().
+    * this.path() is now compatible with function box::use().
 
     * For logging purposes, this.path(for.msg = TRUE) will now return
       "Untitled" when appropriate.
@@ -73,36 +176,36 @@ CHANGES IN this.path 1.3.0 (2023-04-08):
       of the executing script, the original path if that fails,
       'NA_character_' if that fails as well.
 
-  DEPRECATED AND DEFUNCT
+DEPRECATED AND DEFUNCT:
 
     * as.relative.path() and as.rel.path() are defunct and should be
       replaced with rel2here().
 
-  BUG FIXES
+BUG FIXES:
 
-    * shFILE(for.msg = TRUE, default = <...>) now does not evaluate
+    * shFILE(for.msg = TRUE, default = <...>) does not evaluate
       'default', as intended. By extension, this.path(for.msg = TRUE)
-      now returns 'NA_character_' when running from a shell instead of
+      returns 'NA_character_' when running from a shell instead of
       incorrectly throwing an error.
 
 CHANGES IN this.path 1.2.0 (2023-01-16):
 
-  SIGNIFICANT USER-VISIBLE CHANGES
+SIGNIFICANT USER-VISIBLE CHANGES:
 
-    * shFILE() now parses the command line arguments in the exact same
-      manner as R itself, more accurately selecting 'FILE'.
+    * shFILE() parses the command line arguments in the exact same
+      manner as R itself, more accurately extracting 'FILE'.
 
     * A relative path returned by relpath() / / as.rel.path() will
       always start with "./" or "../".
 
-  NEW FEATURES
+NEW FEATURES:
 
     * Added set.this.path(), an alias for inside.source().
 
     * Added Sys.putenv(), an alternate method for setting environment
       variables.
 
-  BUG FIXES
+BUG FIXES:
 
     * C code no longer uses lang1() through lang6() with multiple
       unprotected arguments, uses allocList() and SETCAR() instead.
@@ -117,10 +220,9 @@ CHANGES IN this.path 1.2.0 (2023-01-16):
 
 CHANGES IN this.path 1.1.0 (2022-12-01):
 
-  NEW FEATURES
+NEW FEATURES:
 
-    * this.path() now works inside knitr::knit(). By extension,
-      withArgs(knitr::knit()) now also works.
+    * this.path() is now compatible with function knitr::knit().
 
     * this.path() now accepts argument 'original' that returns the
       executing script's original (unnormalized) path.
@@ -131,7 +233,7 @@ CHANGES IN this.path 1.1.0 (2022-12-01):
       this.path(for.msg = TRUE) should not be used for constructing
       file paths.
 
-    * shFILE() also accepts argument 'original' that returns the
+    * shFILE() also now accepts argument 'original' that returns the
       original 'FILE' from the command line arguments.
 
     * Added splitext(), removeext(), ext(), and ext<-() for
@@ -152,19 +254,19 @@ CHANGES IN this.path 1.1.0 (2022-12-01):
     * Added relpath(), a version of as.rel.path() with different
       default argument values.
 
-    * Added 'OS.type', a list of 'TRUE' / / 'FALSE' values giving more details
-      about the operating system.
+    * Added 'OS.type', a list of 'TRUE' / / 'FALSE' values giving more
+      details about the operating system.
 
-  DEPRECATED AND DEFUNCT:
+DEPRECATED AND DEFUNCT:
 
     * normalized.shFILE(), this.path2(), this.dir2(), and this.dir3()
       are defunct and should be replaced with shFILE(),
       this.path(default = NULL), this.dir(default = NULL), and
       this.dir(default = getwd()), respectively.
 
-  BUG FIXES
+BUG FIXES:
 
-    * check.path() and check.dir() now use path.join() instead of
+    * check.path() and check.dir() use path.join() instead of
       file.path().
 
     * fileArgs(), progArgs(), from.shell(), and is.main() no longer
@@ -174,94 +276,31 @@ CHANGES IN this.path 1.1.0 (2022-12-01):
 
 CHANGES IN this.path 1.0.2 (2022-09-23):
 
-  BUG FIXES
+BUG FIXES:
 
-    * this.path() now works when called in a script run from a shell on
-      Ubuntu installed on an Android (where .Platform$GUI == "unknown",
+    * this.path() works when called in a script run from a shell on
+      Ubuntu installed on an Android (where .Platform$GUI is "unknown",
       normally "unix").
 
 CHANGES IN this.path 1.0.1 (2022-09-22):
 
-  BUG FIXES
+BUG FIXES:
 
     * Fixed path.join(), basename2(), and dirname2() not having a
       trailing nul-character.
 
 CHANGES IN this.path 1.0.0 (2022-09-21):
 
-  SIGNIFICANT USER-VISIBLE CHANGES
+SIGNIFICANT USER-VISIBLE CHANGES:
 
     * this.dir(), here(), and this.proj() all use path.join() and
       dirname2() instead of file.path() and dirname(), this may change
       behaviour for some users and cases, but should be an
       improvement overall.
 
-  NEW FEATURES
+NEW FEATURES:
 
     * Added path.join(), basename2(), and dirname2() for constructing
       and manipulating paths to files. These are based on file.path(),
       basename(), and dirname(), but behave differently with network
       shares and a few important edge cases.
-
-CHANGES IN this.path 0.11.0 (2022-09-03):
-
-  NEW FEATURES
-
-    * Added tryCatch2(), introducing argument 'else.' similar to
-      'try except' in 'Python'.
-
-    * Added 'else.' argument to this.path(), this.dir(), shFILE(), and
-      normalized.shFILE(), a function to act on the return value.
-
-CHANGES IN this.path 0.10.0 (2022-07-17):
-
-  NEW FEATURES
-
-    * Added asArgs(), fileArgs(), and withArgs() to more easily provide
-      arguments to a script.
-
-    * Added from.shell() to determine if a script was run from a shell.
-
-    * Added this.proj(...), similar to here::here(...), except that
-      this.proj() supports multiple projects in one R session and is
-      independent of working directory.
-
-  BUG FIXES
-
-    * this.path::here() no longer uses dirname() on a UNC path.
-
-CHANGES IN this.path 0.9.0 (2022-07-15):
-
-  NEW FEATURES:
-
-    * this.path() and others now work in 'VSCode'.
-
-  BUG FIXES:
-
-    * when source()-ing a file URL, source("file:///path/to/file"),
-      this.path() no longer attempts to re-open a connection.
-
-CHANGES IN this.path 0.8.0 (2022-07-08):
-
-  SIGNIFICANT USER-VISIBLE CHANGES:
-
-    * All previously defunct functions were removed entirely.
-
-  NEW FEATURES:
-
-    * this.path(), this.dir(), shFILE(), and normalized.shFILE() were
-      given a new argument default that will be evaluated and returned
-      if there is no executing script or command line argument FILE was
-      not found.
-
-  DEPRECATED AND DEFUNCT:
-
-    * this.path2(), this.dir2(), and this.dir3() are deprecated and
-      should be replaced with this.path(default = NULL),
-      this.dir(default = NULL), and this.dir(default = getwd()),
-      respectively.
-
-  BUG FIXES:
-
-    * normalized.shFILE() no longer sets attribute
-      "this.path.from.shell", that is now handled by this.path().

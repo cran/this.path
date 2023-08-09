@@ -2,7 +2,7 @@
 #define R_THIS_PATH_BACKPORTS
 
 
-#include "Rversiondefines.h"
+#include "rversiondefines.h"
 
 
 #if R_version_at_least(3, 0, 0)
@@ -71,4 +71,4 @@
 #endif
 
 
-#endif
+#endif /* R_THIS_PATH_BACKPORTS */

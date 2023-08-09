@@ -1,6 +1,8 @@
-.Rscript <- function (options = NULL, trailing = character(), dry.run = FALSE, print.command = TRUE, ...)
+.Rscript <- function (options = NULL, trailing = character(), dry.run = FALSE,
+    show.command = TRUE, intern = TRUE, show.output.on.console = show.command,
+    ...)
 {
-    command <- path.join(R.home("bin"), if (os.windows)
+    command <- path.join(R.home("bin"), if (.os.windows)
         "Rscript.exe"
     else "Rscript")
     args <- c(command, options)
@@ -8,23 +10,7 @@
     command <- paste(args, collapse = " ")
     if (dry.run)
         return(command)
-    if (print.command)
-        cat(command, "\n", sep = "")
-    invisible(system(command = command, ...))
-}
-
-
-Rscript <- function (options = NULL, trailing = character(), dry.run = FALSE, print.command = TRUE, intern = TRUE, show.output.on.console = print.command, ...)
-{
-    command <- path.join(R.home("bin"), if (os.windows)
-        "Rscript.exe"
-    else "Rscript")
-    args <- c(command, options)
-    args <- c(shQuote(args), trailing)
-    command <- paste(args, collapse = " ")
-    if (dry.run)
-        return(command)
-    if (print.command)
+    if (show.command)
         cat(command, "\n", sep = "")
     value <- suppressWarnings(system(command = command, intern = intern, ...))
     if (show.output.on.console)
@@ -33,98 +19,82 @@ Rscript <- function (options = NULL, trailing = character(), dry.run = FALSE, pr
 }
 
 
-# .Rterm <- function (options = NULL, trailing = character(), dry.run = FALSE, print.command = TRUE, ...)
-# {
-#     command <- path.join(R.home("bin"), if (os.windows)
-#         "Rterm.exe"
-#     else "R")
-#     args <- c(command, options)
-#     args <- c(shQuote(args), trailing)
-#     command <- paste(args, collapse = " ")
-#     if (dry.run)
-#         return(command)
-#     if (print.command)
-#         cat(command, "\n", sep = "")
-#     invisible(system(command = command, ...))
-# }
-
-
-build_this <- function(chdir = FALSE, file = here(), which = "tar") NULL
-body(build_this) <- bquote({
-    # build_this {this.path}                                     R Documentation
-    #
-    # Building Packages
-    #
-    #
-    #
-    # Description:
-    #
-    # This provides a more general method of making packages, not specifically
-    # R packages, for distribution and version control.
-    #
-    #
-    #
-    # Usage:
-    #
-    # build_this(chdir = FALSE, file = here(), which = "tar")
-    #
-    #
-    #
-    # Arguments:
-    #
-    # chdir
-    #
-    #     TRUE or FALSE; change directory to directory of package source before
-    #     building tar/zip archives? This will not affect the build process,
-    #     only the location in which the archive is made.
-    #
-    # file
-    #
-    #     name of a directory which is to be packaged
-    #
-    # which
-    #
-    #     which type of archive do you want to make, "tar" or "zip"?
-    #     Can be both i.e. 'which = c("tar", "zip")'
-    #
-    #
-    #
-    # Details:
-    #
-    # build_this builds package archives similar to 'R CMD build', and takes
-    # the name of the package and its version from the 'DESCRIPTION' file.
-    # If you are unfamiliar with the 'DESCRIPTION' file, here is a outline:
-    #
-    # Package: example
-    # Version: 0.1.0
-    # License: What license is it under?
-    # Title: What the Package Does (Title Case)
-    # Description: More about what it does (maybe more than one line)
-    #     Use four spaces when indenting paragraphs within the Description.
-    # Author: Who wrote it
-    # Maintainer: The package maintainer <yourself@somewhere.net>
-    #
-    # The package name should start with a letter, end with a letter or number,
-    # and contain any combination of letters, numbers, underscores, periods,
-    # and hyphens in the middle.
-    #
-    # The package version should be two or more numbers separated by hyphens
-    # and/or periods like '12.34.56-78'.
+.build.this <- eval(call("function", as.pairlist(alist(chdir = FALSE, file = here(), which = "tar")), bquote({
+    ## .build.this {this.path}                                   R Documentation
+    ##
+    ## Building Packages
+    ##
+    ##
+    ##
+    ## Description:
+    ##
+    ## This provides a more general method of making packages, not specifically
+    ## R packages, for distribution and version control.
+    ##
+    ##
+    ##
+    ## Usage:
+    ##
+    ## .build.this(chdir = FALSE, file = here(), which = "tar")
+    ##
+    ##
+    ##
+    ## Arguments:
+    ##
+    ## chdir
+    ##
+    ##     TRUE or FALSE; change directory to directory of package source
+    ##     before building tar/zip archives? This will not affect the build
+    ##     process, only the location in which the archive is made.
+    ##
+    ## file
+    ##
+    ##     name of a directory which is to be packaged
+    ##
+    ## which
+    ##
+    ##     which type of archive do you want to make, "tar" or "zip"?
+    ##     Can be both i.e. 'which = c("tar", "zip")'
+    ##
+    ##
+    ##
+    ## Details:
+    ##
+    ## .build.this builds package archives similar to 'R CMD build', and takes
+    ## the name of the package and its version from the 'DESCRIPTION' file.
+    ## If you are unfamiliar with the 'DESCRIPTION' file, here is a outline:
+    ##
+    ## Package: example
+    ## Version: 0.1.0
+    ## Date: %Y-%m-%d
+    ## License: What license is it under?
+    ## Title: What the Package Does (Title Case)
+    ## Description: More about what it does (maybe more than one line)
+    ##     Use four spaces when indenting paragraphs within the Description.
+    ## Author: Who wrote it
+    ## Maintainer: The package maintainer <yourself@somewhere.net>
+    ##
+    ## The package name should start with a letter, end with a letter or
+    ## number, and contain any combination of letters, numbers, underscores,
+    ## periods, and hyphens in the middle.
+    ##
+    ## The package version should be two or more numbers separated by hyphens
+    ## and/or periods like '12.34.56-78'.
 
 
 
-    # determine which types of archive we want to make
+    ## determine which types of archive we want to make
     choices <- c("tar", "zip")
     nms <- c("tarball", "zip archive")
     which <- unique(match.arg(which, choices, several.ok = TRUE))
     nms <- nms[match(which, choices)]
 
 
-    # check that 'file' is valid, and 'chdir' if required
+    ## check that 'file' is valid, and 'chdir' if required
     if (!is.character(file) || length(file) != 1L) {
         stop(gettextf("'%s' must be a character string", "file", domain = "R"), domain = NA)
     } else if (grepl("^(ftp|ftps|http|https)://", file)) {
-        stop("cannot 'build_this' on a URL")
+        stop("cannot '.build.this' on a URL")
     } else if (chdir && (path <- file) != ".") {
         file <- "."
         owd <- getwd()
@@ -173,7 +143,7 @@ body(build_this) <- bquote({
     version <- packageInfo[[1L, "Version"]]
 
 
-    # check that the package name and version exist in "DESCRIPTION"
+    ## check that the package name and version exist in "DESCRIPTION"
     problems <- c(
         if (is.na(pkgname))
             "invalid 'Package' field\n\n",
@@ -186,7 +156,7 @@ body(build_this) <- bquote({
     }
 
 
-    # check that the package name and version are valid names and versions
+    ## check that the package name and version are valid names and versions
     cat("* checking DESCRIPTION meta-information ... ", sep = "")
     valid_package_name <- "([[:alpha:]][[:alnum:]_.-]*[[:alnum:]])"
     valid_package_version <- "(([[:digit:]]+[.-]){1,}[[:digit:]]+)"
@@ -203,29 +173,29 @@ body(build_this) <- bquote({
     cat("OK\n")
 
 
-    # files to exclude, and all files
+    ## files to exclude, and all files
     exclude <- NULL
     files <- list.files(path = file, all.files = TRUE, recursive = TRUE, include.dirs = TRUE)
 
 
-    # directories to always exclude
+    ## directories to always exclude
     i <- basename2(files) %in% c(
 
-        # directories from source control systems
+        ## directories from source control systems
         "CSV", ".svn", ".arch-ids", ".bzr", ".git", ".hg",
 
-        # directories from eclipse
+        ## directories from eclipse
         ".metadata",
 
         "check", "chm"
     )
 
 
-    # more directories to exclude, ending with Old or old
+    ## more directories to exclude, ending with Old or old
     i <- i | grepl("(Old|old)$", files)
 
 
-    # and, of course, are directories
+    ## and, of course, are directories
     i <- i & dir.exists(path.join(file, files))
 
 
@@ -235,7 +205,7 @@ body(build_this) <- bquote({
     }
 
 
-    # files to always exclude
+    ## files to always exclude
     i <- grepl(
         pattern = paste0(
             "(",
@@ -243,13 +213,13 @@ body(build_this) <- bquote({
                 "^GNUmakefile$",
                 "^Read-and-delete-me$",
 
-                # starts with .#
+                ## starts with .#
                 "^\\.#",
 
-                # starts or ends with #
+                ## starts or ends with #
                 "^#", "#$",
 
-                # ends with ~ or .bak or .swp
+                ## ends with ~ or .bak or .swp
                 "~$", "\\.bak$", "\\.swp$"
             ),
             ")", collapse = "|"
@@ -264,7 +234,7 @@ body(build_this) <- bquote({
     }
 
 
-    # do not put previous archives in the new archives
+    ## do not put previous archives in the new archives
     prev_build_patterns <- paste0(
         "^",
         gsub(".", "\\.", pkgname, fixed = TRUE),
@@ -283,8 +253,9 @@ body(build_this) <- bquote({
     }
 
 
-    # look for a ".buildignore" file, a list of Perl patterns (case insensitive)
-    # specifying files to ignore when archiving
+    ## look for a ".buildignore" file containing
+    ## a list of Perl patterns (case insensitive)
+    ## specifying files to ignore when archiving
     ignore.file <- path.join(file, ".buildignore")
     if (file.exists(ignore.file)) {
         for (exclude.pattern in readLines(ignore.file, warn = FALSE, encoding = "UTF-8")) {
@@ -296,7 +267,8 @@ body(build_this) <- bquote({
     }
 
 
-    # for directories in 'exclude', also exclude the files within said directories
+    ## for directories in 'exclude', also
+    ## exclude the files within said directories
     exclude.dirs <- exclude[dir.exists(path.join(file, exclude))]
     for (exclude.prefix in paste0(exclude.dirs, "/", recycle0 = TRUE)) {
         if (any(i <- startsWith(files, exclude.prefix))) {
@@ -306,7 +278,7 @@ body(build_this) <- bquote({
     }
 
 
-    # create a new directory to hold the temporary files and archives
+    ## create a new directory to hold the temporary files and archives
     dir.create(my.tmpdir <- tempfile("dir"))
     on.exit(
         if (getRversion() >= "4.0.0")
@@ -316,19 +288,19 @@ body(build_this) <- bquote({
     )
 
 
-    # create another directory to hold the temporary files
+    ## create another directory to hold the temporary files
     dir.create(pkgdir <- path.join(my.tmpdir, pkgname))
 
 
-    # within said directory, make the appropriate sub-directories
+    ## within said directory, make the appropriate sub-directories
     isdir <- dir.exists(path.join(file, files))
     dirs <- files[isdir]
     for (path in path.join(pkgdir, dirs))
         dir.create(path, showWarnings = TRUE, recursive = TRUE)
 
 
-    # fill the directory and sub-directories with their files,
-    # while maintaining file modify time
+    ## fill the directory and sub-directories with their files,
+    ## while maintaining file modify time
     if (any(i <- !file.copy(
         ..(
             if (getRversion() < "3.1.0")
@@ -353,7 +325,7 @@ body(build_this) <- bquote({
     )
 
 
-    # set the modify time of the sub-directories to their original values
+    ## set the modify time of the sub-directories to their original values
     Sys.setFileTime(
                    path.join(pkgdir, dirs),
         file.mtime(path.join(file  , dirs))
@@ -388,7 +360,7 @@ body(build_this) <- bquote({
             args <- c("zip", "-r", shQuote(build.path), shQuote(pkgname))
             command <- paste(args, collapse = " ")
             cat("* building '", build.name, "'\n", sep = "")
-            res <- do_with_wd(system(command, ignore.stdout = TRUE), my.tmpdir)
+            res <- .do.with.wd(system(command, ignore.stdout = TRUE), my.tmpdir)
             if (res == -1L) {
                 stop("'", command, "' could not be run")
             } else if (res) {
@@ -405,13 +377,10 @@ body(build_this) <- bquote({
             }
         }, stop("invalid 'which'; should not happen, please report!"))
     }
-}, splice = TRUE)
+}, splice = TRUE)))
 
 
-build.this <- build_this
-
-
-do_with_wd <- function (expr, wd)
+.do.with.wd <- function (expr, wd)
 {
     owd <- getwd()
     on.exit(setwd(owd))
@@ -420,21 +389,21 @@ do_with_wd <- function (expr, wd)
 }
 
 
-R_BraceSymbol <- as.symbol("{")
+.R_BraceSymbol <- as.symbol("{")
 
 
-maybeQuote <- function (expr, evaluated, simplify.brace = TRUE)
+.maybeQuote <- function (expr, evaluated, simplify.brace = TRUE)
 {
-    # possibly quote an expression
-    #
-    # when 'evaluated' is missing, 'expr' is quoted only if it is an
-    # (unevaluated) call to `{`
-    #
-    # when 'evaluated' is FALSE, 'expr' is always quoted
-    #
-    # when 'evaluated' is TRUE, 'expr' is evaluated as normal
-    #
-    # this is intended to be called inside another function, like match.fun()
+    ## possibly quote an expression
+    ##
+    ## when 'evaluated' is missing, 'expr' is quoted only if it is an
+    ## (unevaluated) call to `{`
+    ##
+    ## when 'evaluated' is FALSE, 'expr' is always quoted
+    ##
+    ## when 'evaluated' is TRUE, 'expr' is evaluated as normal
+    ##
+    ## this is intended to be called inside another function, like match.fun()
 
 
     if (missing(expr))
@@ -442,25 +411,25 @@ maybeQuote <- function (expr, evaluated, simplify.brace = TRUE)
 
 
     if (missing(evaluated)) {
-        if (is.call(e <- eval(substitute(substitute(expr)), parent.frame())) &&
-            identical(e[[1L]], R_BraceSymbol))
+        if (is.call(e <- eval(as.call(list(substitute, substitute(expr))), parent.frame())) &&
+            identical(e[[1L]], .R_BraceSymbol))
         {
             expr <- e
         }
     }
     else if (!evaluated)
-        expr <- eval(substitute(substitute(expr)), parent.frame())
+        expr <- eval(as.call(list(substitute, substitute(expr))), parent.frame())
 
 
-    # force the evaluated of 'expr'
+    ## force the evaluated of 'expr'
     else expr
 
 
     if (is.call(expr)) {
-        # always turn a call into an expression so that it
-        # cannot be misinterpreted later
+        ## always turn a call into an expression so that it
+        ## cannot be misinterpreted later
         if (simplify.brace) {
-            if (identical(expr[[1L]], R_BraceSymbol))
+            if (identical(expr[[1L]], .R_BraceSymbol))
                 as.expression(as.list(expr[-1L]))
             else as.expression(list(expr))
         }
@@ -470,26 +439,20 @@ maybeQuote <- function (expr, evaluated, simplify.brace = TRUE)
 }
 
 
-# this function does not exist in R < 4.0.0
-deparse1 <- function (expr, collapse = " ", width.cutoff = 500L, ...)
-paste(deparse(expr, width.cutoff, ...), collapse = collapse)
-environment(deparse1) <- getNamespace("base")
-
-
-code2character <- function (x, width.cutoff = 60L,
+.code2character <- function (x, width.cutoff = 60L,
     deparseCtrl = c("keepInteger", "showAttributes", "useSource", "keepNA", "digits17"))
 {
-    # if 'x' is an (unevaluated) call to `{`
-    # deparse each sub-expression
-    #
-    # if 'x' is an expression() vector
-    # make a list of deparsed expressions
-    #
-    # if 'x' is a language object
-    # deparse the expression
-    #
-    # if 'x' is a character vector
-    # leave as is
+    ## if 'x' is an (unevaluated) call to `{`
+    ## deparse each sub-expression
+    ##
+    ## if 'x' is an expression() vector
+    ## make a list of deparsed expressions
+    ##
+    ## if 'x' is a language object
+    ## deparse the expression
+    ##
+    ## if 'x' is a character vector
+    ## leave as is
 
 
     fun <- function(xx) {
@@ -555,15 +518,15 @@ code2character <- function (x, width.cutoff = 60L,
 }
 
 
-write.code <- function (x, file = stdout(), evaluated, simplify.brace = TRUE,
+.write.code <- function (x, file = stdout(), evaluated, simplify.brace = TRUE,
     width.cutoff = 60L, deparseCtrl = c("keepInteger", "showAttributes", "useSource", "keepNA", "digits17"))
 {
-    x <- maybeQuote(x, evaluated, simplify.brace)
-    x <- code2character(x, width.cutoff, deparseCtrl)
+    x <- .maybeQuote(x, evaluated, simplify.brace)
+    x <- .code2character(x, width.cutoff, deparseCtrl)
     if (is.null(file))
         x
     else {
-        writeLines(x, file, useBytes = !utf8locale)
+        writeLines(x, file, useBytes = !.utf8locale)
         invisible(x)
     }
 }
@@ -572,16 +535,204 @@ write.code <- function (x, file = stdout(), evaluated, simplify.brace = TRUE,
 if (getRversion() < "3.2.0") {
 
 
-    tmp <- formals(code2character)[["deparseCtrl"]]
-    formals(code2character)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
+    tmp <- formals(.code2character)[["deparseCtrl"]]
+    formals(.code2character)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
 
 
-    tmp <- formals(write.code)[["deparseCtrl"]]
-    formals(write.code)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
+    tmp <- formals(.write.code)[["deparseCtrl"]]
+    formals(.write.code)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
 
 
 }
 
 
-readFiles <- function (files)
+.readFiles <- function (files)
 vapply(files, function(file) paste0(readLines(file), "\n", collapse = ""), "")
+
+
+.envvars <- function (...)
+{
+    args <- list(...)
+    if (length(args) == 0L)
+        as.list(Sys.getenv())
+    else {
+        if (length(args) == 1L &&
+            typeof(args[[1L]]) %in% c("NULL", "pairlist", "language",
+                "...", "list", "expression") &&
+            is.null(names(args)))
+        {
+            args <- args[[1L]]
+        }
+        value <- as.list(Sys.getenv(names(args), names = TRUE))
+        do.call("Sys.setenv", args, quote = TRUE)
+        invisible(value)
+    }
+}
+
+
+.istrue <- function (x)
+.External2(.C_istrue, x)
+
+
+.isfalse <- function (x)
+.External2(.C_isfalse, x)
+
+
+# .asInteger <- function (n)
+# .External2(.C_asInteger, n)
+#
+#
+# .asIntegerGE0 <- function (n)
+# .External2(.C_asIntegerGE0, n)
+
+
+.PrintValueEnv <- function (x, envir = parent.frame())
+.External2(.C_PrintValueEnv, x, envir)
+
+
+.maybePrintValueEnv <- function (x, envir = parent.frame())
+{
+    if (withVisible(x)$visible)
+        .External2(.C_PrintValueEnv, x, envir)
+    else invisible(x)
+}
+
+
+source.exprs <- function (exprs, evaluated = FALSE, envir = parent.frame(), echo = TRUE, print.eval = TRUE)
+{
+    if (!evaluated) {
+        exprs <- substitute(exprs)
+        if (is.call(exprs)) {
+            if (typeof(exprs[[1]]) == "symbol" && exprs[[1]] == "{")
+                exprs <- structure(as.list(exprs)[-1],
+                    srcfile = attr(exprs, "srcfile"),
+                    wholeSrcref = attr(exprs, "wholeSrcref"))
+        }
+    }
+    if (!is.expression(exprs))
+        exprs <- as.expression(exprs)
+    Ne <- length(exprs)
+    if (echo)
+        trySrcLines <- function(srcfile, from, to) {
+            tryCatch(suppressWarnings(getSrcLines(srcfile, from, to)),
+                error = function(e) character())
+        }
+    yy <- NULL
+    lastshown <- 0L
+    srcrefs <- attr(exprs, "srcref")
+    for (i in seq_len(Ne + echo)) {
+        tail <- i > Ne
+        if (!tail)
+            ei <- exprs[i]
+        if (echo) {
+            srcref <- if (tail)
+                attr(exprs, "wholeSrcref")
+            else if (i <= length(srcrefs))
+                srcrefs[[i]]
+            if (!is.null(srcref)) {
+                firstl <- srcref[7L]
+                lastl <- srcref[8L]
+                if (lastshown < lastl) {
+                    srcfile <- attr(srcref, "srcfile")
+                    dep <- trySrcLines(srcfile, lastshown + 1L, lastl)
+                    if (length(dep)) {
+                        leading <- if (tail)
+                            length(dep)
+                        else firstl - lastshown
+                        lastshown <- lastl
+                        dep <- paste0(rep.int(c(getOption("prompt"), getOption("continue")),
+                            pmax(0L, c(         leading            , length(dep) - leading))),
+                            dep, collapse = "\n")
+                        cat(dep, "\n", sep = "")
+                    }
+                }
+            }
+        }
+        if (!tail) {
+            yy <- withVisible(eval(ei, envir))
+            if (print.eval && yy$visible)
+                .PrintValueEnv(yy$value, envir)
+        }
+    }
+    invisible(yy)
+}
+
+
+.toplevel.source <- function (file)
+{
+    envir <- .GlobalEnv
+    echo <- !isTRUE(.shINFO[["no.echo"]])
+    file <- substitute(file)
+    ofile <- file
+    if (is.character(file)) {
+    } else {
+        parse_file <- function(file) {
+            if (is.call(file)) {
+                if (typeof(file[[1L]]) == "symbol" && file[[1L]] == "/") {
+                    if (typeof(file[[3L]]) != "symbol")
+                        stop("invalid '%s' argument", "file", domain = "R")
+                    paste0(parse_file(file[[2L]]), "/", as.character(file[[3L]]))
+                }
+                else stop("invalid '%s' argument", "file", domain = "R")
+            }
+            else if (typeof(file) == "symbol")
+                as.character(file)
+            else stop("invalid '%s' argument", "file", domain = "R")
+        }
+        file <- if (is.call(file) && typeof(file[[1L]]) == "symbol" && file[[1L]] == "~")
+            paste0("~", parse_file(file[[2L]]))
+        else parse_file(file)
+    }
+    filename <- set.sys.path(file, path.only = TRUE, ignore.all = TRUE,
+        Function = c("toplevel.source", "this.path"))
+    file <- file(filename, "r", encoding = "")
+    on.exit(close(file))
+    lines <- readLines(file, warn = FALSE)
+    on.exit()
+    close(file)
+    srcfile <- srcfilecopy(filename, lines, file.mtime(filename)[1], isFile = TRUE)
+    exprs <- parse(n = -1, text = lines, srcfile = srcfile)
+    Ne <- length(exprs)
+    if (echo)
+        trySrcLines <- function(from, to) {
+            tryCatch(suppressWarnings(getSrcLines(srcfile, from, to)),
+                error = function(e) character())
+        }
+    yy <- NULL
+    lastshown <- 0L
+    srcrefs <- attr(exprs, "srcref")
+    for (i in seq_len(Ne + echo)) {
+        tail <- i > Ne
+        if (!tail)
+            ei <- exprs[i]
+        if (echo) {
+            srcref <- if (tail)
+                attr(exprs, "wholeSrcref")
+            else if (i <= length(srcrefs))
+                srcrefs[[i]]
+            if (!is.null(srcref)) {
+                firstl <- srcref[7L]
+                lastl <- srcref[8L]
+                if (lastshown < lastl) {
+                    dep <- trySrcLines(lastshown + 1L, lastl)
+                    if (length(dep)) {
+                        leading <- if (tail)
+                            length(dep)
+                        else firstl - lastshown
+                        lastshown <- lastl
+                        dep <- paste0(rep.int(c(getOption("prompt"), getOption("continue")),
+                            pmax(0L, c(         leading,             length(dep) - leading))),
+                            dep, collapse = "\n")
+                        cat(dep, "\n", sep = "")
+                    }
+                }
+            }
+        }
+        if (!tail) {
+            yy <- withVisible(eval(ei, envir))
+            if (yy$visible)
+                .PrintValueEnv(yy$value, envir)
+        }
+    }
+    invisible(yy)
+}
