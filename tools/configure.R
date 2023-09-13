@@ -1,6 +1,10 @@
 main <- function ()
 {
-    devel <- FALSE
+    info <- read.dcf("./tools/info.dcf", fields = "devel")
+    if (nrow(info) != 1L)
+        stop("contains a blank line", call. = FALSE)
+    info <- info[1L, ]
+    devel <- if (info[["devel"]]) TRUE else FALSE
 
 
     # if (devel)
@@ -39,27 +43,17 @@ main <- function ()
     remove.in <- function(x) sub("\\.in(\\.[^./]+)?$", "\\1", x)
 
 
-    replace.devel.with.current.version <- if (devel) {
-        ## replace 'devel' in files with the current package version
-        function(file.in, old, new, file = remove.in(file.in)) {
-            if (file.exists(file.in)) {
-                x <- readLines2(file.in)
-                if (i <- match(old, x, 0L)) {
-                    x[[i]] <- new
-                    writeLines2(x, file)
-                    if (!file.remove(file.in))
-                        stop(sprintf("unable to remove file '%s'", file.in))
-                } else if (!file.rename(file.in, file))
-                    stop(sprintf("unable to rename file '%s' to '%s'", file.in, file))
-            }
-        }
-    } else {
-        ## just rename the files
-        function(file.in, old, new, file = remove.in(file.in)) {
-            if (file.exists(file.in)) {
-                if (!file.rename(file.in, file))
-                    stop(sprintf("unable to rename file '%s' to '%s'", file.in, file))
-            }
+    ## replace 'devel' in files with the current package version
+    replace.devel.with.current.version <- function(file.in, old, new, file = remove.in(file.in)) {
+        if (file.exists(file.in)) {
+            x <- readLines2(file.in)
+            if (i <- match(old, x, 0L)) {
+                x[[i]] <- new
+                writeLines2(x, file)
+                if (!file.remove(file.in))
+                    stop(sprintf("unable to remove file '%s'", file.in))
+            } else if (!file.rename(file.in, file))
+                stop(sprintf("unable to rename file '%s' to '%s'", file.in, file))
         }
     }
 
@@ -112,12 +106,15 @@ main <- function ()
 
 
     ## on the maintainer's computer, prevent the source from being destroyed
+    ##
+    ## file './tools/maintainers-copy' should not exist on other computers
+    ## because it is excluded by the build process and does not exist on GitHub
     if (!building && file.exists("./tools/maintainers-copy"))
         stop("must 'R CMD build' before 'R CMD INSTALL' since the files are destructively modified")
 
 
     replace.devel.with.current.version(
-        "./NEWS.in",
+        "./NEWS.in.in",
         sprintf("CHANGES IN %s devel:", desc["Package"]),
         sprintf("CHANGES IN %s %s (%s):", desc["Package"], desc["Version"], desc["Date"])
     )
@@ -133,7 +130,128 @@ main <- function ()
     )
 
 
+    dedent.NEWS.subsections <- function(file.in, file = remove.in(file.in)) {
+        if (file.exists(file.in)) {
+            if (devel) {
+                if (!file.rename(file.in, file))
+                    stop(sprintf("unable to rename file '%s' to '%s'", file.in, file))
+            } else {
+                x <- readLines2(file.in)
+                x <- sub("^  (?! )", "", x, perl = TRUE)
+                writeLines2(x, file)
+                if (!file.remove(file.in))
+                    stop(sprintf("unable to remove file '%s'", file.in))
+            }
+        }
+    }
+
+
+    dedent.NEWS.subsections("./NEWS.in")
+
+
     if (!building) {
+
+
+        ## make 'backports.in.Rd'
+        if (getRversion() < "4.2.0") {
+            make.backports.in.Rd <- function() {
+                make.backports <- function(...) {
+                    x <- list(...)
+                    if (!length(x) || length(x) %% 3L)
+                        stop("invalid arguments")
+                    version <- R_system_version(x[c(TRUE , FALSE, FALSE)])
+                    alias <- I(lapply(x[c(FALSE, TRUE , FALSE)], as.character))
+                    usage <- I(lapply(x[c(FALSE, FALSE, TRUE )], as.character))
+                    data.frame(version, alias, usage)
+                }
+                backports <- make.backports(
+                    "3.0.0",
+                    c(".mapply", "parse"),
+                    c(
+                        ".mapply(FUN, dots, MoreArgs)",
+                        "parse(file = \"\", n = NULL, text = NULL, prompt = \"?\",",
+                        "      keep.source = getOption(\"keep.source\"),",
+                        "      srcfile = NULL, encoding = \"unknown\")"
+                    ),
+                    "3.1.0",
+                    c("anyNA", "anyNA.data.frame", "anyNA.numeric_version", "anyNA.POSIXlt"),
+                    c(
+                        "anyNA(x, recursive = FALSE)",
+                        "\\method{anyNA}{data.frame}(x, recursive = FALSE)",
+                        "\\method{anyNA}{numeric_version}(x, recursive = FALSE)",
+                        "\\method{anyNA}{POSIXlt}(x, recursive = FALSE)"
+                    ),
+                    "3.2.0",
+                    c("isNamespaceLoaded", "dir.exists", "lengths", "file.mtime", "file.info"),
+                    c(
+                        "isNamespaceLoaded(name)",
+                        "dir.exists(paths)",
+                        "lengths(x, use.names = TRUE)",
+                        "file.mtime(...)",
+                        "file.info(..., extra_cols = TRUE)"
+                    ),
+                    "3.3.0",
+                    c("strrep", "startsWith", "endsWith"),
+                    c(
+                        "strrep(x, times)",
+                        "startsWith(x, prefix)",
+                        "endsWith(x, suffix)"
+                    ),
+                    "3.5.0",
+                    c("...length", "isTRUE", "isFALSE"),
+                    c(
+                        "...length()",
+                        "isTRUE(x)",
+                        "isFALSE(x)"
+                    ),
+                    "3.6.0",
+                    c("errorCondition", "str2expression", "str2lang"),
+                    c(
+                        "errorCondition(message, ..., class = NULL, call = NULL)",
+                        "str2expression(text)",
+                        "str2lang(s)"
+                    ),
+                    "4.0.0",
+                    "deparse1",
+                    "deparse1(expr, collapse = \" \", width.cutoff = 500L, ...)",
+                    "4.1.0",
+                    "bquote",
+                    "bquote(expr, where = parent.frame(), splice = FALSE)",
+                    "4.2.0",
+                    c("gettext", "gettextf"),
+                    c(
+                        "gettext(..., domain = NULL, trim = TRUE)",
+                        "gettextf(fmt, ..., domain = NULL, trim = TRUE)"
+                    )
+                )
+                backports <- backports[getRversion() < backports$version, , drop = FALSE]
+                writeLines(c(
+                    "\\name{backports}",
+                    "\\alias{backports}",
+                    sprintf("\\alias{%s}", unlist(backports$alias)),
+                    "\\title{Backports For Older R Versions}",
+                    "\\description{",
+            sprintf("  Reimplementations of functions introduced since \\R-\\code{%s}.", backports$version[1L]),
+                    "}",
+                    "\\usage{",
+                    paste(
+                        vapply(seq_len(nrow(backports)), function(ind) {
+                            value <- c(
+            sprintf("# Introduced in R %s", backports[[ind, "version"]]),
+                    backports[[ind, "usage"]]
+                            )
+                            paste(value, collapse = "\n")
+                        }, ""),
+                        collapse = "\n\n"
+                    ),
+                    "}",
+                    "\\keyword{internal}"
+                ), con = "./man/backports.in.Rd")
+            }
+            make.backports.in.Rd()
+        }
+
+
         ## we need to add the common macros to the files which do not
         ## have access. for R < 3.2.0, this is ALL of the Rd files.
         ## otherwise, only the news files will need them

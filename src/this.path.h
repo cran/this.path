@@ -45,12 +45,12 @@ becomes:
  */
 
 
-#ifndef THIS_PATH_H
-#define THIS_PATH_H
+#ifndef R_THISPATH_THISPATH_H
+#define R_THISPATH_THISPATH_H
 
 
 #include <Rinternals.h>         /* need definition of SEXP */
-#include "thispathbackports.h"  /* need definition of do_formals */
+#include "backports.h"          /* need definition of do_formals */
 #include "rversiondefines.h"    /* need definition of R_version_less_than */
 
 
@@ -63,8 +63,19 @@ extern SEXP do_aquarootscript do_formals;
 /* backports.c */
 
 
-#if R_version_less_than(3, 5, 0)
-extern SEXP do_dotslength do_formals;
+#if R_version_less_than(3, 1, 0)
+extern SEXP do_anyNA               do_formals;
+extern SEXP do_anyNAdataframe      do_formals;
+extern SEXP do_anyNAnumericversion do_formals;
+extern SEXP do_anyNAdefault        do_formals;
+#endif
+
+
+#if R_version_less_than(3, 2, 0)
+extern SEXP do_direxists             do_formals;
+extern SEXP do_lengths               do_formals;
+extern SEXP do_lengthsdefault        do_formals;
+extern SEXP do_isRegisteredNamespace do_formals;
 #endif
 
 
@@ -75,15 +86,8 @@ extern SEXP do_endsWith   do_formals;
 #endif
 
 
-#if R_version_less_than(3, 2, 0)
-extern SEXP do_direxists do_formals;
-extern SEXP do_lengths   do_formals;
-extern SEXP do_isRegisteredNamespace do_formals;
-#endif
-
-
-#if R_version_less_than(3, 1, 0)
-extern SEXP do_anyNA do_formals;
+#if R_version_less_than(3, 5, 0)
+extern SEXP do_dotslength do_formals;
 #endif
 
 
@@ -135,8 +139,8 @@ extern SEXP do_mbcslocale   do_formals;
 // extern SEXP do_latin1locale do_formals;
 extern SEXP do_R_MB_CUR_MAX do_formals;
 
-extern SEXP do_onLoad   do_formals;
-extern SEXP do_onUnload do_formals;
+extern SEXP do_onLoad         do_formals;
+extern SEXP do_onUnload       do_formals;
 
 
 /* pathjoin.c */
@@ -166,7 +170,8 @@ extern SEXP do_pathunsplit        do_formals;
 /* print.c */
 
 
-extern SEXP do_PrintValueEnv do_formals;
+extern SEXP do_PrintValueEnv                do_formals;
+extern SEXP do_printThisPathDocumentContext do_formals;
 
 
 /* progargs.c */
@@ -182,7 +187,6 @@ extern SEXP do_isunevaluatedpromise     do_formals;
 extern SEXP do_promiseisunevaluated     do_formals;
 extern SEXP do_getpromisewithoutwarning do_formals;
 extern SEXP do_PRINFO                   do_formals;
-extern SEXP do_setsyspathjupyter        do_formals;
 extern SEXP do_mkPROMISE                do_formals;
 extern SEXP do_mkEVPROMISE              do_formals;
 extern SEXP do_unlockEnvironment        do_formals;
@@ -211,20 +215,29 @@ extern SEXP do_thisPathNotExistsError                   do_formals;
 extern SEXP do_thisPathInZipFileError                   do_formals;
 extern SEXP do_thisPathInAQUAError                      do_formals;
 
-extern SEXP do_isclipboard      do_formals;
-extern SEXP do_inittoolsrstudio do_formals;
-extern SEXP do_syspathjupyter   do_formals;
-extern SEXP do_syspathrgui      do_formals;
-extern SEXP do_syspath          do_formals;
-extern SEXP do_getframenumber   do_formals;
-extern SEXP do_envpath          do_formals;
-extern SEXP do_srcpath          do_formals;
-extern SEXP do_srclineno        do_formals;
-extern SEXP do_thispath         do_formals;
-extern SEXP do_istrue           do_formals;
-extern SEXP do_isfalse          do_formals;
-extern SEXP do_asInteger        do_formals;
-extern SEXP do_asIntegerGE0     do_formals;
+extern SEXP do_isclipboard       do_formals;
+extern SEXP do_inittoolsrstudio  do_formals;
+extern SEXP do_syspathjupyter    do_formals;
+extern SEXP do_setsyspathjupyter do_formals;
+extern SEXP do_syspathrgui       do_formals;
+extern SEXP do_syspath           do_formals;
+extern SEXP do_getframenumber    do_formals;
+extern SEXP do_envpath           do_formals;
+extern SEXP do_srcpath           do_formals;
+extern SEXP do_srclineno         do_formals;
+extern SEXP do_thispath          do_formals;
+extern SEXP do_istrue            do_formals;
+extern SEXP do_isfalse           do_formals;
+extern SEXP do_asInteger         do_formals;
+extern SEXP do_asIntegerGE0      do_formals;
+
+
+/* trycatch.c */
+
+
+extern SEXP do_lastcondition do_formals;
+extern SEXP do_tryCatch2     do_formals;
+extern SEXP do_tryCatch3     do_formals;
 
 
 /* wrapsource.c */
@@ -238,4 +251,4 @@ extern SEXP do_setenvpath   do_formals;
 extern SEXP do_setsrcpath   do_formals;
 
 
-#endif  /* #ifndef THIS_PATH_H */
+#endif  /* #ifndef R_THISPATH_THISPATH_H */

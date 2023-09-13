@@ -74,7 +74,7 @@ rm(envir)
 
 ## thispath.R  ----
 envir <- environment(.shFILE)
-tmp(grep("^\\.this\\.path::", names(envir), value = TRUE), envir = envir)
+tmp("ofile", "file", envir = envir)
 rm(envir)
 
 
@@ -141,21 +141,23 @@ if (getRversion() < "3.0.0") {
     ## backports.R  ----
 
 
-    if (getRversion() < "3.3.0") {
-        fix.External2.fun(strrep)
-        fix.External2.fun(startsWith)
-        fix.External2.fun(endsWith)
-    }
-    if (getRversion() < "3.2.0") {
-        fix.External2.fun(dir.exists)
-        fix.External2.fun(lengths)
-    }
-    if (getRversion() < "3.1.0") {
-        fix.External2.fun(anyNA)
-    }
-    if (getRversion() < "3.0.0") {
-        fix.External2.fun(.setprseen2)
-    }
+    fix.External2.fun(.setprseen2)
+
+    fix.External2.fun(anyNA)
+    fix.External2.fun(anyNA.data.frame)
+    fix.External2.fun(anyNA.numeric_version)
+    fix.External2.fun(.anyNA.default)
+
+    fix.External2.fun(isNamespaceLoaded)
+    fix.External2.fun(dir.exists)
+    fix.External2.fun(lengths)
+    fix.External2.fun(.lengths.default)
+
+    fix.External2.fun(strrep)
+    fix.External2.fun(startsWith)
+    fix.External2.fun(endsWith)
+
+    fix.External2.fun(...length)
 
 
     ## basename2.R  ----
@@ -252,6 +254,14 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(path.unsplit)
 
 
+    ## print.R      ----
+
+
+    fix.External2.fun(.PrintValueEnv)
+    fix.External2.fun(.maybePrintValueEnv)
+    fix.External2.fun(print.ThisPathDocumentContext)
+
+
     ## progargs.R   ----
 
 
@@ -308,6 +318,7 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(.is.unevaluated.promise)
     fix.External2.fun(.promise.is.unevaluated)
     fix.External2.fun(.is.clipboard)
+    fix.External2.fun(.sys.path.jupyter)
     fix.External2.fun(.sys.path.toplevel)
     fix.External2.fun(set.sys.path.jupyter)
     fix.External2.fun(.faster.subsequent.times.test)
@@ -331,15 +342,16 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(FILE)
 
 
+    ## trycatch.R   ----
+
+
+    fix.External2.fun(tryCatch2)
+    fix.External2.fun(.last.condition)
+    fix.External2.fun(last.condition)
+    fix.External2.fun(tryCatch3)
+
+
     ## utils.R      ----
-
-
-    if (getRversion() < "3.5.0") {
-        fix.External2.fun(...length)
-    }
-    if (getRversion() < "3.2.0") {
-        fix.External2.fun(isNamespaceLoaded)
-    }
 
 
     fix.External2.fun(.istrue)
@@ -352,6 +364,8 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(wrap.source)
     fix.External2.fun(set.sys.path)
     fix.External2.fun(unset.sys.path)
+    fix.External2.fun(set.env.path)
+    fix.External2.fun(set.src.path)
 
 
     rm(fix.External2.promise, fix.External2.fun, fix.External2)

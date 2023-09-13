@@ -1,5 +1,34 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.1.0 (2023-09-12)}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item{\code{this.path()} is now compatible with function
+        \code{shiny::runApp()}.}
+
+      \item{\code{this.path()} is now compatible with function
+        \code{plumber::plumb()}.}
+
+      \item{Added \code{tryCatch3()} which accepts condition expressions
+        instead of condition handlers. Added active binding
+        \codeorsQuote{last.condition} which will be the last thrown-and-caught
+        condition in \code{tryCatch3()}.}
+
+      \item{When \code{tryCatch2()} and \code{tryCatch3()} catch a condition
+        but the respective handler / / expression is missing, the next
+        non-missing handler / / expression is used instead.}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item{\code{set.env.path()} and \code{set.src.path()} now return their
+        input instead of returning \code{NULL}.}
+
+      \item{\code{set.src.path()} now accepts an expression vector containing a
+        source file.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.0.0 (2023-08-08)}{
   \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
     \itemize{

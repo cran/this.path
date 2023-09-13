@@ -19,6 +19,7 @@
 \newcommand{\RStudio}{\href{https://posit.co/products/open-source/rstudio/}{RStudio}}
 \newcommand{\VSCode}{\href{https://code.visualstudio.com/}{VSCode}}
 
+
 \newcommand{\sourcelink}{\codelink3{base}{source}{()}}
 \newcommand{\syssourcelink}{\codelink3{base}{sys.source}{()}}
 \newcommand{\debugSourceinRStudiolink}{\ifelse{text}{\code{debugSource()} in \sQuote{RStudio}}{\href{https://support.posit.co/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}}\code{()} in \sQuote{\RStudio}}}
@@ -26,6 +27,8 @@
 \newcommand{\knitrknitlink}{\codelink3{knitr:knit}{knitr::knit}{()}}
 \newcommand{\compilerloadcmplink}{\codelink3{compiler:compile}{compiler::loadcmp}{()}}
 \newcommand{\boxuselink}{\codelink3{box:use}{box::use}{()}}
+\newcommand{\shinyrunApplink}{\codelink3{shiny:runApp}{shiny::runApp}{()}}
+\newcommand{\plumberplumblink}{\codelink3{plumber:plumb}{plumber::plumb}{()}}
 \newcommand{\Rscriptlink}{\codelink2{utils}{Rscript}}
 
 \newcommand{\sourcenolink}{\code{source()}}
@@ -35,17 +38,20 @@
 \newcommand{\knitrknitnolink}{\code{knitr::knit()}}
 \newcommand{\compilerloadcmpnolink}{\code{compiler::loadcmp()}}
 \newcommand{\boxusenolink}{\code{box::use()}}
+\newcommand{\shinyrunAppnolink}{\code{shiny::runApp()}}
+\newcommand{\plumberplumbnolink}{\code{plumber::plumb()}}
 \newcommand{\Rscriptnolink}{\code{Rscript}}
 
-\newcommand{\sourceslistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink, \boxuselink}
-\newcommand{\sourcesorlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink, or \boxuselink}
-\newcommand{\sourcesandlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink, and \boxuselink}
 
-\newcommand{\sourceslistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \testthatsourcefilenolink, \knitrknitnolink, \compilerloadcmpnolink, \boxusenolink}
-\newcommand{\sourcesorlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \testthatsourcefilenolink, \knitrknitnolink, \compilerloadcmpnolink, or \boxusenolink}
-\newcommand{\sourcesandlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \testthatsourcefilenolink, \knitrknitnolink, \compilerloadcmpnolink, and \boxusenolink}
+\newcommand{\sourceslistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink, \boxuselink, \shinyrunApplink, \plumberplumblink}
+\newcommand{\sourcesorlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink, \boxuselink, \shinyrunApplink, or \plumberplumblink}
+\newcommand{\sourcesandlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink, \boxuselink, \shinyrunApplink, and \plumberplumblink}
 
-%% only excludes box::use
+\newcommand{\sourceslistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \testthatsourcefilenolink, \knitrknitnolink, \compilerloadcmpnolink, \boxusenolink, \shinyrunAppnolink, \plumberplumbnolink}
+\newcommand{\sourcesorlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \testthatsourcefilenolink, \knitrknitnolink, \compilerloadcmpnolink, \boxusenolink, \shinyrunAppnolink, or \plumberplumbnolink}
+\newcommand{\sourcesandlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \testthatsourcefilenolink, \knitrknitnolink, \compilerloadcmpnolink, \boxusenolink, \shinyrunAppnolink, and \plumberplumbnolink}
+
+%% excludes box::use, shiny::runApp, and plumber::plumb
 \newcommand{\sources1stargisfilelistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, \compilerloadcmplink}
 \newcommand{\sources1stargisfileorlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, or \compilerloadcmplink}
 \newcommand{\sources1stargisfileandlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \testthatsourcefilelink, \knitrknitlink, and \compilerloadcmplink}

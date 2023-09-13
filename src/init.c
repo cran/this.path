@@ -1,6 +1,6 @@
-#include <R_ext/Rdynload.h>
-#include <R_ext/Visibility.h>
-#include "this.path.h"
+#include <R_ext/Rdynload.h>    /* need definition of 'R_ExternalMethodDef' */
+#include <R_ext/Visibility.h>  /* need definition of 'attribute_visible' */
+#include "this.path.h"         /* need declarations of C functions */
 
 
 static const R_ExternalMethodDef externalRoutines[] = {
@@ -15,8 +15,19 @@ static const R_ExternalMethodDef externalRoutines[] = {
     /* backports.c */
 
 
-#if R_version_less_than(3, 5, 0)
-    {"dotslength", (DL_FUNC) &do_dotslength, 0},
+#if R_version_less_than(3, 1, 0)
+    {"anyNA"              , (DL_FUNC) &do_anyNA              , 2},
+    {"anyNAdataframe"     , (DL_FUNC) &do_anyNAdataframe     , 2},
+    {"anyNAnumericversion", (DL_FUNC) &do_anyNAnumericversion, 1},
+    {"anyNAdefault"       , (DL_FUNC) &do_anyNAdefault       , 2},
+#endif
+
+
+#if R_version_less_than(3, 2, 0)
+    {"direxists"            , (DL_FUNC) &do_direxists            , 1},
+    {"lengths"              , (DL_FUNC) &do_lengths              , 2},
+    {"lengthsdefault"       , (DL_FUNC) &do_lengthsdefault       , 2},
+    {"isRegisteredNamespace", (DL_FUNC) &do_isRegisteredNamespace, 1},
 #endif
 
 
@@ -27,15 +38,8 @@ static const R_ExternalMethodDef externalRoutines[] = {
 #endif
 
 
-#if R_version_less_than(3, 2, 0)
-    {"direxists"            , (DL_FUNC) &do_direxists            , 1},
-    {"lengths"              , (DL_FUNC) &do_lengths              , 2},
-    {"isRegisteredNamespace", (DL_FUNC) &do_isRegisteredNamespace, 1},
-#endif
-
-
-#if R_version_less_than(3, 1, 0)
-    {"anyNA", (DL_FUNC) &do_anyNA, -1},
+#if R_version_less_than(3, 5, 0)
+    {"dotslength", (DL_FUNC) &do_dotslength, 0},
 #endif
 
 
@@ -118,7 +122,8 @@ static const R_ExternalMethodDef externalRoutines[] = {
     /* print.c */
 
 
-    {"PrintValueEnv", (DL_FUNC) &do_PrintValueEnv, 2},
+    {"PrintValueEnv"               , (DL_FUNC) &do_PrintValueEnv               , 2},
+    {"printThisPathDocumentContext", (DL_FUNC) &do_printThisPathDocumentContext, 2},
 
 
     /* progargs.c */
@@ -134,7 +139,6 @@ static const R_ExternalMethodDef externalRoutines[] = {
     {"promiseisunevaluated"    , (DL_FUNC) &do_promiseisunevaluated    , -1},
     {"getpromisewithoutwarning", (DL_FUNC) &do_getpromisewithoutwarning, -1},
     {"PRINFO"                  , (DL_FUNC) &do_PRINFO                  , -1},
-    {"setsyspathjupyter"       , (DL_FUNC) &do_setsyspathjupyter       , -1},
     {"mkPROMISE"               , (DL_FUNC) &do_mkPROMISE               ,  2},
     {"mkEVPROMISE"             , (DL_FUNC) &do_mkEVPROMISE             ,  2},
     {"unlockEnvironment"       , (DL_FUNC) &do_unlockEnvironment       , -1},
@@ -163,20 +167,29 @@ static const R_ExternalMethodDef externalRoutines[] = {
     {"thisPathInZipFileError"                  , (DL_FUNC) &do_thisPathInZipFileError                  , 2},
     {"thisPathInAQUAError"                     , (DL_FUNC) &do_thisPathInAQUAError                     , 1},
 
-    {"isclipboard"     , (DL_FUNC) &do_isclipboard     ,  1},
-    {"inittoolsrstudio", (DL_FUNC) &do_inittoolsrstudio, -1},
-    {"syspathjupyter"  , (DL_FUNC) &do_syspathjupyter  , -1},
-    {"syspathrgui"     , (DL_FUNC) &do_syspathrgui     ,  7},
-    {"syspath"         , (DL_FUNC) &do_syspath         , -1},
-    {"getframenumber"  , (DL_FUNC) &do_getframenumber  ,  0},
-    {"envpath"         , (DL_FUNC) &do_envpath         , -1},
-    {"srcpath"         , (DL_FUNC) &do_srcpath         , -1},
-    {"srclineno"       , (DL_FUNC) &do_srclineno       , -1},
-    {"thispath"        , (DL_FUNC) &do_thispath        , -1},
-    {"istrue"          , (DL_FUNC) &do_istrue          ,  1},
-    {"isfalse"         , (DL_FUNC) &do_isfalse         ,  1},
-    {"asInteger"       , (DL_FUNC) &do_asInteger       ,  1},
-    {"asIntegerGE0"    , (DL_FUNC) &do_asIntegerGE0    ,  1},
+    {"isclipboard"      , (DL_FUNC) &do_isclipboard      ,  1},
+    {"inittoolsrstudio" , (DL_FUNC) &do_inittoolsrstudio , -1},
+    {"syspathjupyter"   , (DL_FUNC) &do_syspathjupyter   , -1},
+    {"setsyspathjupyter", (DL_FUNC) &do_setsyspathjupyter, -1},
+    {"syspathrgui"      , (DL_FUNC) &do_syspathrgui      ,  7},
+    {"syspath"          , (DL_FUNC) &do_syspath          , -1},
+    {"getframenumber"   , (DL_FUNC) &do_getframenumber   ,  0},
+    {"envpath"          , (DL_FUNC) &do_envpath          , -1},
+    {"srcpath"          , (DL_FUNC) &do_srcpath          , -1},
+    {"srclineno"        , (DL_FUNC) &do_srclineno        , -1},
+    {"thispath"         , (DL_FUNC) &do_thispath         , -1},
+    {"istrue"           , (DL_FUNC) &do_istrue           ,  1},
+    {"isfalse"          , (DL_FUNC) &do_isfalse          ,  1},
+    {"asInteger"        , (DL_FUNC) &do_asInteger        ,  1},
+    {"asIntegerGE0"     , (DL_FUNC) &do_asIntegerGE0     ,  1},
+
+
+    /* trycatch.c */
+
+
+    {"lastcondition", (DL_FUNC) &do_lastcondition, -1},
+    {"tryCatch2"    , (DL_FUNC) &do_tryCatch2    ,  0},
+    {"tryCatch3"    , (DL_FUNC) &do_tryCatch3    ,  0},
 
 
     /* wrapsource.c */
@@ -194,7 +207,8 @@ static const R_ExternalMethodDef externalRoutines[] = {
 };
 
 
-void attribute_visible R_init_this_path(DllInfo *dll)
+attribute_visible
+void R_init_this_path(DllInfo *dll)
 {
     R_registerRoutines(dll, NULL, NULL, NULL, externalRoutines);
     R_useDynamicSymbols(dll, FALSE);

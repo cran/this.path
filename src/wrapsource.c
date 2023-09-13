@@ -1,7 +1,8 @@
 #include "thispathdefn.h"
 
 
-static R_INLINE Rboolean asFlag(SEXP x, const char *name)
+static R_INLINE
+Rboolean asFlag(SEXP x, const char *name)
 {
     Rboolean val = asLogical(x);
     if (val == NA_LOGICAL)
@@ -72,9 +73,9 @@ SEXP do_wrapsource do_formals
     else if (nframe < 2)
         context_number = 1;
     else {
-        int sys_parent = get_sys_parent(1, rho);
-        // Rprintf("\nsys.parent(): %d\n", sys_parent);
-        if (nframe - 1 != sys_parent)
+        int parent = sys_parent(1, rho);
+        // Rprintf("\nsys.parent(): %d\n", parent);
+        if (nframe - 1 != parent)
             /* this will happen for something like:
                wrapper <- function(...) {
                    force(wrap.source(sourcelike(...)))
@@ -89,7 +90,7 @@ SEXP do_wrapsource do_formals
         else {
             SEXP tmp;
             PROTECT_INDEX indx;
-            PROTECT_WITH_INDEX(tmp = CONS(ScalarInteger(sys_parent), R_NilValue), &indx);
+            PROTECT_WITH_INDEX(tmp = CONS(ScalarInteger(parent), R_NilValue), &indx);
             REPROTECT(tmp = LCONS(getFromBase(sys_functionSymbol), tmp), indx);
             SEXP function = eval(tmp, rho);
             PROTECT(function);
@@ -98,7 +99,7 @@ SEXP do_wrapsource do_formals
             else if (identical(function, getFromMyNS(withArgsSymbol)))
                 context_number = nframe;
             else
-                context_number = sys_parent;
+                context_number = parent;
             UNPROTECT(2);
         }
     }
@@ -146,6 +147,7 @@ SEXP do_wrapsource do_formals
     SEXP frame = rho;
     SEXP ptr;
     SEXP promises = R_NilValue;
+    SEXP documentcontext;
 
 
     /* we will be modifying the PRSEEN values of the promises,
@@ -211,16 +213,13 @@ SEXP do_wrapsource do_formals
         error("invalid '%s', must be a call", EncodeChar(PRINTNAME(exprSymbol)));
 
 
-#define set_thispathn(n, frame)                                \
-    do {                                                       \
-        INCREMENT_NAMED_defineVar(thispathnSymbol, ScalarInteger((n)), (frame));\
-        R_LockBinding(thispathnSymbol, (frame));               \
-    } while (0)
+#define set_n(n, documentcontext)                              \
+    MARK_NOT_MUTABLE_defineVar(nSymbol, ScalarInteger((n)), (documentcontext))
 
 
 #define set_prvalues_then_return(val)                          \
     do {                                                       \
-        set_thispathn(context_number, frame);                  \
+        set_n(context_number, documentcontext);                \
         SEXP tmp = (val);                                      \
         PROTECT(tmp); nprotect++;                              \
         ENSURE_NAMEDMAX(tmp);                                  \
@@ -237,8 +236,11 @@ SEXP do_wrapsource do_formals
 
 
     if (length(expr) < 2) {
-        assign_null(frame);
-        set_R_Visible(TRUE);
+        PROTECT(documentcontext = DocumentContext());
+        assign_null(documentcontext);
+        INCREMENT_NAMED_defineVar(documentcontextSymbol, documentcontext, frame);
+        R_LockBinding(documentcontextSymbol, frame);
+        UNPROTECT(1);
         set_prvalues_then_return(eval(PRCODE(promise), env));
     }
 
@@ -414,7 +416,11 @@ SEXP do_wrapsource do_formals
         }
     }
     if (s == NULL) {
-        assign_null(frame);
+        PROTECT(documentcontext = DocumentContext());
+        assign_null(documentcontext);
+        INCREMENT_NAMED_defineVar(documentcontextSymbol, documentcontext, frame);
+        R_LockBinding(documentcontextSymbol, frame);
+        UNPROTECT(1);
         set_R_Visible(TRUE);
         set_prvalues_then_return(eval(expr, env));
     }
@@ -462,6 +468,7 @@ SEXP do_wrapsource do_formals
         /* sym                    */ fileSymbol,
         /* ofile                  */ ofile,
         /* frame                  */ frame,
+        /* as_binding             */ TRUE,
         /* check_not_directory    */ TRUE,
         /* forcepromise           */ TRUE,
         /* assign_returnvalue     */ FALSE,
@@ -488,7 +495,8 @@ SEXP do_wrapsource do_formals
         /* ignore_clipboard       */ ignore_clipboard,
         /* ignore_stdin           */ ignore_stdin,
         /* ignore_url             */ ignore_url,
-        /* ignore_file_uri        */ ignore_file_uri
+        /* ignore_file_uri        */ ignore_file_uri,
+        /* source                 */ mkChar("call to function wrap.source from package this.path")
     );
 
 
@@ -499,40 +507,37 @@ SEXP do_wrapsource do_formals
 }
 
 
-#define SETSYSPATH_OP   0
-#define UNSETSYSPATH_OP 1
-#define SETENVPATH_OP   2
-#define SETSRCPATH_OP   3
+typedef enum { SETPATHOP_SETSYSPATH   = 0,
+               SETPATHOP_UNSETSYSPATH    ,
+               SETPATHOP_SETENVPATH      ,
+               SETPATHOP_SETSRCPATH      } SETPATHOP;
 
 
-extern Rboolean IsModuleEnv(SEXP rho);
-
-
-SEXP setpath(SEXP args, int op, SEXP rho)
+SEXP setpath(SETPATHOP op, SEXP args, SEXP rho)
 {
     int nprotect = 0;
 
 
     const char *name;
     switch (op) {
-    case SETSYSPATH_OP:   name = "'set.sys.path()'";   break;
-    case UNSETSYSPATH_OP: name = "'unset.sys.path()'"; break;
-    case SETENVPATH_OP:   name = "'set.env.path()'";   break;
-    case SETSRCPATH_OP:   name = "'set.src.path()'";   break;
+    case SETPATHOP_SETSYSPATH:   name = "'set.sys.path()'";   break;
+    case SETPATHOP_UNSETSYSPATH: name = "'unset.sys.path()'"; break;
+    case SETPATHOP_SETENVPATH:   name = "'set.env.path()'";   break;
+    case SETPATHOP_SETSRCPATH:   name = "'set.src.path()'";   break;
     default:
         error(_("invalid '%s' value"), "op");
         return R_NilValue;
     }
 
 
-    int sys_parent = get_sys_parent(1, rho);
-    if (sys_parent < 1)
+    int parent = sys_parent(1, rho);
+    if (parent < 1)
         error("%s cannot be used within the global environment", name);
 
 
     SEXP expr;
     PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(ScalarInteger(sys_parent), R_NilValue), &indx);
+    PROTECT_WITH_INDEX(expr = CONS(ScalarInteger(parent), R_NilValue), &indx);
     REPROTECT(expr = LCONS(getFromBase(sys_functionSymbol), expr), indx);
     SEXP function = eval(expr, rho);
     UNPROTECT(1);  /* expr */
@@ -566,7 +571,7 @@ SEXP setpath(SEXP args, int op, SEXP rho)
 
 
     ns = findVarInFrame(R_NamespaceRegistry, testthatSymbol);
-    if (ns == R_UnboundValue ? FALSE : TRUE) {
+    if (ns != R_UnboundValue) {
         if (identical(function, getInFrame(source_fileSymbol, ns, FALSE))) {
             error("%s cannot be called within %s() from package %s",
                   name, EncodeChar(PRINTNAME(source_fileSymbol)), EncodeChar(PRINTNAME(testthatSymbol)));
@@ -575,7 +580,7 @@ SEXP setpath(SEXP args, int op, SEXP rho)
 
 
     ns = findVarInFrame(R_NamespaceRegistry, knitrSymbol);
-    if (ns == R_UnboundValue ? FALSE : TRUE) {
+    if (ns != R_UnboundValue) {
         if (identical(function, getInFrame(knitSymbol, ns, FALSE))) {
             error("%s cannot be called within %s() from package %s",
                   name, EncodeChar(PRINTNAME(knitSymbol)), EncodeChar(PRINTNAME(knitrSymbol)));
@@ -589,17 +594,8 @@ SEXP setpath(SEXP args, int op, SEXP rho)
     }
 
 
-    ns = findVarInFrame(R_NamespaceRegistry, boxSymbol);
-    if (ns == R_UnboundValue ? FALSE : TRUE) {
-        if (identical(function, getInFrame(load_from_sourceSymbol, ns, FALSE))) {
-            error("%s cannot be called within %s() from package %s",
-                  name, EncodeChar(PRINTNAME(load_from_sourceSymbol)), EncodeChar(PRINTNAME(boxSymbol)));
-        }
-    }
-
-
     ns = findVarInFrame(R_NamespaceRegistry, compilerSymbol);
-    if (ns == R_UnboundValue ? FALSE : TRUE) {
+    if (ns != R_UnboundValue) {
         if (identical(function, getInFrame(loadcmpSymbol, ns, FALSE))) {
             error("%s cannot be called within %s() from package %s",
                   name, EncodeChar(PRINTNAME(loadcmpSymbol)), EncodeChar(PRINTNAME(compilerSymbol)));
@@ -607,10 +603,47 @@ SEXP setpath(SEXP args, int op, SEXP rho)
     }
 
 
+    ns = findVarInFrame(R_NamespaceRegistry, boxSymbol);
+    if (ns != R_UnboundValue) {
+        if (identical(function, getInFrame(load_from_sourceSymbol, ns, FALSE))) {
+            error("%s cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(load_from_sourceSymbol)), EncodeChar(PRINTNAME(boxSymbol)));
+        }
+    }
+
+
+    ns = findVarInFrame(R_NamespaceRegistry, shinySymbol);
+    if (ns != R_UnboundValue) {
+        if (identical(function, getInFrame(sourceUTF8Symbol, ns, FALSE))) {
+            error("%s cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(sourceUTF8Symbol)), EncodeChar(PRINTNAME(shinySymbol)));
+        }
+    }
+
+
+    ns = findVarInFrame(R_NamespaceRegistry, plumberSymbol);
+    if (ns != R_UnboundValue) {
+        if (identical(function, getInFrame(sourceUTF8Symbol, ns, FALSE))) {
+            error("%s cannot be called within %s() from package %s",
+                  name, EncodeChar(PRINTNAME(sourceUTF8Symbol)), EncodeChar(PRINTNAME(plumberSymbol)));
+        }
+        SEXP tmp = getInFrame(PlumberSymbol, ns, FALSE);
+        if (TYPEOF(tmp) == ENVSXP) {
+            tmp = getInFrame(public_methodsSymbol, tmp, FALSE);
+            if (TYPEOF(tmp) == VECSXP) {
+                tmp = getInList(initializeSymbol, tmp, TRUE);
+                if (tmp && TYPEOF(tmp) == CLOSXP && identical_ignore_bytecode_ignore_environment(function, tmp))
+                    error("%s cannot be called within %s() from package %s",
+                          name, "Plumber$public_methods$initialize", EncodeChar(PRINTNAME(plumberSymbol)));
+            }
+        }
+    }
+
+
     UNPROTECT(1);  /* function */
 
 
-    SEXP ofile, frame;
+    SEXP ofile, frame, documentcontext;
 
 
     frame = eval(expr_parent_frame, rho);
@@ -637,41 +670,24 @@ SEXP setpath(SEXP args, int op, SEXP rho)
 
 
     if (op) {
-        if (!existsInFrame(frame, setsyspathwashereSymbol))
+        documentcontext = findVarInFrame(frame, documentcontextSymbol);
+        if (documentcontext == R_UnboundValue)
             error("%s cannot be called before set.sys.path()", name);
-        if (!existsInFrame(frame, thispathdoneSymbol))
-            error("%s cannot be called within this environment", name);
+        if (TYPEOF(documentcontext) != ENVSXP)
+            error(_("invalid '%s' value"), EncodeChar(PRINTNAME(documentcontextSymbol)));
+        if (!existsInFrame(documentcontext, setsyspathwashereSymbol))
+            error("%s cannot be called before set.sys.path()", name);
+        SEXP returnthis = R_NilValue;
         switch (op) {
-        case UNSETSYSPATH_OP:
+        case SETPATHOP_UNSETSYSPATH:
         {
-#if defined(R_THIS_PATH_USE_removeFromFrame)
-            SEXP names[] = {
-                thispathofileSymbol     ,
-                thispathfileSymbol      ,
-                thispathformsgSymbol    ,
-                thispatherrorSymbol     ,
-                thispathassocwfileSymbol,
-                thispathdoneSymbol      ,
-                setsyspathwashereSymbol ,
-                thispathnSymbol         ,
-                NULL
-            };
-            removeFromFrame(names, frame);
-#else
-            R_removeVarFromFrame(thispathofileSymbol     , frame);
-            R_removeVarFromFrame(thispathfileSymbol      , frame);
-            R_removeVarFromFrame(thispathformsgSymbol    , frame);
-            R_removeVarFromFrame(thispatherrorSymbol     , frame);
-            R_removeVarFromFrame(thispathassocwfileSymbol, frame);
-            R_removeVarFromFrame(thispathdoneSymbol      , frame);
-            R_removeVarFromFrame(setsyspathwashereSymbol , frame);
-            R_removeVarFromFrame(thispathnSymbol         , frame);
-#endif
+            R_removeVarFromFrame(documentcontextSymbol, frame);
             break;
         }
-        case SETENVPATH_OP:
+        case SETPATHOP_SETENVPATH:
         {
             SEXP envir = CAR(args); args = CDR(args);
+            returnthis = envir;
             if (TYPEOF(envir) != ENVSXP) break;
             SEXP target = CAR(args); args = CDR(args);
             if (target != R_NilValue && TYPEOF(target) != ENVSXP) target = R_NilValue;
@@ -680,44 +696,30 @@ SEXP setpath(SEXP args, int op, SEXP rho)
                 env == R_BaseEnv || env == R_BaseNamespace ||
                 R_IsPackageEnv(env) || R_IsNamespaceEnv(env));
             else if (inherits(env, "box$ns"));
-            else if (IsModuleEnv(env));
-            else {
-                SEXP thispathofile = getInFrame(thispathofileSymbol, frame, FALSE);
-                SEXP thispathfile  = getInFrame(thispathfileSymbol , frame, FALSE);
-                if (thispathofile == R_NilValue && thispathfile == R_NilValue);
-                else if (isString(thispathofile) && isString(thispathfile)) {
-                    setAttrib(env, thispathofileSymbol, thispathofile);
-                    setAttrib(env, thispathfileSymbol, thispathfile);
-                }
-                else error(_("invalid '%s' value"), EncodeChar(PRINTNAME(thispathfileSymbol)));
-            }
+            else if (getAttrib(env, documentcontextSymbol) != R_NilValue)
+                error("cannot overwrite existing '%s' attribute", EncodeChar(PRINTNAME(documentcontextSymbol)));
+            else setAttrib(env, documentcontextSymbol, documentcontext);
             break;
         }
-        case SETSRCPATH_OP:
+        case SETPATHOP_SETSRCPATH:
         {
-            SEXP srcfile = CAR(args); args = CDR(args);
-            if (TYPEOF(srcfile) == ENVSXP && inherits(srcfile, "srcfile")) {
-                SEXP thispathofile = findVarInFrame(frame, thispathofileSymbol);
-                if (thispathofile == R_UnboundValue)
-                    error(_("object '%s' not found"), EncodeChar(PRINTNAME(thispathofileSymbol)));
-                SEXP thispathfile = findVarInFrame(frame, thispathfileSymbol);
-                if (thispathfile == R_UnboundValue)
-                    error(_("object '%s' not found"), EncodeChar(PRINTNAME(thispathfileSymbol)));
-                if (thispathofile == R_NilValue) {
-                    defineVar(thispathofileSymbol, R_NilValue, srcfile);
-                    R_LockBinding(thispathofileSymbol, srcfile);
-                    defineVar(thispathfileSymbol, R_NilValue, srcfile);
-                    R_LockBinding(thispathfileSymbol, srcfile);
-                    assign_done(srcfile);
-                }
-                else if (isString(thispathofile) && TYPEOF(thispathfile) == PROMSXP) {
-                    INCREMENT_NAMED_defineVar(thispathofileSymbol, thispathofile, srcfile);
-                    R_LockBinding(thispathofileSymbol, srcfile);
-                    defineVar(thispathfileSymbol, thispathfile, srcfile);
-                    R_LockBinding(thispathfileSymbol, srcfile);
-                    assign_done(srcfile);
-                }
-                else error(_("invalid '%s' value"), EncodeChar(PRINTNAME(thispathfileSymbol)));
+            SEXP x = CAR(args); args = CDR(args);
+            returnthis = x;
+            SEXP srcfile = NULL;
+            switch (TYPEOF(x)) {
+            case EXPRSXP:
+                srcfile = PROTECT(getAttrib(x, srcfileSymbol)); nprotect++;
+                if (TYPEOF(srcfile) != ENVSXP) srcfile = NULL;
+                break;
+            case ENVSXP:
+                if (inherits(x, "srcfile")) srcfile = x;
+                break;
+            }
+            if (srcfile) {
+                if (R_existsVarInFrame(srcfile, documentcontextSymbol))
+                    error("cannot overwrite existing binding '%s'", EncodeChar(PRINTNAME(documentcontextSymbol)));
+                INCREMENT_NAMED_defineVar(documentcontextSymbol, documentcontext, srcfile);
+                R_LockBinding(documentcontextSymbol, srcfile);
             }
             break;
         }
@@ -727,26 +729,41 @@ SEXP setpath(SEXP args, int op, SEXP rho)
         }
         set_R_Visible(FALSE);
         UNPROTECT(nprotect);
-        return R_NilValue;
+        return returnthis;
     }
 
 
-    if (existsInFrame(frame, setsyspathwashereSymbol))
+    if (existsInFrame(frame, documentcontextSymbol))
         error("%s cannot be called more than once within an environment", name);
-    if (existsInFrame(frame, thispathdoneSymbol))
-        error("%s cannot be called within this environment", name);
 
 
     /* why would this be NA??? idk but might as well test for it anyway */
     Rboolean missing_file = asFlag(eval(expr_missing_file, rho), "missing(file)");
     if (missing_file) {
-        assign_null(frame);
-        defineVar(setsyspathwashereSymbol, R_MissingArg, frame);
-        R_LockBinding(setsyspathwashereSymbol, frame);
-        set_thispathn(sys_parent, frame);
+        PROTECT(documentcontext = DocumentContext());
+        assign_null(documentcontext);
+        INCREMENT_NAMED_defineVar(documentcontextSymbol, documentcontext, frame);
+        R_LockBinding(documentcontextSymbol, frame);
+        UNPROTECT(1);
+        defineVar(setsyspathwashereSymbol, R_NilValue, documentcontext);
+        set_n(parent, documentcontext);
         set_R_Visible(TRUE);
         UNPROTECT(nprotect);
-        return R_MissingArg;
+        // return R_MissingArg;
+        /* this is better because it preserves the original value */
+        SEXP value = findVarInFrame(rho, fileSymbol);
+        if (value == R_UnboundValue)
+            error(_("object '%s' not found"), EncodeChar(PRINTNAME(fileSymbol)));
+        if (value == R_MissingArg)
+            return R_MissingArg;
+        if (TYPEOF(value) != PROMSXP)
+            error("invalid '%s' value, expected R_MissingArg or a promise", EncodeChar(PRINTNAME(fileSymbol)));
+        if (TYPEOF(PREXPR(value)) != SYMSXP)
+            error("invalid '%s' value, expected a symbol", EncodeChar(PRINTNAME(fileSymbol)));
+        value = findVarInFrame(PRENV(value), PREXPR(value));
+        if (value == R_UnboundValue)
+            error(_("object '%s' not found"), EncodeChar(PRINTNAME(PREXPR(value))));
+        return value;
     }
 
 
@@ -765,23 +782,24 @@ SEXP setpath(SEXP args, int op, SEXP rho)
     }
 
 
-    SEXP fun_name;
+    SEXP source = NULL;
     switch (TYPEOF(Function)) {
     case NILSXP:
-        fun_name = PRINTNAME(setsyspathfrompackageSymbol);
-        PROTECT(fun_name); nprotect++;
+        source = mkChar("call to function set.sys.path from package this.path");
+        PROTECT(source); nprotect++;
         break;
     case SYMSXP:
         {
             Function = PRINTNAME(Function);
             if (Function == NA_STRING || Function == R_BlankString)
                 error(_("invalid '%s' argument"), "Function");
+            const char *fmt = "call to function '%s'";
             const char *tmp = EncodeChar(Function);
-            int pwidth = 1 + ((int) strlen(tmp)) + 2;
+            int pwidth = 1 + ((int) strlen(fmt)) + ((int) strlen(tmp)) - 2;
             char buf[pwidth];
-            snprintf(buf, pwidth, "'%s'", tmp);
-            fun_name = mkChar(buf);
-            PROTECT(fun_name); nprotect++;
+            snprintf(buf, pwidth, fmt, tmp);
+            source = mkChar(buf);
+            PROTECT(source); nprotect++;
         }
         break;
     case STRSXP:
@@ -794,12 +812,13 @@ SEXP setpath(SEXP args, int op, SEXP rho)
                     {
                         error(_("invalid '%s' argument"), "Function");
                     }
+                    const char *fmt = "call to function '%s'";
                     const char *tmp = EncodeChar(STRING_ELT(Function, 0));
-                    int pwidth = 1 + ((int) strlen(tmp)) + 2;
+                    int pwidth = 1 + ((int) strlen(fmt)) + ((int) strlen(tmp)) - 2;
                     char buf[pwidth];
-                    snprintf(buf, pwidth, "'%s'", tmp);
-                    fun_name = mkChar(buf);
-                    PROTECT(fun_name); nprotect++;
+                    snprintf(buf, pwidth, fmt, tmp);
+                    source = mkChar(buf);
+                    PROTECT(source); nprotect++;
                 }
                 break;
             case 2:
@@ -814,13 +833,14 @@ SEXP setpath(SEXP args, int op, SEXP rho)
                     {
                         error(_("invalid '%s' value"), "Function[2]");
                     }
+                    const char *fmt = "call to function '%s' from package '%s'";
                     const char *tmp0 = EncodeChar(STRING_ELT(Function, 0));
                     const char *tmp1 = EncodeChar(STRING_ELT(Function, 1));
-                    int pwidth = 1 + ((int) strlen(tmp0)) + 16 + ((int) strlen(tmp1)) + 2;
+                    int pwidth = 1 + ((int) strlen(fmt)) + ((int) strlen(tmp0)) - 2 + ((int) strlen(tmp1)) - 2;
                     char buf[pwidth];
-                    snprintf(buf, pwidth, "'%s' from package '%s'", tmp0, tmp1);
-                    fun_name = mkChar(buf);
-                    PROTECT(fun_name); nprotect++;
+                    snprintf(buf, pwidth, fmt, tmp0, tmp1);
+                    source = mkChar(buf);
+                    PROTECT(source); nprotect++;
                 }
                 break;
             default:
@@ -833,6 +853,8 @@ SEXP setpath(SEXP args, int op, SEXP rho)
         error("invalid '%s' argument of type %s", "Function", type2char(TYPEOF(Function)));
         return R_NilValue;
     }
+    if (source && TYPEOF(source) == CHARSXP);
+    else error("internal error; invalid '%s' value", "source");
 
 
     ofile = getInFrame(fileSymbol, rho, FALSE);
@@ -845,6 +867,7 @@ SEXP setpath(SEXP args, int op, SEXP rho)
         /* sym                    */ fileSymbol,
         /* ofile                  */ ofile,
         /* frame                  */ frame,
+        /* as_binding             */ TRUE,
         /* check_not_directory    */ TRUE,
         /* forcepromise           */ TRUE,
         /* assign_returnvalue     */ TRUE,
@@ -871,13 +894,13 @@ SEXP setpath(SEXP args, int op, SEXP rho)
         /* ignore_clipboard       */ ignore_clipboard,
         /* ignore_stdin           */ ignore_stdin,
         /* ignore_url             */ ignore_url,
-        /* ignore_file_uri        */ ignore_file_uri
+        /* ignore_file_uri        */ ignore_file_uri,
+        /* source                 */ source
     );
 
 
-    INCREMENT_NAMED_defineVar(setsyspathwashereSymbol, fun_name, frame);
-    R_LockBinding(setsyspathwashereSymbol, frame);
-    set_thispathn(sys_parent, frame);
+    defineVar(setsyspathwashereSymbol, R_NilValue, documentcontext);
+    set_n(parent, documentcontext);
     UNPROTECT(nprotect + 1);  /* +1 for returnvalue */
     return returnvalue;
 }
@@ -885,32 +908,32 @@ SEXP setpath(SEXP args, int op, SEXP rho)
 
 #undef flag_definitions
 #undef flag_declarations
-#undef set_thispathn
+#undef set_n
 
 
 SEXP do_setsyspath do_formals
 {
     do_start_no_call_op("setsyspath", 21);
-    return setpath(args, SETSYSPATH_OP, rho);
+    return setpath(SETPATHOP_SETSYSPATH, args, rho);
 }
 
 
 SEXP do_unsetsyspath do_formals
 {
     do_start_no_call_op("unsetsyspath", 0);
-    return setpath(args, UNSETSYSPATH_OP, rho);
+    return setpath(SETPATHOP_UNSETSYSPATH, args, rho);
 }
 
 
 SEXP do_setenvpath do_formals
 {
     do_start_no_call_op("setenvpath", 2);
-    return setpath(args, SETENVPATH_OP, rho);
+    return setpath(SETPATHOP_SETENVPATH, args, rho);
 }
 
 
 SEXP do_setsrcpath do_formals
 {
     do_start_no_call_op("setsrcpath", 1);
-    return setpath(args, SETSRCPATH_OP, rho);
+    return setpath(SETPATHOP_SETSRCPATH, args, rho);
 }

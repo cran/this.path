@@ -210,7 +210,7 @@ unset.sys.path()
     ## but this is good enough for an example
     else stop(gettextf("'\%s' is not an existing file", ofile))
     file <- this.path::set.sys.path(file, ofile = ofile)
-    exprs <- parse(file)
+    exprs <- parse(n = -1, file = file)
     for (i in seq_along(exprs)) eval(exprs[i], envir)
     invisible()
 }}
@@ -252,7 +252,7 @@ unset.sys.path()
 
     \item{\knitrknitnolink}{\preformatted{wrapper <- function(input, ...) {
     ## this works for the most part, but will not work in child mode
-    input <- set.sys.path(input)
+    input <- set.sys.path(input, allow.file.uri = FALSE)
     knitr::knit(input = input, ...)
 }}}
 
@@ -261,42 +261,9 @@ unset.sys.path()
     compiler::loadcmp(file = file, ...)
 }}}
 
-    \item{\boxusenolink}{\preformatted{## 'box' is structured to be an incredible pain in the ass,
-## so this solution is not exactly ideal, but it works so whatever
-wrapper <- function(path, ...) {
-    p <- this.path::path.split.1(path.expand(path))
-    n <- length(p)
-    prefix <- if (n < 2L)
-        "."
-    else p[-n]
-    name <- p[[n]]
-    if (dir.exists(path)) {
-        paths <- this.path::path.join(path, paste0("__init__",
-            c(".r", ".R")))
-        paths <- paths[file.exists(paths)]
-        if (!length(paths))
-            stop(sprintf(
-                "no file \\"__init__.r\\" or \\"__init__.R\\" found in \%s",
-                encodeString(path, quote = "\\"")))
-        path <- paths[[1L]]
-    }
-    else {
-        x <- this.path::splitext(name)
-        if (x[[2L]] \%in\% c(".r", ".R"))
-            name <- x[[1L]]
-    }
-    spec <- list(name = name, prefix = prefix, attach = NULL,
-        alias = name, explicit = FALSE)
-    class(spec) <- c("box$mod_spec", "box$spec")
-    path <- set.sys.path(path, path.only = TRUE)
-    info <- list(name = name, source_path =
-        if (.Platform$OS.type == "windows")
-        chartr("/", "\\\\", path) else path)
-    class(info) <- c("box$mod_info", "box$info")
-    caller <- parent.frame()
-    box:::load_and_register(spec, info, caller)
-    invisible()
-}}}
+    \boxusenolink, \shinyrunAppnolink, and \plumberplumbnolink do not have any
+    simple implementations using \code{set.sys.path()} since the sourcing
+    functions are the internal objects of these namespaces.
   }
 }
 \examples{
@@ -330,7 +297,7 @@ sourcelike <- function (file, envir = parent.frame())
     }
     srcfile <- srcfilecopy(filename, lines, timestamp, isFile)
     set.src.path(srcfile)
-    exprs <- parse(n = -1, text = lines, srcfile = srcfile)
+    exprs <- parse(text = lines, srcfile = srcfile, keep.source = FALSE)
     invisible(source.exprs(exprs, evaluated = TRUE, envir = envir))
 }
 
@@ -349,7 +316,7 @@ sourcelike2 <- function (pathname, envir = globalenv())
     envir <- as.environment(envir)
     lines <- readLines(pathname, warn = FALSE)
     srcfile <- srcfilecopy(pathname, lines, isFile = TRUE)
-    exprs <- parse(n = -1, text = lines, srcfile = srcfile)
+    exprs <- parse(text = lines, srcfile = srcfile, keep.source = FALSE)
     invisible(source.exprs(exprs, evaluated = TRUE, envir = envir))
 }
 
@@ -428,7 +395,7 @@ sourcelike5 <- function (file)
     oopt <- options(topLevelEnvironment = envir)
     on.exit(options(oopt))
     set.env.path(envir)
-    exprs <- parse(n = -1, text = lines, srcfile = srcfile)
+    exprs <- parse(text = lines, srcfile = srcfile, keep.source = FALSE)
     source.exprs(exprs, evaluated = TRUE, envir = envir)
     envir
 }
@@ -453,7 +420,7 @@ sourcelike6 <- function (file)
     oopt <- options(topLevelEnvironment = envir)
     on.exit(options(oopt))
     set.env.path(envir)
-    exprs <- parse(n = -1, text = lines, srcfile = srcfile)
+    exprs <- parse(text = lines, srcfile = srcfile, keep.source = FALSE)
     source.exprs(exprs, evaluated = TRUE, envir = envir)
     envir
 }

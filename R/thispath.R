@@ -1,32 +1,3 @@
-## a character vector of symbols to remove (including itself)
-rm.list <- "rm.list"
-rm.list.append <- function (...)
-{
-    rm.list <<- c(rm.list, ...)
-}
-rm.list.append("rm.list.append")
-
-
-
-
-
-tmp <- readLines("./src/symbols.h")
-tmp <- list(
-    thispathofile        = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathofileSymbol"       , "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]]),
-    thispathfile         = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathfileSymbol"        , "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]]),
-    thispathofilejupyter = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathofilejupyterSymbol", "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]]),
-    thispathfilejupyter  = str2lang(tmp[[grep(paste0("^[ \t]*", "thispathfilejupyterSymbol" , "[ \t]+INI_as[ \t]*\\([ \t]*install[ \t]*\\([ \t]*$"), tmp) + 1L]])
-)
-if (!all(vapply(tmp, function(x) is.character(x) && length(x) == 1 && !is.na(x), NA)))
-    stop("could not determine variable names")
-for (i in seq_along(tmp)) assign(names(tmp)[[i]], tmp[[i]])
-rm.list.append(names(tmp))
-rm(i, tmp)
-
-
-
-
-
 .defunctError <- function (new, package = NULL, msg, old = as.character(sys.call(sys.parent()))[1L])
 {
     msg <- if (missing(msg)) {
@@ -50,8 +21,8 @@ rm(i, tmp)
 
 
 .shFILE <- evalq(envir = new.env(), {
-    delayedAssign(thispathofile, if (.in.shell) .shINFO[["FILE"]] else NA_character_)
-    eval(call("delayedAssign", thispathfile, call(".normalizePath", as.symbol(thispathofile))))
+    delayedAssign("ofile", if (.in.shell) .shINFO[["FILE"]] else NA_character_)
+    delayedAssign("file", .normalizePath(ofile))
 function (original = TRUE, for.msg = FALSE)
 .External2(.C_shFILE, original, for.msg)
 })
@@ -262,7 +233,8 @@ delayedAssign(".untitled", {
 .getJupyterNotebookContents <- function (..., do.unlist = FALSE, give.f = TRUE)
 {
     lines <- .getContents(...)
-    source <- jsonlite::fromJSON(lines)[[c("cells", "source")]]
+    source <- jsonlite::parse_json(lines, simplifyVector = TRUE)
+    source <- .getNamedElement(source, c("cells", "source"))
     if (do.unlist) {
         value <- unlist(source)
         if (give.f)
@@ -357,10 +329,106 @@ delayedAssign(".untitled", {
 }
 
 
-.sys.path.toplevel <- evalq(envir = new.env(), {
-    assign(thispathofilejupyter, NA_character_)
-    eval(call("delayedAssign", thispathfilejupyter, call(".normalizePath", as.symbol(thispathofilejupyter))))
+.sys.path.jupyter <- evalq(envir = new.env(), {
+    ofile <- NA_character_
+    delayedAssign("file", .normalizePath(ofile))
 eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)), bquote(
+{
+    if (!is.na(ofile))
+        return(.External2(.C_syspathjupyter, verbose, original, for.msg, contents))
+
+
+    if (is.null(initwd)) {
+        if (for.msg)
+            return(NA_character_)
+        else stop(.thisPathNotExistsError(
+            "R is running from Jupyter but the initial working directory is unknown"))
+    }
+
+
+    if (!.isJupyterLoaded()) {
+        if (for.msg)
+            return(NA_character_)
+        else stop("Jupyter has not finished loading")
+    }
+
+
+    n <- sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 2L
+    ocall <- sys.call(n)
+    call <- .removeSource(ocall)
+
+
+    files <- list.files(initwd, all.files = TRUE, full.names = TRUE,
+        ..(
+            if (getRversion() < "3.0.0")
+                expression()
+            else expression(no.. = TRUE)
+        )
+    )
+    files <- files[!dir.exists(files)]
+    i <- grepl("\\.ipynb$", files, useBytes = TRUE)
+    ipynb <- files[i]
+    files <- files[!i]
+    i <- grepl("\\.ipynb$", files, ignore.case = TRUE, useBytes = TRUE)
+    IPYNB <- files[i]
+    files <- files[!i]
+
+
+    for (file in c(ipynb, IPYNB, files)) {
+        CONTENTS <- tryCatch(.getContents(file), error = identity)
+        if (!inherits(CONTENTS, "error")) {
+            CONTENTS <- tryCatch(jsonlite::parse_json(CONTENTS, simplifyVector = TRUE),
+                error = identity)
+            if (!inherits(CONTENTS, "error")) {
+
+
+                language <- .getNamedElement(CONTENTS, c("metadata", "kernelspec", "language"))
+                name     <- .getNamedElement(CONTENTS, c("metadata", "language_info", "name"))
+                version  <- .getNamedElement(CONTENTS, c("metadata", "language_info", "version"))
+                source   <- .getNamedElement(CONTENTS, c("cells", "source"))
+
+
+                # withAutoprint( { language; name; version; source } , spaced = TRUE, verbose = FALSE, width.cutoff = 60L); cat("\n\n\n\n\n")
+
+
+                if (is.character(language) && length(language) == 1L && !is.na(language) && language == "R" &&
+                    is.character(name)     && length(name)     == 1L && !is.na(name)     && name     == "R" &&
+                    is.character(version)  && length(version)  == 1L && !is.na(version)  && version  == as.character(getRversion()) &&
+                    is.list(source)        && length(source)         && all(vapply(source, is.character, NA, USE.NAMES = FALSE)))
+                {
+                    for (source0 in source) {
+                        exprs <- tryCatch(parse(text = source0, n = -1, keep.source = FALSE, srcfile = NULL),
+                            error = identity)
+                        if (!inherits(exprs, "error")) {
+                            for (expr in exprs) {
+                                if (identical(expr, call)) {
+                                    .External2(.C_setsyspathjupyter, file, skipCheck = TRUE)
+                                    return(.External2(.C_syspathjupyter, verbose, original, for.msg, contents))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    if (for.msg)
+        NA_character_
+    else stop(.thisPathNotExistsError(
+        sprintf("R is running from Jupyter with initial working directory '%s'\n", encodeString(initwd)),
+        " but could not find a file with contents matching:\n",
+        {
+            t <- attr(ocall, "srcref", exact = TRUE)
+            paste(if (is.integer(t)) as.character(t) else deparse(ocall), collapse = "\n")
+        }))
+}
+, splice = TRUE)))
+})
+
+
+.sys.path.toplevel <- eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)), bquote(
 {
     if (.in.shell) {
 
@@ -371,7 +439,7 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
                 call = sys.call()))
         })
         if (verbose) cat("Source: shell argument 'FILE'\n")
-        return(value)
+        value
     }
 
 
@@ -399,29 +467,19 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
         if (verbose) {
             context <- .rs.api.getActiveDocumentContext()
             active <- context[["id"]] != "#console"
-            if (!active) {
+            if (!active)
                 context <- .rs.api.getSourceEditorContext()
-                if (is.null(context)) {
-                    if (for.msg)
-                        return(NA_character_)
-                    else stop(.thisPathNotExistsError(
-                        "R is running from RStudio with no documents open\n",
-                        " (or source document has no path)"))
-                }
-            }
-        } else {
-            context <- .rs.api.getSourceEditorContext()
-            if (is.null(context)) {
-                if (for.msg)
-                    return(NA_character_)
-                else stop(.thisPathNotExistsError(
-                    "R is running from RStudio with no documents open\n",
-                    " (or source document has no path)"))
-            }
+        } else context <- .rs.api.getSourceEditorContext()
+
+
+        if (is.null(context)) {
+            if (for.msg)
+                NA_character_
+            else stop(.thisPathNotExistsError(
+                "R is running from RStudio with no documents open\n",
+                " (or source document has no path)"))
         }
-
-
-        if (contents) {
+        else if (contents) {
             if (verbose)
                 cat(
                     if (active)
@@ -460,30 +518,34 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
     else if (.gui.vscode) {
 
 
-        context <- rstudioapi::getSourceEditorContext()
+        ## evaluate this BEFORE the tryCatch in case the package
+        ## is not installed or the object is not exported
+        rstudioapi::getSourceEditorContext
+        ## now do the tryCatch
+        tryCatch3({
+            context <- rstudioapi::getSourceEditorContext()
+        }, error = {
+            # stop(simpleError("package {rstudioapi} is not set up to work with VSCode; try adding\n  the following to your site-wide startup profile file or your user\n  profile (see ?Startup):\n\n```R\noptions(vsc.rstudioapi = TRUE)\n```\n\n  run the following code to do so:\n\n```R\ncat(\"\\n\\noptions(vsc.rstudioapi = TRUE)\\n\", file = \"~/.Rprofile\", append = TRUE)\n```\n\n  then restart the R session and try again", sys.call()))
+            stop(simpleError("package {rstudioapi} is not set up to work with VSCode; try adding:\n\n```R\noptions(vsc.rstudioapi = TRUE)\n```\n\n  to your site-wide startup profile file or your user profile (see ?Startup),\n  then restart the R session and try again", sys.call()))
+        })
+
+
         if (is.null(context)) {
             if (for.msg)
-                return(NA_character_)
+                NA_character_
             else stop(.thisPathNotExistsError(
                 "R is running from VSCode with no documents open\n",
                 " (or document has no path)"
             ))
         }
-
-
-        if (startsWith(context[["id"]], "untitled:")) {
-            if (for.msg) {
-                if (contents)
-                    return(NA_character_)
-                else return(gettext("Untitled", domain = "RGui", trim = FALSE))
-            }
-            else stop("document in VSCode does not exist")
-        }
-
-
-        if (contents) {
+        else if (contents) {
             if (verbose) cat("Source: document in VSCode\n")
-            context["context"]
+            context["contents"]
+        }
+        else if (startsWith(context[["id"]], "untitled:")) {
+            if (for.msg)
+                context[["path"]]
+            else stop("document in VSCode does not exist")
         }
         else if (nzchar(path <- context[["path"]])) {
             Encoding(path) <- "UTF-8"
@@ -500,97 +562,7 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
 
     ## running from 'jupyter'
     else if (.gui.jupyter) {
-
-
-        if (!is.na(.(as.symbol(thispathofilejupyter))))
-            return(.External2(.C_syspathjupyter, verbose, original, for.msg, contents))
-
-
-        if (is.null(initwd)) {
-            if (for.msg)
-                return(NA_character_)
-            else stop(.thisPathNotExistsError(
-                "R is running from Jupyter but the initial working directory is unknown"))
-        }
-
-
-        if (!.isJupyterLoaded()) {
-            if (for.msg)
-                return(NA_character_)
-            else stop("Jupyter has not finished loading")
-        }
-
-
-        n <- sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 2L
-        ocall <- sys.call(n)
-        call <- .removeSource(ocall)
-
-
-        files <- list.files(initwd, all.files = TRUE, full.names = TRUE,
-            ..(
-                if (getRversion() < "3.0.0")
-                    expression()
-                else expression(no.. = TRUE)
-            )
-        )
-        files <- files[!dir.exists(files)]
-        i <- grepl("\\.ipynb$", files, useBytes = TRUE)
-        ipynb <- files[i]
-        files <- files[!i]
-        i <- grepl("\\.ipynb$", files, ignore.case = TRUE, useBytes = TRUE)
-        IPYNB <- files[i]
-        files <- files[!i]
-
-
-        for (file in c(ipynb, IPYNB, files)) {
-            CONTENTS <- tryCatch(.getContents(file), error = identity)
-            if (!inherits(CONTENTS, "error")) {
-                CONTENTS <- tryCatch(jsonlite::parse_json(CONTENTS, simplifyVector = TRUE),
-                    error = identity)
-                if (!inherits(CONTENTS, "error")) {
-
-
-                    language <- .getNamedElement(CONTENTS, c("metadata", "kernelspec", "language"))
-                    name     <- .getNamedElement(CONTENTS, c("metadata", "language_info", "name"))
-                    version  <- .getNamedElement(CONTENTS, c("metadata", "language_info", "version"))
-                    source   <- .getNamedElement(CONTENTS, c("cells", "source"))
-
-
-                    # withAutoprint( { language; name; version; source } , spaced = TRUE, verbose = FALSE, width.cutoff = 60L); cat("\n\n\n\n\n")
-
-
-                    if (is.character(language) && length(language) == 1L && !is.na(language) && language == "R" &&
-                        is.character(name)     && length(name)     == 1L && !is.na(name)     && name     == "R" &&
-                        is.character(version)  && length(version)  == 1L && !is.na(version)  && version  == as.character(getRversion()) &&
-                        is.list(source)        && length(source)         && all(vapply(source, is.character, NA, USE.NAMES = FALSE)))
-                    {
-                        for (source0 in source) {
-                            exprs <- tryCatch(parse(text = source0, n = -1, keep.source = FALSE, srcfile = NULL),
-                                error = identity)
-                            if (!inherits(exprs, "error")) {
-                                for (expr in exprs) {
-                                    if (identical(expr, call)) {
-                                        .External2(.C_setsyspathjupyter, file, skipCheck = TRUE)
-                                        return(.External2(.C_syspathjupyter, verbose, original, for.msg, contents))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-
-        if (for.msg)
-            NA_character_
-        else stop(.thisPathNotExistsError(
-            sprintf("R is running from Jupyter with initial working directory '%s'\n", encodeString(initwd)),
-            " but could not find a file with contents matching:\n",
-            {
-                t <- attr(ocall, "srcref", exact = TRUE)
-                paste(if (is.integer(t)) as.character(t) else deparse(ocall), collapse = "\n")
-            }))
+        .sys.path.jupyter(verbose, original, for.msg, contents)
     }
 
 
@@ -633,7 +605,6 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
     }
 }
 , splice = TRUE)))
-})
 
 
 set.sys.path.jupyter <- function (...)
@@ -1075,9 +1046,3 @@ FILE <- local({
 local.path <- eval(call("function", as.pairlist(alist(verbose = getOption("verbose"), original = FALSE, for.msg = FALSE, contents = FALSE, default = , else. = )), bquote(
 stop(.defunctError("sys.path(..., local = TRUE)", .(.pkgname), old = "local.path(...)"))
 )))
-
-
-
-
-
-rm(list = rm.list)

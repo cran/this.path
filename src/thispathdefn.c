@@ -1,6 +1,32 @@
 #include "thispathdefn.h"
 
 
+Rboolean needQuote(SEXP x)
+{
+    switch (TYPEOF(x)) {
+    case BCODESXP:
+    case SYMSXP:
+    case PROMSXP:
+    case LANGSXP:
+    case DOTSXP:
+        return TRUE;
+    }
+    return FALSE;
+}
+
+
+void UNIMPLEMENTED_TYPEt(const char *s, SEXPTYPE t)
+{
+    error(_("unimplemented type '%s' in '%s'\n"), type2char(t), s);
+}
+
+
+void UNIMPLEMENTED_TYPE(const char *s, SEXP x)
+{
+    UNIMPLEMENTED_TYPEt(s, TYPEOF(x));
+}
+
+
 const char *EncodeChar(SEXP x)
 {
     /* accepts a CHARSXP and escapes the special / / non-printing characters */
@@ -15,63 +41,35 @@ const char *EncodeChar(SEXP x)
 }
 
 
-#if R_version_less_than(4, 1, 0)
-SEXP R_NewEnv(SEXP enclos, int hash, int size)
+SEXP getInFrame(SEXP sym, SEXP env, int unbound_ok)
 {
-    SEXP expr = LCONS(new_envSymbol,
-        CONS(/* hash */ ScalarLogical(hash),
-            CONS(/* parent */ enclos,
-                CONS(/* size */ ScalarInteger(size), R_NilValue))));
-    PROTECT(expr);
-    SEXP value = eval(expr, R_BaseEnv);
-    UNPROTECT(1);
-    return value;
-}
-#endif
-
-
-#if R_version_less_than(4, 2, 0)
-Rboolean R_existsVarInFrame(SEXP rho, SEXP symbol)
-{
-    static SEXP existsSymbol = NULL;
-    if (existsSymbol == NULL) {
-        existsSymbol = install("exists");
+    SEXP value = findVarInFrame(env, sym);
+    if (!unbound_ok && value == R_UnboundValue)
+        error(_("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
+    if (TYPEOF(value) == PROMSXP) {
+        if (PRVALUE(value) == R_UnboundValue)
+            return eval(value, R_EmptyEnv);
+        else
+            return PRVALUE(value);
     }
-    SEXP expr = R_NilValue;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(R_FalseValue, expr), &indx);
-    SET_TAG(expr, inheritsSymbol);
-    REPROTECT(expr = CONS(rho, expr), indx);
-    SET_TAG(expr, envirSymbol);
-    REPROTECT(expr = CONS(ScalarString(PRINTNAME(symbol)), expr), indx);
-    REPROTECT(expr = LCONS(getFromBase(existsSymbol), expr), indx);
-    SEXP value = PROTECT(eval(expr, R_EmptyEnv));
-    if (TYPEOF(value) != LGLSXP || XLENGTH(value) != 1)
-        error(_("invalid '%s' value"), "exists()");
-    Rboolean lvalue = LOGICAL(value)[0];
-    UNPROTECT(2);
-    return lvalue;
-}
-#endif
-
-
-SEXP makePROMISE(SEXP expr, SEXP env)
-{
-    eval(expr_delayedAssign_x, R_EmptyEnv);
-    SEXP s = findVarInFrame(promiseenv, xSymbol);
-    if (TYPEOF(s) != PROMSXP)
-        error(_("object '%s' of mode '%s' was not found"), "x", "promise");
-    SET_PRCODE(s, expr);
-    SET_PRENV(s, env);
-    return s;
+    else return value;
 }
 
 
-SEXP makeEVPROMISE(SEXP expr, SEXP value)
+SEXP getInList(SEXP sym, SEXP list, int C_NULL_ok)
 {
-    SEXP prom = makePROMISE(expr, R_NilValue);
-    SET_PRVALUE(prom, value);
-    return prom;
+    const char *what = translateChar(PRINTNAME(sym));
+    SEXP names = PROTECT(getAttrib(list, R_NamesSymbol));
+    for (R_xlen_t i = 0, n = xlength(names); i < n; i++) {
+        if (!strcmp(translateChar(STRING_ELT(names, i)), what)) {
+            UNPROTECT(1);
+            return VECTOR_ELT(list, i);
+        }
+    }
+    if (!C_NULL_ok)
+        error("element '%s' not found", EncodeChar(PRINTNAME(sym)));
+    UNPROTECT(1);
+    return NULL;
 }
 
 
@@ -87,19 +85,6 @@ void MARK_NOT_MUTABLE_defineVar(SEXP symbol, SEXP value, SEXP rho)
     MARK_NOT_MUTABLE(value);
     defineVar(symbol, value, rho);
 }
-
-
-#if R_version_less_than(3, 6, 0)
-SEXP R_shallow_duplicate_attr(SEXP x) { return shallow_duplicate(x); }
-#endif
-
-
-#if R_version_less_than(3, 6, 0)
-SEXP installTrChar(SEXP x)
-{
-    return install(translateChar(x));
-}
-#endif
 
 
 SEXP findFunction3(SEXP symbol, SEXP rho, SEXP call)
@@ -133,163 +118,9 @@ SEXP findFunction3(SEXP symbol, SEXP rho, SEXP call)
 }
 
 
-#if R_version_less_than(4, 1, 0)
-int IS_ASCII(SEXP x)
+SEXP findFunction(SEXP symbol, SEXP rho)
 {
-    for (const char *s = CHAR(x); *s; s++) {
-        if (*s > 0x7f) {
-            return FALSE;
-        }
-    }
-    return TRUE;
-}
-#endif
-
-
-#if R_version_less_than(4, 0, 0)
-#define R_THIS_PATH_USE_removeFromFrame
-void R_removeVarFromFrame(SEXP name, SEXP env)
-{
-    if (TYPEOF(env) == NILSXP)
-        error(_("use of NULL environment is defunct"));
-
-    if (!isEnvironment(env))
-        error(_("argument to '%s' is not an environment"), "R_removeVarFromFrame");
-
-    if (TYPEOF(name) != SYMSXP)
-        error(_("not a symbol"));
-
-    SEXP expr;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(R_FalseValue, R_NilValue), &indx);
-    SET_TAG(expr, inheritsSymbol);
-    REPROTECT(expr = CONS(env, expr), indx);
-    SET_TAG(expr, envirSymbol);
-    REPROTECT(expr = LCONS(removeSymbol, CONS(name, expr)), indx);
-    eval(expr, R_BaseEnv);
-    UNPROTECT(1);
-}
-
-
-void removeFromFrame(SEXP *names, SEXP env)
-{
-    if (TYPEOF(env) == NILSXP)
-        error(_("use of NULL environment is defunct"));
-
-    if (!isEnvironment(env))
-        error(_("argument to '%s' is not an environment"), "removeFromFrame");
-
-    int n;
-    for (n = 0; names[n]; n++) {
-        if (TYPEOF(names[n]) != SYMSXP)
-            error(_("not a symbol"));
-    }
-
-    SEXP expr, list;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(R_FalseValue, R_NilValue), &indx);
-    SET_TAG(expr, inheritsSymbol);
-    REPROTECT(expr = CONS(env, expr), indx);
-    SET_TAG(expr, envirSymbol);
-    REPROTECT(expr = CONS(list = allocVector(STRSXP, n), expr), indx);
-    SET_TAG(expr, listSymbol);
-    REPROTECT(expr = LCONS(removeSymbol, expr), indx);
-
-    for (n = 0; names[n]; n++)
-        SET_STRING_ELT(list, n, PRINTNAME(names[n]));
-
-    eval(expr, R_BaseEnv);
-    UNPROTECT(1);
-}
-#else
-void removeFromFrame(SEXP *names, SEXP env)
-{
-    if (TYPEOF(env) == NILSXP)
-        error(_("use of NULL environment is defunct"));
-
-    if (!isEnvironment(env))
-        error(_("argument to '%s' is not an environment"), "removeFromFrame");
-
-    int i;
-    for (i = 0; names[i]; i++) {
-        if (TYPEOF(names[i]) != SYMSXP)
-            error(_("not a symbol"));
-    }
-
-    for (i = 0; names[i]; i++)
-        R_removeVarFromFrame(names[i], env);
-}
-#endif
-
-
-void UNIMPLEMENTED_TYPEt(const char *s, SEXPTYPE t)
-{
-    error(_("unimplemented type '%s' in '%s'\n"), type2char(t), s);
-}
-
-
-void UNIMPLEMENTED_TYPE(const char *s, SEXP x)
-{
-    UNIMPLEMENTED_TYPEt(s, TYPEOF(x));
-}
-
-
-#if R_version_less_than(3, 1, 0)
-SEXP lazy_duplicate(SEXP s)
-{
-    switch (TYPEOF(s)) {
-    case NILSXP:
-    case SYMSXP:
-    case ENVSXP:
-    case SPECIALSXP:
-    case BUILTINSXP:
-    case EXTPTRSXP:
-    case BCODESXP:
-    case WEAKREFSXP:
-    case CHARSXP:
-    case PROMSXP:
-        break;
-    case CLOSXP:
-    case LISTSXP:
-    case LANGSXP:
-    case DOTSXP:
-    case EXPRSXP:
-    case VECSXP:
-    case LGLSXP:
-    case INTSXP:
-    case REALSXP:
-    case CPLXSXP:
-    case RAWSXP:
-    case STRSXP:
-    case S4SXP:
-        ENSURE_NAMEDMAX(s);
-        break;
-    default:
-        UNIMPLEMENTED_TYPE("lazy_duplicate", s);
-    }
-    return s;
-}
-
-
-SEXP shallow_duplicate(SEXP s)
-{
-    return duplicate(s);
-}
-#endif
-
-
-SEXP getInFrame(SEXP sym, SEXP env, int unbound_ok)
-{
-    SEXP value = findVarInFrame(env, sym);
-    if (!unbound_ok && value == R_UnboundValue)
-        error(_("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
-    if (TYPEOF(value) == PROMSXP) {
-        if (PRVALUE(value) == R_UnboundValue)
-            return eval(value, R_EmptyEnv);
-        else
-            return PRVALUE(value);
-    }
-    else return value;
+    return findFunction3(symbol, rho, R_CurrentExpression);
 }
 
 
@@ -311,46 +142,6 @@ SEXP as_environment_char(const char *what)
     UNPROTECT(1);
     return R_NilValue;
 }
-
-
-#if defined(R_CONNECTIONS_VERSION_1)
-SEXP summaryconnection(Rconnection Rcon)
-{
-    SEXP value, names;
-    value = allocVector(VECSXP, 7);
-    PROTECT(value);
-    names = allocVector(STRSXP, 7);
-    setAttrib(value, R_NamesSymbol, names);
-    SET_STRING_ELT(names, 0, mkChar("description"));
-    SET_VECTOR_ELT(value, 0, ScalarString(
-        mkCharCE(Rcon->description, (Rcon->enc == CE_UTF8) ? CE_UTF8 : CE_NATIVE)
-    ));
-    SET_STRING_ELT(names, 1, mkChar("class"));
-    SET_VECTOR_ELT(value, 1, mkString(Rcon->class));
-    SET_STRING_ELT(names, 2, mkChar("mode"));
-    SET_VECTOR_ELT(value, 2, mkString(Rcon->mode));
-    SET_STRING_ELT(names, 3, mkChar("text"));
-    SET_VECTOR_ELT(value, 3, mkString(Rcon->text ? "text" : "binary"));
-    SET_STRING_ELT(names, 4, mkChar("opened"));
-    SET_VECTOR_ELT(value, 4, mkString(Rcon->isopen ? "opened" : "closed"));
-    SET_STRING_ELT(names, 5, mkChar("can read"));
-    SET_VECTOR_ELT(value, 5, mkString(Rcon->canread ? "yes" : "no"));
-    SET_STRING_ELT(names, 6, mkChar("can write"));
-    SET_VECTOR_ELT(value, 6, mkString(Rcon->canwrite ? "yes" : "no"));
-    UNPROTECT(1);
-    return value;
-}
-#else
-SEXP summaryconnection(SEXP sConn)
-{
-    if (!inherits(sConn, "connection")) error(_("invalid connection"));
-    SEXP expr = LCONS(summary_connectionSymbol, CONS(sConn, R_NilValue));
-    PROTECT(expr);
-    SEXP value = eval(expr, R_BaseEnv);
-    UNPROTECT(1);
-    return value;
-}
-#endif
 
 
 SEXP errorCondition(const char *msg, SEXP call, const char **cls, int numFields)
@@ -425,7 +216,7 @@ SEXP simpleError(const char *msg, SEXP call)
 
 #define funbody(class_as_CHARSXP, summConn)                    \
     const char *klass = EncodeChar((class_as_CHARSXP));        \
-    const char *format = "'sys.path' not implemented when source()-ing a connection of class '%s'";\
+    const char *format = "'this.path' not implemented when source()-ing a connection of class '%s'";\
     const int n = strlen(format) + strlen(klass) + 1;          \
     char msg[n];                                               \
     snprintf(msg, n, format, klass);                           \
@@ -438,11 +229,50 @@ SEXP simpleError(const char *msg, SEXP call)
     UNPROTECT(2);                                              \
     return cond
 #if defined(R_CONNECTIONS_VERSION_1)
+SEXP summaryconnection(Rconnection Rcon)
+{
+    SEXP value, names;
+    value = allocVector(VECSXP, 7);
+    PROTECT(value);
+    names = allocVector(STRSXP, 7);
+    setAttrib(value, R_NamesSymbol, names);
+    SET_STRING_ELT(names, 0, mkChar("description"));
+    SET_VECTOR_ELT(value, 0, ScalarString(
+        mkCharCE(Rcon->description, (Rcon->enc == CE_UTF8) ? CE_UTF8 : CE_NATIVE)
+    ));
+    SET_STRING_ELT(names, 1, mkChar("class"));
+    SET_VECTOR_ELT(value, 1, mkString(Rcon->class));
+    SET_STRING_ELT(names, 2, mkChar("mode"));
+    SET_VECTOR_ELT(value, 2, mkString(Rcon->mode));
+    SET_STRING_ELT(names, 3, mkChar("text"));
+    SET_VECTOR_ELT(value, 3, mkString(Rcon->text ? "text" : "binary"));
+    SET_STRING_ELT(names, 4, mkChar("opened"));
+    SET_VECTOR_ELT(value, 4, mkString(Rcon->isopen ? "opened" : "closed"));
+    SET_STRING_ELT(names, 5, mkChar("can read"));
+    SET_VECTOR_ELT(value, 5, mkString(Rcon->canread ? "yes" : "no"));
+    SET_STRING_ELT(names, 6, mkChar("can write"));
+    SET_VECTOR_ELT(value, 6, mkString(Rcon->canwrite ? "yes" : "no"));
+    UNPROTECT(1);
+    return value;
+}
+
+
 SEXP thisPathUnrecognizedConnectionClassError(SEXP call, Rconnection Rcon)
 {
-    funbody(mkChar(get_connection_class(Rcon)), summaryconnection(Rcon));
+    funbody(mkChar(Rcon->class), summaryconnection(Rcon));
 }
 #else
+SEXP summaryconnection(SEXP sConn)
+{
+    if (!inherits(sConn, "connection")) error(_("invalid connection"));
+    SEXP expr = LCONS(summary_connectionSymbol, CONS(sConn, R_NilValue));
+    PROTECT(expr);
+    SEXP value = eval(expr, R_BaseEnv);
+    UNPROTECT(1);
+    return value;
+}
+
+
 SEXP thisPathUnrecognizedConnectionClassError(SEXP call, SEXP summary)
 {
     funbody(STRING_ELT(VECTOR_ELT(summary, 1), 0), summary);
@@ -490,7 +320,7 @@ SEXP thisPathNotExistsError(const char *msg, SEXP call)
 
 SEXP thisPathInZipFileError(SEXP call, SEXP description)
 {
-    const char *msg = "'sys.path' cannot be used within a zip file";
+    const char *msg = "'this.path' cannot be used within a zip file";
     SEXP cond = errorCondition1(msg, call, "this.path::thisPathInZipFileError", 1);
     PROTECT(cond);
     SEXP names = getAttrib(cond, R_NamesSymbol);
@@ -526,50 +356,58 @@ void stop(SEXP cond)
 }
 
 
-void assign_done(SEXP frame)
+SEXP DocumentContext(void)
 {
-    defineVar(thispathdoneSymbol, R_NilValue, frame);
-    R_LockBinding(thispathdoneSymbol, frame);
+    SEXP documentcontext = R_NewEnv(mynamespace, TRUE, 10);
+    PROTECT(documentcontext);
+    setAttrib(documentcontext, R_ClassSymbol, DocumentContextCls);
+    UNPROTECT(1);
+    return documentcontext;
 }
 
 
-#define _assign(file, frame)                                   \
-    INCREMENT_NAMED_defineVar(thispathofileSymbol, (file), (frame));\
-    R_LockBinding(thispathofileSymbol, (frame));               \
-    SEXP e;                                                    \
-    defineVar(thispathfileSymbol, e = makePROMISE(R_NilValue, R_EmptyEnv), (frame));\
-    R_LockBinding(thispathfileSymbol, (frame));                \
-    assign_done((frame))
-
-
-void assign_default(SEXP file, SEXP frame, Rboolean check_not_directory)
+int ofile_is_NULL(SEXP documentcontext)
 {
-    _assign(file, frame);
-    SET_PRCODE(e, lang2(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol, file));
-    SET_PRENV(e, mynamespace);
+    return findVarInFrame(documentcontext, ofileSymbol) == R_NilValue;
 }
 
 
-void assign_null(SEXP frame)
+#define _assign(file, documentcontext)                         \
+    INCREMENT_NAMED_defineVar(ofileSymbol, (file), (documentcontext));\
+    SEXP e = makePROMISE(R_NilValue, (documentcontext));       \
+    defineVar(fileSymbol, e, (documentcontext))
+
+
+void assign_default(SEXP file, SEXP documentcontext, Rboolean check_not_directory)
+{
+    _assign(file, documentcontext);
+    SET_PRCODE(e, LCONS(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol,
+                        CONS(file, R_NilValue)));
+}
+
+
+void assign_null(SEXP documentcontext)
 {
     /* make and force the promise */
-    _assign(R_NilValue, frame);
+    _assign(R_NilValue, documentcontext);
     eval(e, R_EmptyEnv);
 }
 
 
-void assign_chdir(SEXP file, SEXP owd, SEXP frame)
+void assign_chdir(SEXP file, SEXP owd, SEXP documentcontext)
 {
-    _assign(file, frame);
-    SET_PRCODE(e, lang3(_normalizeAgainstSymbol, owd, file));
-    SET_PRENV(e, mynamespace);
+    _assign(file, documentcontext);
+    INCREMENT_NAMED_defineVar(wdSymbol, owd, documentcontext);
+    SET_PRCODE(e, LCONS(_normalizeAgainstSymbol,
+                        CONS(wdSymbol,
+                             CONS(file, R_NilValue))));
     return;
 }
 
 
-void assign_file_uri(SEXP ofile, SEXP file, SEXP frame, Rboolean check_not_directory)
+void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, Rboolean check_not_directory)
 {
-    _assign(ofile, frame);
+    _assign(ofile, documentcontext);
 
 
     /* translate the string, then extract the string after file://
@@ -599,32 +437,41 @@ void assign_file_uri(SEXP ofile, SEXP file, SEXP frame, Rboolean check_not_direc
 #endif
 
 
-    SET_PRCODE(e, lang2(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol, ScalarString(mkCharCE(url, ienc))));
-    SET_PRENV(e, mynamespace);
+    SET_PRCODE(e, LCONS(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol,
+                        CONS(ScalarString(mkCharCE(url, ienc)), R_NilValue)));
 }
 
 
-void assign_file_uri2(SEXP description, SEXP frame, Rboolean check_not_directory)
+void assign_file_uri2(SEXP description, SEXP documentcontext, Rboolean check_not_directory)
 {
-    char _buf[7 + strlen(CHAR(description)) + 1];
+    const char *url = CHAR(description);
+    char _buf[8 + strlen(url) + 1];
     char *buf = _buf;
+#ifdef _WIN32
+    if (strlen(url) > 1 && url[1] == ':') {
+        strcpy(buf, "file:///");
+        strcpy(buf + 8, url);
+    } else {
+        strcpy(buf, "file://");
+        strcpy(buf + 7, url);
+    }
+#else
     strcpy(buf, "file://");
-    buf += 7;
-    strcpy(buf, CHAR(description));
+    strcpy(buf + 7, url);
+#endif
+
 
 
     SEXP ofile = ScalarString(mkCharCE(buf, getCharCE(description)));
-
-
-    _assign(ofile, frame);
-    SET_PRCODE(e, lang2(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol, ScalarString(description)));
-    SET_PRENV(e, mynamespace);
+    _assign(ofile, documentcontext);
+    SET_PRCODE(e, LCONS(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol,
+                        CONS(ScalarString(description), R_NilValue)));
 }
 
 
-void assign_url(SEXP ofile, SEXP file, SEXP frame)
+void assign_url(SEXP ofile, SEXP file, SEXP documentcontext)
 {
-    _assign(ofile, frame);
+    _assign(ofile, documentcontext);
 
 
 #ifdef _WIN32
@@ -633,28 +480,17 @@ void assign_url(SEXP ofile, SEXP file, SEXP frame)
 #endif
 
 
-    SET_PRCODE(e, lang2(_normalizeURL_1Symbol, ofile));
-    SET_PRENV(e, mynamespace);
-
-
-    /* force the promise */
-    eval(e, R_EmptyEnv);
+    SET_PRCODE(e, LCONS(_normalizeURL_1Symbol, CONS(ofile, R_NilValue)));
+    eval(e, R_EmptyEnv);  /* force the promise */
 }
 
 
 #undef _assign
 
 
-void overwrite_ofile(SEXP ofilearg, SEXP frame)
+void overwrite_ofile(SEXP ofilearg, SEXP documentcontext)
 {
-    // if (R_BindingIsLocked(thispathofileSymbol, frame)) {
-        R_unLockBinding(thispathofileSymbol, frame);
-        INCREMENT_NAMED_defineVar(thispathofileSymbol, ofilearg, frame);
-        R_LockBinding(thispathofileSymbol, frame);
-    // }
-    // else {
-    //     INCREMENT_NAMED_defineVar(thispathofileSymbol, ofilearg, frame);
-    // }
+    INCREMENT_NAMED_defineVar(ofileSymbol, ofilearg, documentcontext);
 }
 
 
@@ -665,6 +501,18 @@ SEXP sys_call(SEXP which, SEXP rho)
     PROTECT_WITH_INDEX(expr = CONS(which, R_NilValue), &indx);
     REPROTECT(expr = LCONS(getFromBase(sys_callSymbol), expr), indx);
     SEXP value = eval(expr, rho);
+    UNPROTECT(1);
+    return value;
+}
+
+
+int sys_parent(int n, SEXP rho)
+{
+    SEXP expr;
+    PROTECT_INDEX indx;
+    PROTECT_WITH_INDEX(expr = CONS(ScalarInteger(n), R_NilValue), &indx);
+    REPROTECT(expr = LCONS(getFromBase(sys_parentSymbol), expr), indx);
+    int value = asInteger(eval(expr, rho));
     UNPROTECT(1);
     return value;
 }
@@ -750,13 +598,41 @@ Rboolean init_tools_rstudio(Rboolean skipCheck)
 int maybe_unembedded_shell = -1;
 
 
-int get_sys_parent(int n, SEXP rho)
+#ifdef _WIN32
+int is_clipboard(const char *url)
 {
-    SEXP expr;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(ScalarInteger(n), R_NilValue), &indx);
-    REPROTECT(expr = LCONS(getFromBase(sys_parentSymbol), expr), indx);
-    int value = asInteger(eval(expr, rho));
-    UNPROTECT(1);
-    return value;
+    return strcmp (url, "clipboard"     ) == 0 ||
+           strncmp(url, "clipboard-", 10) == 0;
+}
+const char *must_not_be_clipboard_message = "must not be \"clipboard\" nor start with \"clipboard-\"";
+#else
+int is_clipboard(const char *url)
+{
+    return strcmp(url, "clipboard"    ) == 0 ||
+           strcmp(url, "X11_primary"  ) == 0 ||
+           strcmp(url, "X11_secondary") == 0 ||
+           strcmp(url, "X11_clipboard") == 0;
+}
+const char *must_not_be_clipboard_message = "must not be \"clipboard\", \"X11_primary\", \"X11_secondary\", nor \"X11_clipboard\"";
+#endif
+
+
+int is_url(const char *url)
+{
+    if      (strncmp(url, "http://" , 7) == 0)
+        return 7;
+    else if (strncmp(url, "https://", 8) == 0)
+        return 8;
+    else if (strncmp(url, "ftp://"  , 6) == 0)
+        return 6;
+    else if (strncmp(url, "ftps://" , 7) == 0)
+        return 7;
+    else
+        return 0;
+}
+
+
+int is_file_uri(const char *url)
+{
+    return strncmp(url, "file://", 7) == 0;
 }

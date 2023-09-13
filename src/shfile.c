@@ -1,32 +1,6 @@
 #include "thispathdefn.h"
 
 
-
-
-
-void Rprint(SEXP x, SEXP rho)
-{
-    SEXP expr;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(x, R_NilValue), &indx);
-    REPROTECT(expr = LCONS(getFromBase(printSymbol), expr), indx);
-    eval(expr, rho);
-    UNPROTECT(1);
-}
-
-
-#define print_char_array(_ac_, _av_)                           \
-    do {                                                       \
-        SEXP tmp10 = allocVector(STRSXP, (_ac_));              \
-        PROTECT(tmp10);                                        \
-        for (int indx = 0; indx < (_ac_); indx++) {            \
-            SET_STRING_ELT(tmp10, indx, mkChar((_av_)[indx])); \
-        }                                                      \
-        Rprint(tmp10, R_BaseEnv);                              \
-        UNPROTECT(1);                                          \
-    } while (0)
-
-
 // #define debug
 
 
@@ -52,7 +26,7 @@ SEXP do_shFILE do_formals
      */
 
 
-    do_start_no_call_op("shFILE", 2);
+    do_start_no_op_rho("shFILE", 2);
 
 
     /* see ?shFILE */
@@ -66,23 +40,29 @@ SEXP do_shFILE do_formals
     if (for_msg && !original) original = NA_LOGICAL;
 
 
+    SEXP env = getFromMyNS(_shFILESymbol);
+    if (TYPEOF(env) != CLOSXP)
+        errorcall(call, "'%s' is not a closure", EncodeChar(PRINTNAME(_shFILESymbol)));
+    env = CLOENV(env);
+
+
     if (original == NA_LOGICAL) {
 
 
 #define get_and_check(var, sym)                                \
-        SEXP var = findVarInFrame(ENCLOS(rho), (sym));         \
+        SEXP var = findVarInFrame(env, (sym));                 \
         if (var == R_UnboundValue)                             \
             error(_("object '%s' not found"), EncodeChar(PRINTNAME((sym))));\
         if (TYPEOF(var) != PROMSXP)                            \
             error("invalid '%s', must be a promise", EncodeChar(PRINTNAME((sym))))
 
 
-        get_and_check(thispathfile, thispathfileSymbol);
+        get_and_check(file, fileSymbol);
         /* if the promise has not already been forced, just get the original */
-        if (PRVALUE(thispathfile) == R_UnboundValue)
+        if (PRVALUE(file) == R_UnboundValue)
             original = TRUE;
         else
-            return PRVALUE(thispathfile);
+            return PRVALUE(file);
     }
     if (original) {
 #define get_and_return(var, sym)                               \
@@ -100,10 +80,10 @@ SEXP do_shFILE do_formals
             return PRVALUE(var)
 
 
-        get_and_return(thispathofile, thispathofileSymbol);
+        get_and_return(ofile, ofileSymbol);
     }
     else {
-        get_and_return(thispathfile, thispathfileSymbol);
+        get_and_return(file, fileSymbol);
     }
 
 
@@ -285,6 +265,18 @@ static char *unescape_arg(char *p, const char *avp)
 #endif
 
 
+#define print_char_array(_ac_, _av_)                           \
+    do {                                                       \
+        SEXP tmp10 = allocVector(STRSXP, (_ac_));              \
+        PROTECT(tmp10);                                        \
+        for (int indx = 0; indx < (_ac_); indx++) {            \
+            SET_STRING_ELT(tmp10, indx, mkChar((_av_)[indx])); \
+        }                                                      \
+        my_PrintValueEnv(tmp10, R_BaseEnv);                    \
+        UNPROTECT(1);                                          \
+    } while (0)
+
+
 SEXP do_shINFO do_formals
 {
     /*
@@ -339,7 +331,7 @@ SEXP do_shINFO do_formals
 
 
 #ifdef debug
-#define debugRprint(x, env) Rprint((x), (env))
+#define debugRprint(x, env) my_PrintValueEnv((x), (env))
 #else
 #define debugRprint(x, env) do {} while (0)
 #endif
@@ -388,7 +380,7 @@ SEXP do_shINFO do_formals
 
 #ifdef debug
     Rprintf("\noriginal arguments:\n");
-    Rprint(ARGV, R_BaseEnv);
+    my_PrintValueEnv(ARGV, R_BaseEnv);
 #endif
 
 
