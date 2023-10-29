@@ -197,6 +197,15 @@ main <- function ()
                         "startsWith(x, prefix)",
                         "endsWith(x, suffix)"
                     ),
+                    "3.4.0",
+                    "withAutoprint",
+                    c(
+                        "withAutoprint(exprs, evaluated = FALSE, local = parent.frame(),",
+                        "              print. = TRUE, echo = TRUE, max.deparse.length = Inf,",
+                        "              width.cutoff = max(20, getOption(\"width\")),",
+                        "              deparseCtrl = c(\"keepInteger\", \"showAttributes\", \"keepNA\"),",
+                        "              skip.echo = 0, spaced = FALSE, ...)"
+                    ),
                     "3.5.0",
                     c("...length", "isTRUE", "isFALSE"),
                     c(
@@ -255,7 +264,7 @@ main <- function ()
         ## we need to add the common macros to the files which do not
         ## have access. for R < 3.2.0, this is ALL of the Rd files.
         ## otherwise, only the news files will need them
-        Rdfiles.in <- list.files("./inst", "^NEWS(\\.[[:digit:]]+)?\\.in\\.Rd$", full.names = TRUE)
+        Rdfiles.in <- list.files("./inst", "^NEWS\\.in\\.Rd$", full.names = TRUE)
         files.in <- list.files("./man", "\\.in\\.Rd$", all.files = TRUE, full.names = TRUE, ignore.case = TRUE)
         if (getRversion() < "3.2.0") {
             Rdfiles.in <- c(Rdfiles.in, files.in)

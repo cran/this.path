@@ -73,8 +73,8 @@ sys.dir(verbose = getOption("verbose"), local = FALSE,
   found, the file argument is returned from the function's evaluation
   environment. If you have your own \sourcenolink-like function that you would
   like to be recognized by \code{sys.path()}, please contact the package
-  maintainer so that it can be implemented or use \code{\link{wrap.source}()} /
-  / \code{\link{set.sys.path}()}.
+  maintainer so that it can be implemented or use \code{\link{set.sys.path}()}
+  / / \code{\link{wrap.source}()}.
 
   If no source call is found up the calling stack, then an attempt is made to
   figure out how \R is running.
@@ -153,76 +153,19 @@ sys.dir(verbose = getOption("verbose"), local = FALSE,
   \codelink3{base:files}{file.remove}{()} or \codelink3{base}{unlink}{()} but
   still know its own path for the remainder of the script.
 
-  Please \strong{DO NOT} use \code{sys.path()} inside the site-wide startup
-  profile file, the user profile, nor the function \code{.First()} (see
-  \ifelse{html}{\code{?\link[base]{Startup}}}{\code{?Startup}}). This has
-  inconsistent results dependent on the GUI, and often incorrect. For example:
-
-  \describe{
-#ifdef unix
-    \item{in \sQuote{X11}}{in all three cases, it returns \option{FILE} from
-      the command line arguments: \preformatted{
-> sys.path(original = TRUE)
-Source: shell argument 'FILE'
-[1] "./file569c63d647ba.R"
-
-> sys.path()
-[1] "/tmp/RtmpGMmR3A/file569c63d647ba.R"}}
-#endif
-#ifdef windows
-    \item{in \sQuote{Rterm}}{in all three cases, it returns \option{FILE} from
-      the command line arguments: \preformatted{> sys.path(original = TRUE)
-Source: shell argument 'FILE'
-[1] "./file569c63d647ba.R"
-
-> sys.path()
-[1] "C:/Users/iris/AppData/Local/Temp/RtmpGMmR3A/file569c63d647ba.R"}}
-
-    \item{in \sQuote{Rgui}}{in all three cases, it throws an error: \preformatted{> sys.path(original = TRUE)
-Error in .sys.path.toplevel(FALSE, TRUE) :
-  R is being run from Rgui with no documents open}}
-#endif
-
-    \item{in \sQuote{RStudio}}{in all three cases, it throws an error: \preformatted{> sys.path(original = TRUE)
-Error in .rs.api.getSourceEditorContext() :
-  RStudio has not finished loading}}
-
-    \item{in \sQuote{VSCode}}{in the site-wide startup profile file and the
-      function \code{.First()}, it throws an error: \preformatted{> sys.path(original = TRUE)
-Error : RStudio not running}
-
-#ifdef unix
-      but in the user profile, it returns: \preformatted{> sys.path(original = TRUE)
-Source: call to function source
-[1] "~/.Rprofile"
-
-> sys.path()
-[1] "/home/iris/.Rprofile"}
-#endif
-#ifdef windows
-      but in the user profile, it returns: \preformatted{> sys.path(original = TRUE)
-Source: call to function source
-[1] "~/.Rprofile"
-
-> sys.path()
-[1] "C:/Users/iris/Documents/.Rprofile"}
-#endif
-    }
-
-    \item{in \sQuote{Jupyter}}{in all three cases, it throws an error: \preformatted{> sys.path(original = TRUE)
-Error in .sys.path.toplevel(FALSE, TRUE) :
-  Jupyter has not finished loading}}}
-
-  Sometimes it returns \option{FILE} from the command line arguments, sometimes
-  it returns the path of the user profile, and other times it throws an error.
-  Alternatively, you could use \code{\link{shFILE}()}, supplying a
-  \code{default} argument when no \option{FILE} is specificed, and supplying an
-  \code{else.} function for when one is specified.
+  If you need to use \code{sys.path()} inside the site-wide startup profile
+  file or a user profile, please use \code{\link{with_site.file}()} or
+  \code{\link{with_init.file}()}, something along the lines of:
+  \preformatted{this.path::with_init.file({
+    <expr 1>
+    <expr 2>
+    <...>
+})}
 }
 \seealso{
   \code{\link{shFILE}()}
 
-  \code{\link{wrap.source}()}, \code{\link{set.sys.path}()}
+  \code{\link{set.sys.path}()}, \code{\link{wrap.source}()}
 }
 \examples{
 FILE1.R <- tempfile(fileext = ".R")
@@ -276,9 +219,9 @@ if (requireNamespace("knitr")) {
 
     # knitr::knit(FILE2.Rmd, output = FILE3.md, quiet = FALSE)
     ## the above does not work when using the 'Run examples' button in
-    ## the HTML documentation. {knitr} cannot knit a document inside
-    ## another document, pretty embarrassing oversight, so we have to
-    ## launch a new R session and knit the document from there
+    ## the HTML documentation. 'package:knitr' cannot knit a document
+    ## inside another document, pretty embarrassing oversight, so we
+    ## have to launch a new R session and knit the document from there
     FILE4.R <- tempfile(fileext = ".R")
     this.path:::.write.code(bquote({
         knitr::knit(.(FILE2.Rmd), output = .(FILE3.md), quiet = TRUE)
@@ -316,7 +259,7 @@ if (requireNamespace("compiler")) {
 if (requireNamespace("box")) {
     FILE2.R <- tempfile(fileext = ".R")
     this.path:::.write.code(bquote({
-        ## we have to use box::set_script_path() because {box}
+        ## we have to use box::set_script_path() because 'package:box'
         ## does not allow us to import a module by its path
         script_path <- box::script_path()
         on.exit(box::set_script_path(script_path))

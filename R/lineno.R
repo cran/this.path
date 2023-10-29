@@ -40,7 +40,7 @@ sys.LINENO <- function ()
         context.number <- .External2(.C_getframenumber)
         if (context.number == 0L)
             return(NA_integer_)
-        path <- .External2(.C_syspath)
+        path <- .External2(.C_sys.path)
         TRUE
     }, error = function(e) FALSE)
     if (success)
@@ -55,7 +55,7 @@ env.LINENO <- function (n = 0L, envir = parent.frame(n + 1L), matchThisEnv = get
     envir
     matchThisEnv
     success <- tryCatch({
-        path <- .External2(.C_envpath, envir, matchThisEnv)
+        path <- .External2(.C_env.path, envir, matchThisEnv)
         TRUE
     }, error = function(e) FALSE)
     if (success)
@@ -64,17 +64,17 @@ env.LINENO <- function (n = 0L, envir = parent.frame(n + 1L), matchThisEnv = get
 }
 
 
-src.LINENO <- function (n = 0L, srcfile = sys.call(if (n) sys.parent(n) else 0L))
+src.LINENO <- function (n = 0L, srcfile = if (n) sys.parent(n) else 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
     srcfile
     tryCatch({
-        .External2(.C_srclineno, srcfile)
+        .External2(.C_src.LINENO, srcfile)
     }, error = function(e) NA_integer_)
 }
 
 
-LINENO <- eval(call("function", as.pairlist(alist(n = 0L, envir = parent.frame(n + 1L), matchThisEnv = getOption("topLevelEnvironment"), srcfile = sys.call(if (n) sys.parent(n) else 0L))), bquote({
+LINENO <- eval(call("function", as.pairlist(alist(n = 0L, envir = parent.frame(n + 1L), matchThisEnv = getOption("topLevelEnvironment"), srcfile = if (n) sys.parent(n) else 0L)), bquote({
     value <- .(body(src.LINENO))
     if (is.na(value)) {
         value <- .(body(env.LINENO)[-2L])
@@ -91,7 +91,7 @@ LINE <- eval(call("function", NULL, bquote({
         local({
            tmp <- src.LINENO
            as.call(c(as.list(quote({
-               srcfile <- sys.call()
+               srcfile <- 0L
            })), as.list(body(tmp)[-seq_len(length(formals(tmp)) + 1L)])))
         })
     )
@@ -402,86 +402,6 @@ source.exprs <- function (exprs, evaluated = FALSE, envir = parent.frame(), echo
         if (!tail) {
             yy <- withVisible(eval(ei, envir))
             if (print.eval && yy$visible)
-                .PrintValueEnv(yy$value, envir)
-        }
-    }
-    invisible(yy)
-}
-
-
-.toplevel.source <- function (file)
-{
-    envir <- .GlobalEnv
-    echo <- !isTRUE(.shINFO[["no.echo"]])
-    file <- substitute(file)
-    ofile <- file
-    if (is.character(file)) {
-    } else {
-        parse_file <- function(file) {
-            if (is.call(file)) {
-                if (typeof(file[[1L]]) == "symbol" && file[[1L]] == "/") {
-                    if (typeof(file[[3L]]) != "symbol")
-                        stop("invalid '%s' argument", "file", domain = "R")
-                    paste0(parse_file(file[[2L]]), "/", as.character(file[[3L]]))
-                }
-                else stop("invalid '%s' argument", "file", domain = "R")
-            }
-            else if (typeof(file) == "symbol")
-                as.character(file)
-            else stop("invalid '%s' argument", "file", domain = "R")
-        }
-        file <- if (is.call(file) && typeof(file[[1L]]) == "symbol" && file[[1L]] == "~")
-            paste0("~", parse_file(file[[2L]]))
-        else parse_file(file)
-    }
-    filename <- set.sys.path(file, path.only = TRUE, ignore.all = TRUE,
-        Function = c("toplevel.source", "this.path"))
-    file <- file(filename, "r", encoding = "")
-    on.exit(close(file))
-    lines <- readLines(file, warn = FALSE)
-    on.exit()
-    close(file)
-    srcfile <- srcfilecopy(filename, lines, file.mtime(filename)[1], isFile = TRUE)
-    exprs <- parse(n = -1, text = lines, keep.source = FALSE, srcfile = srcfile)
-    Ne <- length(exprs)
-    if (echo)
-        trySrcLines <- function(from, to) {
-            tryCatch(suppressWarnings(getSrcLines(srcfile, from, to)),
-                error = function(e) character())
-        }
-    yy <- NULL
-    lastshown <- 0L
-    srcrefs <- attr(exprs, "srcref")
-    for (i in seq_len(Ne + echo)) {
-        tail <- i > Ne
-        if (!tail)
-            ei <- exprs[i]
-        if (echo) {
-            srcref <- if (tail)
-                attr(exprs, "wholeSrcref")
-            else if (i <= length(srcrefs))
-                srcrefs[[i]]
-            if (!is.null(srcref)) {
-                firstl <- srcref[7L]
-                lastl <- srcref[8L]
-                if (lastshown < lastl) {
-                    dep <- trySrcLines(lastshown + 1L, lastl)
-                    if (length(dep)) {
-                        leading <- if (tail)
-                            length(dep)
-                        else firstl - lastshown
-                        lastshown <- lastl
-                        dep <- paste0(rep.int(c(getOption("prompt"), getOption("continue")),
-                            pmax(0L, c(         leading,             length(dep) - leading))),
-                            dep, collapse = "\n")
-                        cat(dep, "\n", sep = "")
-                    }
-                }
-            }
-        }
-        if (!tail) {
-            yy <- withVisible(eval(ei, envir))
-            if (yy$visible)
                 .PrintValueEnv(yy$value, envir)
         }
     }

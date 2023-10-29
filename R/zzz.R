@@ -141,7 +141,7 @@ if (getRversion() < "3.0.0") {
     ## backports.R  ----
 
 
-    fix.External2.fun(.setprseen2)
+    fix.External2.fun(.SET_PRSEEN_2)
 
     fix.External2.fun(anyNA)
     fix.External2.fun(anyNA.data.frame)
@@ -273,7 +273,7 @@ if (getRversion() < "3.0.0") {
     ## promises.R   ----
 
 
-    fix.External2.promise(".shINFO", ".gui.rstudio")
+    fix.External2.promise(".gui.rstudio", ".os.windows.maybe.unembedded.shell", ".shINFO", ".gui.rgui")
     fix.External2.fun(`.init.tools:rstudio`)
     fix.External2.fun(.PRINFO)
     fix.External2.fun(.mkPROMISE)
@@ -304,6 +304,13 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(reset.proj)
 
 
+    ## startup.R    ----
+
+
+    fix.External2.fun(.site.file)
+    fix.External2.fun(.init.file)
+
+
     ## thispath.R   ----
 
 
@@ -315,12 +322,13 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(.thisPathNotExistsError)
     fix.External2.fun(.thisPathInZipFileError)
     fix.External2.fun(.thisPathInAQUAError)
-    fix.External2.fun(.is.unevaluated.promise)
-    fix.External2.fun(.promise.is.unevaluated)
     fix.External2.fun(.is.clipboard)
-    fix.External2.fun(.sys.path.jupyter)
-    fix.External2.fun(.sys.path.toplevel)
-    fix.External2.fun(set.sys.path.jupyter)
+    fix.External2.fun(.fixNewlines)
+    fix.External2.fun(.jupyter.path)
+    fix.External2.fun(.rgui.path)
+    fix.External2.fun(.gui.path)
+    fix.External2.fun(set.jupyter.path)
+    fix.External2.fun(set.gui.path)
     fix.External2.fun(.faster.subsequent.times.test)
     fix.External2.fun(sys.path)
     fix.External2.fun(sys.dir)
@@ -330,6 +338,7 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(src.dir)
     fix.External2.fun(this.path)
     fix.External2.fun(this.dir)
+    fix.External2.fun(sys.srcref)
     fix.External2.fun(.here)
     fix.External2.fun(sys.here)
     fix.External2.fun(env.here)
@@ -356,6 +365,11 @@ if (getRversion() < "3.0.0") {
 
     fix.External2.fun(.istrue)
     fix.External2.fun(.isfalse)
+    fix.External2.fun(.asInteger)
+    fix.External2.fun(.asIntegerGE0)
+    fix.External2.fun(.IS_SCALAR_STR)
+    fix.External2.fun(.scalar_streql)
+    fix.External2.fun(.get.dyn)
 
 
     ## wrapsource.R ----
@@ -366,6 +380,7 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(unset.sys.path)
     fix.External2.fun(set.env.path)
     fix.External2.fun(set.src.path)
+    fix.External2.fun(set.sys.path.function)
 
 
     rm(fix.External2.promise, fix.External2.fun, fix.External2)

@@ -49,6 +49,7 @@ extern Rboolean R_existsVarInFrame(SEXP rho, SEXP symbol);
 #define do_start_no_op_rho(name, numParameters) do_start(name, numParameters)
 #define do_start_no_call_op_rho(name, numParameters) do_start(name, numParameters)
 #else
+#include "translations.h"
 #define do_formals (SEXP args)
 #define _do_start(name, numParameters)                         \
     args = CDR(args);                                          \
@@ -127,6 +128,7 @@ LibExtern SEXP R_LogicalNAValue;
 #if R_version_less_than(3, 1, 0)
 extern SEXP lazy_duplicate(SEXP s);
 extern SEXP shallow_duplicate(SEXP s);
+extern int IS_SCALAR(SEXP x, int type);
 #endif
 
 
@@ -152,13 +154,6 @@ extern void (ENSURE_NAMEDMAX)(SEXP x);
 #define IS_UTF8(x) (getCharCE((x)) == CE_UTF8)
 #else
 extern int IS_UTF8(SEXP x);
-#endif
-
-
-#if R_version_less_than(4, 2, 0)
-#define existsInFrame(rho, symbol) (findVarInFrame((rho), (symbol)) != R_UnboundValue)
-#else
-#define existsInFrame(rho, symbol) R_existsVarInFrame((rho), (symbol))
 #endif
 
 

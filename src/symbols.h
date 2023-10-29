@@ -31,10 +31,10 @@
 
 extern0 SEXP0
 #if R_version_less_than(3, 0, 0)
-    _setprseen2Symbol                      INI_as(install(".setprseen2")),
+    _SET_PRSEEN_2Symbol                    INI_as(install(".SET_PRSEEN_2")),
 #else
     _External2Symbol                       INI_as(install(".External2")),
-    _C_setprseen2Symbol                    INI_as(install(".C_setprseen2")),
+    _C_SET_PRSEEN_2Symbol                  INI_as(install(".C_SET_PRSEEN_2")),
 #endif
 #if R_version_less_than(3, 1, 0)
     _anyNA_dispatchSymbol                  INI_as(install(".anyNA.dispatch")),
@@ -52,6 +52,9 @@ extern0 SEXP0
 #if R_version_less_than(3, 4, 0)
     R_AsCharacterSymbol                    INI_as(install("as.character")),
 #endif
+#if R_version_less_than(4, 0, 0)
+    R_EvalSymbol                           INI_as(install("eval")),
+#endif
 #if R_version_less_than(4, 1, 0)
     new_envSymbol                          INI_as(install("new.env")),
 #endif
@@ -65,11 +68,12 @@ extern0 SEXP0
     nSymbol                                INI_as(install("n")),
     _normalizePathSymbol                   INI_as(install(".normalizePath")),
     _normalizeNotDirectorySymbol           INI_as(install(".normalizeNotDirectory")),
+    _normalizeFixDirectorySymbol           INI_as(install(".normalizeFixDirectory")),
     _normalizeAgainstSymbol                INI_as(install(".normalizeAgainst")),
     _isMethodsDispatchOnSymbol             INI_as(install(".isMethodsDispatchOn")),
     stopSymbol                             INI_as(install("stop")),
     delayedAssignSymbol                    INI_as(install("delayedAssign")),
-    _normalizeURL_1Symbol                  INI_as(install(".normalizeURL.1")),
+    _normalizeurl_1Symbol                  INI_as(install(".normalizeurl.1")),
 
     sourceSymbol                           INI_as(install("source")),
     NeSymbol                               INI_as(install("Ne")),
@@ -112,6 +116,15 @@ extern0 SEXP0
     shinySymbol                            INI_as(install("shiny")),
     srcSymbol                              INI_as(install("src")),
 
+    targetsSymbol                          INI_as(install("targets")),
+    tar_callr_inner_trySymbol              INI_as(install("tar_callr_inner_try")),
+    tar_load_globalsSymbol                 INI_as(install("tar_load_globals")),
+    tar_sourceSymbol                       INI_as(install("tar_source")),
+    tar_workspaceSymbol                    INI_as(install("tar_workspace")),
+    scriptSymbol                           INI_as(install("script")),
+    non_r_scriptsSymbol                    INI_as(install("non_r_scripts")),
+    oldSymbol                              INI_as(install("old")),
+
     methodsSymbol                          INI_as(install("methods")),
     showSymbol                             INI_as(install("show")),
     sys_callSymbol                         INI_as(install("sys.call")),
@@ -132,8 +145,16 @@ extern0 SEXP0
     linesSymbol                            INI_as(install("lines")),
     inputSymbol                            INI_as(install("input")),
     missingSymbol                          INI_as(install("missing")),
-    _sys_path_toplevelSymbol               INI_as(install(".sys.path.toplevel")),
-    _sys_path_jupyterSymbol                INI_as(install(".sys.path.jupyter")),
+    _gui_pathSymbol                        INI_as(install(".gui.path")),
+    verboseSymbol                          INI_as(install("verbose")),
+    originalSymbol                         INI_as(install("original")),
+    for_msgSymbol                          INI_as(install("for.msg")),
+    contentsSymbol                         INI_as(install("contents")),
+    _custom_gui_path_functionSymbol        INI_as(install(".custom.gui.path.function")),
+    guinameSymbol                          INI_as(install("guiname")),
+    _jupyter_pathSymbol                    INI_as(install(".jupyter.path")),
+    _site_fileSymbol                       INI_as(install(".site.file")),
+    _init_fileSymbol                       INI_as(install(".init.file")),
     _shFILESymbol                          INI_as(install(".shFILE")),
     encodeStringSymbol                     INI_as(install("encodeString")),
     na_encodeSymbol                        INI_as(install("na.encode")),
@@ -154,7 +175,7 @@ extern0 SEXP0
     print_defaultSymbol                    INI_as(install("print.default")),
     _xDataSymbol                           INI_as(install(".xData")),
     _DataSymbol                            INI_as(install(".Data")),
-    _validJupyterRNotebookSymbol           INI_as(install(".validJupyterRNotebook")),
+    _getJupyterRNotebookContentsSymbol     INI_as(install(".getJupyterRNotebookContents")),
     R_LengthSymbol                         INI_as(install("length")),
     file_infoSymbol                        INI_as(install("file.info")),
     is_naSymbol                            INI_as(install("is.na")),
@@ -163,7 +184,6 @@ extern0 SEXP0
     listSymbol                             INI_as(install("list")),
     envirSymbol                            INI_as(install("envir")),
     inheritsSymbol                         INI_as(install("inherits")),
-    for_msgSymbol                          INI_as(install("for.msg")),
     _getContentsSymbol                     INI_as(install(".getContents")),
     _getJupyterNotebookContentsSymbol      INI_as(install(".getJupyterNotebookContents")),
     _projSymbol                            INI_as(install(".proj")),
@@ -178,7 +198,7 @@ extern0 SEXP0
     isFileSymbol                           INI_as(install("isFile")),
     fixedNewlinesSymbol                    INI_as(install("fixedNewlines")),
     _fixNewlinesSymbol                     INI_as(install(".fixNewlines")),
-    originalSymbol                         INI_as(install("original")),
+
     else_Symbol                            INI_as(install("else.")),
     finallySymbol                          INI_as(install("finally")),
     funSymbol                              INI_as(install("fun")),
@@ -187,7 +207,8 @@ extern0 SEXP0
     funsSymbol                             INI_as(install("funs")),
     tryCatchSymbol                         INI_as(install("tryCatch")),
     do_elseSymbol                          INI_as(install("do_else")),
-    AssignSymbol                           INI_as(install("<-"));
+    AssignSymbol                           INI_as(install("<-")),
+    ifnotfoundSymbol                       INI_as(install("ifnotfound"));
 
 
 #undef extern0

@@ -23,7 +23,7 @@ SEXP R_getS4DataSlot(SEXP obj, SEXPTYPE type)
 
 #define _get_sym(elsecode)                                     \
     sym = CAR(args);                                           \
-    if (TYPEOF(sym) == SYMSXP) {}                              \
+    if (TYPEOF(sym) == SYMSXP);                                \
     else if (isValidStringF(sym)) {                            \
         if (XLENGTH(sym) > 1)                                  \
             errorcall(call, _("first argument has length > 1"));\
@@ -76,7 +76,7 @@ SEXP R_getS4DataSlot(SEXP obj, SEXPTYPE type)
 
 
 
-SEXP do_isunevaluatedpromise do_formals
+SEXP do_is_unevaluated_promise do_formals
 {
     /*
     return TRUE if get(sym, env, inherits = FALSE) will force a promise
@@ -84,10 +84,10 @@ SEXP do_isunevaluatedpromise do_formals
      */
 
 
-    do_start_no_op("isunevaluatedpromise", -1);
+    do_start_no_op("is.unevaluated.promise", -1);
 
 
-    handles_nargs(rho, ".C_isunevaluatedpromise");
+    handles_nargs(rho, ".C_is.unevaluated.promise");
 
 
     SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
@@ -100,15 +100,15 @@ SEXP do_isunevaluatedpromise do_formals
 }
 
 
-SEXP do_promiseisunevaluated do_formals
+SEXP do_promise_is_unevaluated do_formals
 {
-    /* similar to do_isunevaluatedpromise, but the binding MUST be a promise */
+    /* similar to do_is_unevaluated_promise, but the binding MUST be a promise */
 
 
-    do_start_no_op("promiseisunevaluated", -1);
+    do_start_no_op("promise.is.unevaluated", -1);
 
 
-    handles_nargs(ENCLOS(rho), ".C_promiseisunevaluated");
+    handles_nargs(ENCLOS(rho), ".C_promise.is.unevaluated");
 
 
     SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
@@ -124,7 +124,7 @@ SEXP do_promiseisunevaluated do_formals
 }
 
 
-SEXP do_getpromisewithoutwarning do_formals
+SEXP do_forcePromise_no_warn do_formals
 {
     /* return the result of getting a promise, silencing a possible warning
      * about "restarting interrupted promise evaluation"
@@ -133,10 +133,10 @@ SEXP do_getpromisewithoutwarning do_formals
      */
 
 
-    do_start_no_op("getpromisewithoutwarning", -1);
+    do_start_no_op("forcePromise.no.warn", -1);
 
 
-    handles_nargs(ENCLOS(rho), ".C_getpromisewithoutwarning");
+    handles_nargs(ENCLOS(rho), ".C_forcePromise.no.warn");
 
 
     SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
@@ -150,13 +150,13 @@ SEXP do_getpromisewithoutwarning do_formals
 
     if (PRVALUE(value) == R_UnboundValue) {
         if (PRSEEN(value)) {
-            if (PRSEEN(value) == 1) {}
+            if (PRSEEN(value) == 1);
             else SET_PRSEEN(value, 0);
         }
+        PROTECT(value);
         eval(value, env);
+        UNPROTECT(1);
     }
-
-
     return PRVALUE(value);
 }
 

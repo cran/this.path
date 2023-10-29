@@ -1,24 +1,43 @@
 \name{wrap.source}
 \alias{wrap.source}
 \alias{set.sys.path}
+\alias{unset.sys.path}
 \alias{set.env.path}
 \alias{set.src.path}
-\alias{unset.sys.path}
+\alias{set.sys.path.function}
+\alias{with_sys.path}
+\alias{with_site.file}
+\alias{with_init.file}
 \title{Implement 'this.path()' For Arbitrary 'source()'-Like Functions}
 \description{
   \code{\link{sys.path}()} is implemented to work with \sourcesandlistlinks.
 
-  \code{wrap.source()} and \code{set.sys.path()} can be used to implement
+  \code{set.sys.path()} and \code{wrap.source()} can be used to implement
   \code{sys.path()} for any other \sourcenolink-like functions.
 
   \code{set.env.path()} and \code{set.src.path()} can be used along side
   \code{set.sys.path()} to implement \code{\link{env.path}()} and
-  \code{\link{src.path}()}, though \code{set.env.path()} only makes sense if
+  \code{\link{src.path}()}. Note that \code{set.env.path()} only makes sense if
   the code is being modularized, see examples.
 
   \code{unset.sys.path()} will undo a call to \code{set.sys.path()}. You will
   need to use this if you wish to call \code{set.sys.path()} multiple times
   within a function.
+
+  \code{set.sys.path.function()} is a special variant of \code{set.sys.path()}
+  to be called within \code{callr::r()} on a function with an appropriate
+  \code{\link[base:srcfile]{srcref}}.
+
+  \code{with_sys.path()} is a convenient way to evaluate code within the
+  context of a file. Whereas \code{set.sys.path()} can only be used within a
+  function, \code{with_sys.path()} can only be used outside a function.
+  \code{with_site.file()} and \code{with_init.file()} provide two common use
+  cases of \code{with_sys.path()}; within the site-wide startup profile file or
+  a user profile. You could combine these with \code{\link{withAutoprint}()} to
+  auto-print expressions as if in a toplevel context, for example:
+  \preformatted{this.path::with_init.file(withAutoprint({
+    this.path::this.path()
+}, echo = FALSE))}
 
   See \code{?\link{sys.path}(local = TRUE)} which returns the path of the
   executing script, confining the search to the local environment in which
@@ -81,9 +100,20 @@ set.env.path(envir, matchThisEnv = getOption("topLevelEnvironment"))
 set.src.path(srcfile)
 
 unset.sys.path()
+
+set.sys.path.function(fun)
+
+with_sys.path(file, expr, ...)
+with_site.file(expr, n = 0)
+with_init.file(expr, n = 0)
 }
 \arguments{
-  \item{expr}{an (unevaluated) call to a \sourcenolink-like function.}
+  \item{expr}{for \code{wrap.source()}, an (unevaluated) call to a
+    \sourcenolink-like function.
+
+    for \code{with_sys.path()}, \code{with_site.file()}, and
+    \code{with_init.file()}, an expression to evaluate within the context of a
+    file.}
 
   \item{file}{a
     \ifelse{html}{\codelink2{base:connections}{connection}}{connection} or a
@@ -144,6 +174,12 @@ unset.sys.path()
     environment in which to assign an associated path.}
 
   \item{srcfile}{source file in which to assign a pathname.}
+
+  \item{fun}{function with a \code{srcref}.}
+
+  \item{\dots}{further arguments passed to \code{set.sys.path()}.}
+
+  \item{n}{see \code{?\link{this.path}()}.}
 }
 \details{
   \code{set.sys.path()} should be added to the body of your \sourcenolink-like
@@ -240,6 +276,17 @@ unset.sys.path()
     debugSource(fileName = fileName, ...)
 }}}
 
+    \item{\compilerloadcmpnolink}{\preformatted{wrapper <- function(file, ...) {
+    file <- set.sys.path(file, path.only = TRUE)
+    compiler::loadcmp(file = file, ...)
+}}}
+
+    \item{\knitrknitnolink}{\preformatted{wrapper <- function(input, ...) {
+    ## this works for the most part, but will not work in child mode
+    input <- set.sys.path(input, allow.file.uri = FALSE)
+    knitr::knit(input = input, ...)
+}}}
+
     \item{\testthatsourcefilenolink}{\preformatted{wrapper <- function(path, ...) {
     ## before testthat_3.1.2, source_file() used readLines() to read
     ## the input lines. changed in 3.1.2, source_file() uses
@@ -250,20 +297,9 @@ unset.sys.path()
     testthat::source_file(path = path, ...)
 }}}
 
-    \item{\knitrknitnolink}{\preformatted{wrapper <- function(input, ...) {
-    ## this works for the most part, but will not work in child mode
-    input <- set.sys.path(input, allow.file.uri = FALSE)
-    knitr::knit(input = input, ...)
-}}}
-
-    \item{\compilerloadcmpnolink}{\preformatted{wrapper <- function(file, ...) {
-    file <- set.sys.path(file, path.only = TRUE)
-    compiler::loadcmp(file = file, ...)
-}}}
-
-    \boxusenolink, \shinyrunAppnolink, and \plumberplumbnolink do not have any
-    simple implementations using \code{set.sys.path()} since the sourcing
-    functions are the internal objects of these namespaces.
+    \boxusenolink, \plumberplumbnolink, \shinyrunAppnolink, and \targetsnolink
+    do not have any simple implementations using \code{set.sys.path()} since
+    the sourcing functions are the internal objects of these namespaces.
   }
 }
 \examples{

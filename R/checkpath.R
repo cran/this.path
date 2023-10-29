@@ -31,7 +31,7 @@ tmp <- function (x, varname, name)
     varname <- as.symbol(varname)
     expr <- bquote({
         expected <- path.join(...)
-        if (!is.character(expected) || length(expected) != 1L)
+        if (!.IS_SCALAR_STR(expected))
             stop(gettextf("'%s' must be a character string", "expected", domain = "R"))
         if (!nzchar(expected))
             stop(gettextf("'%s' must not be \"\"", "expected"))
@@ -75,12 +75,12 @@ tmp <- function (x, varname, name)
 
 
 check.path <- eval(call("function", as.pairlist(alist(... = )),
-tmp(expression(varname <- .External2(.C_thispath)), "thispath", "this.path()")
+tmp(expression(varname <- .External2(.C_this.path)), "thispath", "this.path()")
 ))
 
 
 check.dir <- eval(call("function", as.pairlist(alist(... = )),
-tmp(expression(varname <- .External2(.C_thispath), varname <- .dir(varname)), "thisdir", "this.dir()")
+tmp(expression(varname <- .External2(.C_this.path), varname <- .dir(varname)), "thisdir", "this.dir()")
 ))
 
 
@@ -90,14 +90,14 @@ rm(tmp)
 check.proj <- function (...)
 {
     expected <- path.join(...)
-    if (!is.character(expected) || length(expected) != 1L)
+    if (!.IS_SCALAR_STR(expected))
         stop(gettextf("'%s' must be a character string", "expected", domain = "R"))
     if (!nzchar(expected))
         stop(gettextf("'%s' must not be \"\"", "expected"))
     expected <- path.split.1(expected)
     if (check.wd <- expected[[1L]] == ".")
         expected <- expected[-1L]
-    thispath <- .External2(.C_thispath)
+    thispath <- .External2(.C_this.path)
     thisproj <- .proj(.dir(thispath))
     thispath <- path.split.1(thispath)
     thisproj <- path.split.1(thisproj)

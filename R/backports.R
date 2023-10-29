@@ -10,8 +10,8 @@ delayedAssign(".C_mapply", getNativeSymbolInfo("do_mapply", PACKAGE = "base"))
 .Call(.C_mapply, match.fun(FUN), dots, MoreArgs, environment())
 
 
-.setprseen2 <- function (ptr)
-.External2(.C_setprseen2, ptr)
+.SET_PRSEEN_2 <- function (ptr)
+.External2(.C_SET_PRSEEN_2, ptr)
 
 
 parse <- evalq(envir = .BaseNamespaceEnv,
@@ -48,11 +48,11 @@ UseMethod("anyNA")
 
 
 anyNA.data.frame <- function (x, recursive = FALSE)
-.External2(.C_anyNAdataframe, x, recursive)
+.External2(.C_anyNA.data.frame, x, recursive)
 
 
 anyNA.numeric_version <- function (x, recursive = FALSE)
-.External2(.C_anyNAnumericversion, x)
+.External2(.C_anyNA.numeric_version, x)
 
 
 anyNA.POSIXlt <- function (x, recursive = FALSE)
@@ -60,7 +60,7 @@ anyNA(as.POSIXct.POSIXlt(x))
 
 
 .anyNA.default <- function (x, recursive = FALSE)
-.External2(.C_anyNAdefault, x, recursive)
+.External2(.C_anyNA.default, x, recursive)
 
 
 }
@@ -74,7 +74,7 @@ isNamespaceLoaded <- function (name)
 
 
 dir.exists <- function (paths)
-.External2(.C_direxists, paths)
+.External2(.C_dir.exists, paths)
 
 
 lengths <- function (x, use.names = TRUE)
@@ -82,7 +82,7 @@ lengths <- function (x, use.names = TRUE)
 
 
 .lengths.default <- function (x, use.names = TRUE)
-.External2(.C_lengthsdefault, x, use.names)
+.External2(.C_lengths.default, x, use.names)
 
 
 ## file.info() did not have argument 'extra_cols' at this time
@@ -148,18 +148,18 @@ if (getRversion() < "3.4.0") {
 .withAutoprint <- function (exprs, evaluated = FALSE, local = parent.frame(), print. = TRUE,
     echo = TRUE, max.deparse.length = Inf, width.cutoff = max(20, getOption("width")),
     deparseCtrl = c("keepInteger", "showAttributes", "keepNA"),
-    spaced = FALSE, skip.echo = 0, ...)
+    skip.echo = 0, spaced = FALSE, ...)
 {
     if (!evaluated) {
         exprs <- substitute(exprs)
         if (is.call(exprs)) {
-            if (exprs[[1]] == quote(`{`)) {
-                exprs <- as.list(exprs)[-1]
+            if (typeof(exprs[[1L]]) == "symbol" && exprs[[1L]] == "{") {
+                exprs <- as.list(exprs)[-1L]
                 if (missing(skip.echo) &&
                     length(exprs) &&
-                    is.list(srcrefs <- attr(exprs, "srcref")))
+                    typeof(srcref <- attr(exprs, "srcref", exact = TRUE)) == "list")
                 {
-                    skip.echo <- srcrefs[[1L]][7L] - 1L
+                    skip.echo <- srcref[[1L]][7L] - 1L
                 }
             }
         }
@@ -171,6 +171,9 @@ if (getRversion() < "3.4.0") {
     source(file = conn, local = local, print.eval = print., echo = echo,
         max.deparse.length = max.deparse.length, skip.echo = skip.echo, ...)
 }
+
+
+withAutoprint <- .withAutoprint
 
 
 } else {
@@ -185,13 +188,13 @@ function (exprs, evaluated = FALSE, local = parent.frame(), print. = TRUE,
     if (!evaluated) {
         exprs <- substitute(exprs)
         if (is.call(exprs)) {
-            if (exprs[[1]] == quote(`{`)) {
-                exprs <- as.list(exprs)[-1]
+            if (typeof(exprs[[1L]]) == "symbol" && exprs[[1L]] == "{") {
+                exprs <- as.list(exprs)[-1L]
                 if (missing(skip.echo) &&
                     length(exprs) &&
-                    is.list(srcrefs <- attr(exprs, "srcref")))
+                    typeof(srcref <- attr(exprs, "srcref", exact = TRUE)) == "list")
                 {
-                    skip.echo <- srcrefs[[1L]][7L] - 1L
+                    skip.echo <- srcref[[1L]][7L] - 1L
                 }
             }
         }
@@ -211,7 +214,7 @@ if (getRversion() < "3.5.0") {
 
 
 ...length <- function ()
-.External2(.C_dotslength)
+.External2(.C_...length)
 
 
 isTRUE <- evalq(envir = .BaseNamespaceEnv,
@@ -241,17 +244,19 @@ structure(list(message = as.character(message), call = call, ...),
 
 str2expression <- function (text)
 {
-    if (typeof(text) != "character")
+    if (!is.character(text))
         stop("argument must be character", domain = "R")
     parse(text = text, n = -1, keep.source = FALSE, srcfile = NULL)
 }
 
 
+.IS_SCALAR_STR <- function (x)
+is.character(x) && length(unclass(x)) == 1L
+
+
 str2lang <- function (s)
 {
-    if (typeof(s) != "character")
-        stop("argument must be character", domain = "R")
-    if (length(s) != 1L)
+    if (!.IS_SCALAR_STR(s))
         stop("argument must be a character string", domain = "R")
     ans <- parse(text = s, n = -1, keep.source = FALSE, srcfile = NULL)
     if (length(ans) != 1L)

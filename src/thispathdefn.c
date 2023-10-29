@@ -1,6 +1,53 @@
 #include "thispathdefn.h"
 
 
+#if R_version_at_least(3, 0, 0)
+R_xlen_t asXLength(SEXP x)
+{
+    const R_xlen_t na = -999;
+
+    if (isVectorAtomic(x) && XLENGTH(x) >= 1) {
+        switch (TYPEOF(x)) {
+        case LGLSXP:
+        case INTSXP:
+        {
+            int x0 = INTEGER(x)[0];
+            if (x0 == NA_INTEGER)
+                return na;
+            else
+                return (R_xlen_t) x0;
+        }
+        case REALSXP:
+        {
+            double x0 = REAL(x)[0];
+            if (!R_FINITE(x0) || x0 > R_XLEN_T_MAX || x0 < 0)
+                return na;
+            else
+                return (R_xlen_t) x0;
+        }
+        case CPLXSXP:
+        case STRSXP:
+            break;
+        default:
+            UNIMPLEMENTED_TYPE("asXLength", x);
+        }
+    } else if (TYPEOF(x) != CHARSXP)
+        return na;
+
+    double d = asReal(x);
+    if (!R_FINITE(d) || d > R_XLEN_T_MAX || d < 0)
+        return na;
+    else
+        return (R_xlen_t) d;
+}
+#else
+R_xlen_t asXLength(SEXP x)
+{
+    return asInteger(x);
+}
+#endif
+
+
 Rboolean needQuote(SEXP x)
 {
     switch (TYPEOF(x)) {
@@ -47,16 +94,18 @@ SEXP getInFrame(SEXP sym, SEXP env, int unbound_ok)
     if (!unbound_ok && value == R_UnboundValue)
         error(_("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
     if (TYPEOF(value) == PROMSXP) {
-        if (PRVALUE(value) == R_UnboundValue)
-            return eval(value, R_EmptyEnv);
-        else
-            return PRVALUE(value);
+        if (PRVALUE(value) == R_UnboundValue) {
+            PROTECT(value);
+            value = eval(value, R_EmptyEnv);
+            UNPROTECT(1);
+        }
+        else value = PRVALUE(value);
     }
-    else return value;
+    return value;
 }
 
 
-SEXP getInList(SEXP sym, SEXP list, int C_NULL_ok)
+SEXP getInList(SEXP sym, SEXP list, int NULL_ok)
 {
     const char *what = translateChar(PRINTNAME(sym));
     SEXP names = PROTECT(getAttrib(list, R_NamesSymbol));
@@ -66,7 +115,7 @@ SEXP getInList(SEXP sym, SEXP list, int C_NULL_ok)
             return VECTOR_ELT(list, i);
         }
     }
-    if (!C_NULL_ok)
+    if (!NULL_ok)
         error("element '%s' not found", EncodeChar(PRINTNAME(sym)));
     UNPROTECT(1);
     return NULL;
@@ -360,16 +409,18 @@ SEXP DocumentContext(void)
 {
     SEXP documentcontext = R_NewEnv(mynamespace, TRUE, 10);
     PROTECT(documentcontext);
-    setAttrib(documentcontext, R_ClassSymbol, DocumentContextCls);
+    setAttrib(documentcontext, R_ClassSymbol, DocumentContextClass);
     UNPROTECT(1);
     return documentcontext;
 }
 
 
-int ofile_is_NULL(SEXP documentcontext)
-{
-    return findVarInFrame(documentcontext, ofileSymbol) == R_NilValue;
-}
+/* instead of doing:
+ * document.context$ofile <- NULL
+ * to declare that a document context does not refer to a file, now we do:
+ * document.context <- emptyenv()
+ * this is much easier to test for and to read and to debug
+ */
 
 
 #define _assign(file, documentcontext)                         \
@@ -378,19 +429,24 @@ int ofile_is_NULL(SEXP documentcontext)
     defineVar(fileSymbol, e, (documentcontext))
 
 
-void assign_default(SEXP file, SEXP documentcontext, Rboolean check_not_directory)
+static R_INLINE
+SEXP NA_TYPE2sym(NA_TYPE normalize_action)
 {
-    _assign(file, documentcontext);
-    SET_PRCODE(e, LCONS(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol,
-                        CONS(file, R_NilValue)));
+    switch (normalize_action) {
+    case NA_DEFAULT: return _normalizePathSymbol        ;
+    case NA_NOT_DIR: return _normalizeNotDirectorySymbol;
+    case NA_FIX_DIR: return _normalizeFixDirectorySymbol;
+    default:
+        errorcall(R_NilValue, _("invalid '%s' value"), "normalize_action");
+        return R_NilValue;
+    }
 }
 
 
-void assign_null(SEXP documentcontext)
+void assign_default(SEXP file, SEXP documentcontext, NA_TYPE normalize_action)
 {
-    /* make and force the promise */
-    _assign(R_NilValue, documentcontext);
-    eval(e, R_EmptyEnv);
+    _assign(file, documentcontext);
+    SET_PRCODE(e, LCONS(NA_TYPE2sym(normalize_action), CONS(file, R_NilValue)));
 }
 
 
@@ -405,7 +461,7 @@ void assign_chdir(SEXP file, SEXP owd, SEXP documentcontext)
 }
 
 
-void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, Rboolean check_not_directory)
+void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, NA_TYPE normalize_action)
 {
     _assign(ofile, documentcontext);
 
@@ -437,12 +493,12 @@ void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, Rboolean check
 #endif
 
 
-    SET_PRCODE(e, LCONS(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol,
+    SET_PRCODE(e, LCONS(NA_TYPE2sym(normalize_action),
                         CONS(ScalarString(mkCharCE(url, ienc)), R_NilValue)));
 }
 
 
-void assign_file_uri2(SEXP description, SEXP documentcontext, Rboolean check_not_directory)
+void assign_file_uri2(SEXP description, SEXP documentcontext, NA_TYPE normalize_action)
 {
     const char *url = CHAR(description);
     char _buf[8 + strlen(url) + 1];
@@ -464,7 +520,7 @@ void assign_file_uri2(SEXP description, SEXP documentcontext, Rboolean check_not
 
     SEXP ofile = ScalarString(mkCharCE(buf, getCharCE(description)));
     _assign(ofile, documentcontext);
-    SET_PRCODE(e, LCONS(check_not_directory ? _normalizeNotDirectorySymbol : _normalizePathSymbol,
+    SET_PRCODE(e, LCONS(NA_TYPE2sym(normalize_action),
                         CONS(ScalarString(description), R_NilValue)));
 }
 
@@ -480,7 +536,7 @@ void assign_url(SEXP ofile, SEXP file, SEXP documentcontext)
 #endif
 
 
-    SET_PRCODE(e, LCONS(_normalizeURL_1Symbol, CONS(ofile, R_NilValue)));
+    SET_PRCODE(e, LCONS(_normalizeurl_1Symbol, CONS(ofile, R_NilValue)));
     eval(e, R_EmptyEnv);  /* force the promise */
 }
 
@@ -553,12 +609,22 @@ static Rboolean _init_tools_rstudio(void)
 
 
 #define assigninmynamespace(sym, val)                          \
-            if (R_BindingIsLocked((sym), mynamespace)) {       \
-                R_unLockBinding((sym), mynamespace);           \
-                INCREMENT_NAMED_defineVar((sym), (val), mynamespace);\
-                R_LockBinding((sym), mynamespace);             \
-            }                                                  \
-            else INCREMENT_NAMED_defineVar((sym), (val), mynamespace)
+            do {                                               \
+                SEXP e = findVarInFrame(mynamespace, (sym));   \
+                if (TYPEOF(e) == PROMSXP) {                    \
+                    SET_PRCODE(e, (val));                      \
+                    SET_PRENV(e, R_NilValue);                  \
+                    SET_PRVALUE(e, (val));                     \
+                    SET_PRSEEN(e, 0);                          \
+                } else {                                       \
+                    if (R_BindingIsLocked((sym), mynamespace)) {\
+                        R_unLockBinding((sym), mynamespace);   \
+                        INCREMENT_NAMED_defineVar((sym), makeEVPROMISE((val), (val)), mynamespace);\
+                        R_LockBinding((sym), mynamespace);     \
+                    }                                          \
+                    else INCREMENT_NAMED_defineVar((sym), makeEVPROMISE((val), (val)), mynamespace);\
+                }                                              \
+            } while (0)
 
 
             assigninmynamespace(_rs_api_getActiveDocumentContextSymbol, _rs_api_getActiveDocumentContext);
@@ -580,13 +646,13 @@ static Rboolean _init_tools_rstudio(void)
 }
 
 
-int gui_rstudio = -1;
+int _gui_rstudio = -1;
 Rboolean has_tools_rstudio = FALSE;
 
 
 Rboolean init_tools_rstudio(Rboolean skipCheck)
 {
-    if (skipCheck || in_rstudio) {
+    if (skipCheck || gui_rstudio) {
         if (!has_tools_rstudio) {
             has_tools_rstudio = _init_tools_rstudio();
         }
@@ -595,7 +661,7 @@ Rboolean init_tools_rstudio(Rboolean skipCheck)
 }
 
 
-int maybe_unembedded_shell = -1;
+int _maybe_unembedded_shell = -1;
 
 
 #ifdef _WIN32

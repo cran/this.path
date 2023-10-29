@@ -1,12 +1,12 @@
 oopt <- options(keep.source = FALSE)
 path.functions <- function (file, local = FALSE, n = 0L, envir = parent.frame(n + 1L),
     matchThisEnv = getOption("topLevelEnvironment"),
-    srcfile = sys.call(if (n) sys.parent(n) else 0L))
+    srcfile = if (n) sys.parent(n) else 0L)
 {
     if (missing(file)) {
         n <- .External2(.C_asIntegerGE0, n)
-        ofile <- .External2(.C_thispath, FALSE, TRUE, FALSE, FALSE, local, envir, matchThisEnv, srcfile)
-        file <- .External2(.C_thispath, local, envir, matchThisEnv, srcfile)
+        ofile <- .External2(.C_this.path, FALSE, TRUE, FALSE, FALSE, local, envir, matchThisEnv, srcfile)
+        file <- .External2(.C_this.path, local, envir, matchThisEnv, srcfile)
     }
     else {
         ofile <- file
@@ -14,7 +14,7 @@ path.functions <- function (file, local = FALSE, n = 0L, envir = parent.frame(n 
             allow.file.uri = TRUE)
         unset.sys.path()
     }
-    rm(srcfile, matchThisEnv, envir, local)
+    rm(srcfile, matchThisEnv, envir, n, local)
     directory <- .dir(file)
 
 

@@ -14,7 +14,7 @@
 \alias{inside.source}
 \alias{set.this.path}
 \alias{unset.this.path}
-\title{Defunct Functions in Package \pkg{this.path}}
+\title{Defunct Functions in Package 'this.path'}
 \description{The functions or variables listed here are no longer part of
   \pkg{this.path} as they are no longer needed.}
 \usage{
@@ -90,7 +90,7 @@ unset.this.path()
   \code{this.path()} was renamed to \code{sys.path()}, so
   \code{set.this.path.jupyter()}, \code{set.this.path()}, and
   \code{unset.this.path()} were accordingly renamed to
-  \code{set.sys.path.jupyter()}, \code{set.sys.path()}, and
+  \code{set.jupyter.path()}, \code{set.sys.path()}, and
   \code{unset.sys.path()}. Since \code{set.this.path()} was already being made
   defunct, \code{inside.source()} was also made defunct.
 }

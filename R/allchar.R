@@ -54,7 +54,10 @@ tmp <- evalq(envir = new.env(), {
     .os.windows <- quote(.os.windows)
     `identical(R.version[["crt"]], "ucrt")` <- quote(identical(R.version[["crt"]], "ucrt"))
     .ucrt <- quote(.ucrt)
-function(expr) {
+    `!is.character(LANGUAGE) || length(LANGUAGE) != 1L` <- quote(!is.character(LANGUAGE) || length(LANGUAGE) != 1L)
+    `!.IS_SCALAR_STR(LANGUAGE)` = quote(!.IS_SCALAR_STR(LANGUAGE))
+function (expr)
+{
     if (typeof(expr) == "closure") {
         formals(expr) <- tmp(formals(expr))
         body(expr) <- tmp(body(expr))
@@ -68,6 +71,8 @@ function(expr) {
             .os.windows
         else if (identical(expr, `identical(R.version[["crt"]], "ucrt")`))
             .ucrt
+        else if (identical(expr, `!is.character(LANGUAGE) || length(LANGUAGE) != 1L`))
+            `!.IS_SCALAR_STR(LANGUAGE)`
         else as.call(lapply(expr, tmp))
     }
     else expr
@@ -75,7 +80,7 @@ function(expr) {
 })
 
 
-.languageEnvvars <- tmp(.languageEnvvars)
+.language.envvars <- tmp(.language.envvars)
 Sys.putenv <- tmp(Sys.putenv)
 
 

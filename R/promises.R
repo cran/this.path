@@ -222,23 +222,23 @@ delayedAssign(".os.windows", .Platform$OS.type == "windows")
 ## we need to determine the type of GUI in use. unfortunately, .Platform$GUI is
 ## not good enough. for example, 'VSCode' and 'Jupyter' do not set
 ## .Platform$GUI, and 'RStudio' does not set .Platform$GUI until after the
-## site-wide startup profile file, the user profile, and the function .First()
+## site-wide startup profile file, a user profile, and the function .First()
 ## have been run (see ?Startup).
 ##
 ## as such, I've made my own ways of determining the type of GUI in use
 delayedAssign(".gui.rstudio",
     commandArgs()[[1L]] == "RStudio" &&
     isTRUE(Sys.getpid() == Sys.getenv("RSTUDIO_SESSION_PID")) &&
-    if (.Platform$GUI == "RStudio") { .External2(.C_inittoolsrstudio, skipCheck = TRUE); TRUE }
+    if (.Platform$GUI == "RStudio") { .External2(.C_init.tools.rstudio, skipCheck = TRUE); TRUE }
     else (
-        (.os.unix    && .Platform$GUI %in% c("X11"  , "unknown", "none")) ||
+        (.os.unix    && .Platform$GUI %in% c("X11", "unknown", "none")) ||
         (.os.windows && .Platform$GUI == "Rgui")
     )
 )
 
 
 delayedAssign(".os.unix.maybe.unembedded.shell"   , .os.unix    && .Platform$GUI %in% c("X11"  , "unknown", "none") &&                        "R" == basename2(commandArgs()[[1L]]) )
-delayedAssign(".os.windows.maybe.unembedded.shell", .os.windows && .Platform$GUI %in% c("RTerm", "unknown"        ) && grepl("(?i)^Rterm(\\.exe)?$", basename2(commandArgs()[[1L]])))
+delayedAssign(".os.windows.maybe.unembedded.shell", .os.windows && .Platform$GUI %in% c("RTerm", "unknown"        ) && grepl("(?i)^Rterm(\\.exe)?$", basename2(commandArgs()[[1L]])) && .External2(.C_CharacterMode) == "RTerm")
 delayedAssign(".maybe.unembedded.shell", .os.unix.maybe.unembedded.shell || .os.windows.maybe.unembedded.shell)
 
 
@@ -291,7 +291,7 @@ delayedAssign(".gui.jupyter",
 
 
 delayedAssign(".gui.aqua", .os.unix    && .Platform$GUI == "AQUA" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter)
-delayedAssign(".gui.rgui", .os.windows && .Platform$GUI == "Rgui" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter)
+delayedAssign(".gui.rgui", .os.windows && .Platform$GUI == "Rgui" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter && .External2(.C_RConsole))
 delayedAssign(".gui.tk"  , .os.unix    && .Platform$GUI == "Tk"   && !.gui.rstudio && !.gui.vscode && !.gui.jupyter)
 
 
@@ -299,7 +299,7 @@ delayedAssign(".gui.tk"  , .os.unix    && .Platform$GUI == "Tk"   && !.gui.rstud
 .rs.api.getActiveDocumentContext <- function (...)
 {
     if (.gui.rstudio)
-        stop("RStudio has not finished loading")
+        stop(.thisPathNotExistsError("RStudio has not finished loading"))
     else stop("RStudio is not running")
 }
 .rs.api.getSourceEditorContext <- .rs.api.getActiveDocumentContext
@@ -307,7 +307,7 @@ delayedAssign(".gui.tk"  , .os.unix    && .Platform$GUI == "Tk"   && !.gui.rstud
 
 
 `.init.tools:rstudio` <- function ()
-.External2(.C_inittoolsrstudio)
+.External2(.C_init.tools.rstudio)
 
 
 delayedAssign(".os.unix.in.shell"   , .os.unix.maybe.unembedded.shell    && !.gui.vscode && !.gui.jupyter)

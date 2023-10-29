@@ -1,4 +1,13 @@
 #include "thispathdefn.h"
+#include "get_file_from_closure.h"
+
+
+#ifdef _WIN32
+#define Win32 1  /* this will give us access to UImode in R_ext/RStartup.h */
+#include <R_ext/RStartup.h>  /* definition of UImode */
+#undef Win32
+extern UImode CharacterMode;
+#endif
 
 
 // #define debug
@@ -7,88 +16,26 @@
 
 
 
+SEXP do_site_file do_formals
+{
+    do_start_no_call_op_rho("site.file", 2);
+#define get_file_from_closure2(sym)                            \
+    (get_file_from_closure(asLogical(CAR(args)), asLogical(CADR(args)), (sym)))
+    return get_file_from_closure2(_site_fileSymbol);
+}
+
+
+SEXP do_init_file do_formals
+{
+    do_start_no_call_op_rho("init.file", 2);
+    return get_file_from_closure2(_init_fileSymbol);
+}
+
+
 SEXP do_shFILE do_formals
 {
-    /*
-    do_shFILE {this.path}                                        C Documentation
-
-    Get Argument FILE Provided to R by a Shell
-
-
-
-    Description:
-
-    This function chooses whether to return `thispathofile` or `thispathfile`.
-    It examines the promises, determining which to return based on whether
-    they're evaluated.
-
-    This is not the workhorse behind extracting FILE from a shell.
-     */
-
-
-    do_start_no_op_rho("shFILE", 2);
-
-
-    /* see ?shFILE */
-    int original = asLogical(CAR(args)); args = CDR(args);
-    int for_msg  = asLogical(CAR(args)); args = CDR(args);
-    if (for_msg == NA_LOGICAL)
-        error(_("invalid '%s' argument"), "for.msg");
-
-
-    /* if 'for.msg = TRUE', we treat 'original = FALSE' as 'original = NA' */
-    if (for_msg && !original) original = NA_LOGICAL;
-
-
-    SEXP env = getFromMyNS(_shFILESymbol);
-    if (TYPEOF(env) != CLOSXP)
-        errorcall(call, "'%s' is not a closure", EncodeChar(PRINTNAME(_shFILESymbol)));
-    env = CLOENV(env);
-
-
-    if (original == NA_LOGICAL) {
-
-
-#define get_and_check(var, sym)                                \
-        SEXP var = findVarInFrame(env, (sym));                 \
-        if (var == R_UnboundValue)                             \
-            error(_("object '%s' not found"), EncodeChar(PRINTNAME((sym))));\
-        if (TYPEOF(var) != PROMSXP)                            \
-            error("invalid '%s', must be a promise", EncodeChar(PRINTNAME((sym))))
-
-
-        get_and_check(file, fileSymbol);
-        /* if the promise has not already been forced, just get the original */
-        if (PRVALUE(file) == R_UnboundValue)
-            original = TRUE;
-        else
-            return PRVALUE(file);
-    }
-    if (original) {
-#define get_and_return(var, sym)                               \
-        get_and_check(var, sym);                               \
-        if (PRVALUE(var) == R_UnboundValue) {                  \
-            /* unlike a normal promise, we DO NOT want to */   \
-            /* throw a warning if var is re-evaluated     */   \
-            if (PRSEEN(var)) {                                 \
-                if (PRSEEN(var) == 1) {}                       \
-                else SET_PRSEEN(var, 0);                       \
-            }                                                  \
-            return eval(var, R_EmptyEnv);                      \
-        }                                                      \
-        else                                                   \
-            return PRVALUE(var)
-
-
-        get_and_return(ofile, ofileSymbol);
-    }
-    else {
-        get_and_return(file, fileSymbol);
-    }
-
-
-#undef get_and_return
-#undef get_and_check
+    do_start_no_call_op_rho("shFILE", 2);
+    return get_file_from_closure2(_shFILESymbol);
 }
 
 
@@ -98,7 +45,7 @@ SEXP do_shFILE do_formals
 #if defined(_WIN32)
 
 
-// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L955
+// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L957
 static void env_command_line(int *pac, const char **argv)
 {
     int ac = *pac, newac = 1;
@@ -113,8 +60,7 @@ static void env_command_line(int *pac, const char **argv)
             argv[newac++] = *av;
             continue;
         }
-        if (!hadE && **av != '-' && strchr(*av, '=')) {
-        }
+        if (!hadE && **av != '-' && strchr(*av, '='));
         else argv[newac++] = *av;
         hadE = FALSE;
     }
@@ -126,45 +72,40 @@ static void env_command_line(int *pac, const char **argv)
 
 
 // https://github.com/wch/r-source/blob/trunk/src/main/CommandLineArgs.c#L94
-void common_command_line(int *pac, const char **argv, char *enc, Rboolean *has_enc, Rboolean *no_echo)
+void
+common_command_line(int *pac, const char **argv,
+    char *enc, Rboolean *has_enc,
+    Rboolean *no_site_file,
+    Rboolean *no_init_file,
+    Rboolean *no_echo)
 {
     int ac = *pac, newac = 1;
-    const char *p;
-    const char **av = argv;
+    const char *p, **av = argv;
     Rboolean processing = TRUE;
 
 
     while (--ac) {
         if (processing && **++av == '-') {
-            if (!strcmp(*av, "--version")) {
-            }
+            if (!strcmp(*av, "--version"));
             else if (!strcmp(*av, "--args")) {
                 argv[newac++] = *av;
                 processing = FALSE;
             }
-            else if (!strcmp(*av, "--save")) {
-            }
-            else if (!strcmp(*av, "--no-save")) {
-            }
-            else if (!strcmp(*av, "--restore")) {
-            }
-            else if (!strcmp(*av, "--no-restore")) {
-            }
-            else if (!strcmp(*av, "--no-restore-data")) {
-            }
-            else if (!strcmp(*av, "--no-restore-history")) {
-            }
+            else if (!strcmp(*av, "--save"));
+            else if (!strcmp(*av, "--no-save"));
+            else if (!strcmp(*av, "--restore"));
+            else if (!strcmp(*av, "--no-restore"));
+            else if (!strcmp(*av, "--no-restore-data"));
+            else if (!strcmp(*av, "--no-restore-history"));
             else if (!strcmp(*av, "--silent") ||
                      !strcmp(*av, "--quiet") ||
-                     !strcmp(*av, "-q"))
-            {
-            }
+                     !strcmp(*av, "-q"));
             else if (!strcmp(*av, "--vanilla")) {
+                *no_site_file = TRUE;
+                *no_init_file = TRUE;
             }
-            else if (!strcmp(*av, "--no-environ")) {
-            }
-            else if (!strcmp(*av, "--verbose")) {
-            }
+            else if (!strcmp(*av, "--no-environ"));
+            else if (!strcmp(*av, "--verbose"));
             else if (!strcmp(*av, "--no-echo") ||
                      !strcmp(*av, "--slave") ||
                      !strcmp(*av, "-s"))
@@ -172,25 +113,25 @@ void common_command_line(int *pac, const char **argv, char *enc, Rboolean *has_e
                 *no_echo = TRUE;
             }
             else if (!strcmp(*av, "--no-site-file")) {
+                *no_site_file = TRUE;
             }
             else if (!strcmp(*av, "--no-init-file")) {
+                *no_init_file = TRUE;
             }
-            else if (!strcmp(*av, "--debug-init")) {
-            }
+            else if (!strcmp(*av, "--debug-init"));
             else if (!strncmp(*av, "--encoding", 10)) {
                 *has_enc = TRUE;
                 if (strlen(*av) < 12) {
                     if (ac > 1) { ac--; av++; p = *av; } else p = NULL;
                 } else p = &(*av)[11];
-                if (p == NULL) {
-                } else {
+                if (p == NULL);
+                else {
                     strncpy(enc, p, 30);
                     enc[30] = '\0';
                 }
             }
 #ifdef _WIN32
-            else if (!strcmp(*av, "--no-Rconsole")) {
-            }
+            else if (!strcmp(*av, "--no-Rconsole"));
 #endif
             else if (!strcmp(*av, "-save") ||
                      !strcmp(*av, "-nosave") ||
@@ -204,25 +145,22 @@ void common_command_line(int *pac, const char **argv, char *enc, Rboolean *has_e
                      !strncmp(*av, "--max-vsize", 11) ||
                      !strcmp(*av, "-V") ||
                      !strcmp(*av, "-n") ||
-                     !strcmp(*av, "-v"))
-            {
-            }
+                     !strcmp(*av, "-v"));
             else if (!strncmp(*av, "--min-nsize", 11) ||
                      !strncmp(*av, "--min-vsize", 11))
             {
                 if (strlen(*av) < 13) {
-                    if (ac > 1) {
-                        ac--;
-                        av++;
-                    }
+                    if (ac > 1) { ac--; av++; }
                 }
             }
             else if (strncmp(*av, "--max-ppsize", 12) == 0) {
                 if (strlen(*av) < 14) {
-                    if (ac > 1) {
-                        ac--;
-                        av++;
-                    }
+                    if (ac > 1) { ac--; av++; }
+                }
+            }
+            else if (strncmp(*av, "--max-connections", 17) == 0) {
+                if (strlen(*av) < 19) {
+                    if (ac > 1) { ac--; av++; }
                 }
             }
             else { /* unknown -option */
@@ -324,10 +262,10 @@ SEXP do_shINFO do_formals
      */
 
 
-    do_start_no_op_rho("shINFO", 0);
+    do_start_no_call_op_rho("shINFO", 0);
 
 
-    if (!is_maybe_unembedded_shell) {
+    if (!maybe_unembedded_shell) {
 
 
 #ifdef debug
@@ -337,15 +275,19 @@ SEXP do_shINFO do_formals
 #endif
 
 
-#define return_shINFO(_ENC_, _NO_ECHO_, _FILE_, _EXPR_, _HAS_INPUT_)\
+#define return_shINFO(_ENC_, _NO_SITE_FILE_, _NO_INIT_FILE_, _NO_ECHO_, _FILE_, _EXPR_, _HAS_INPUT_)\
         do {                                                   \
-            SEXP value = allocVector(VECSXP, 5);               \
+            SEXP value = allocVector(VECSXP, 7);               \
             PROTECT(value);                                    \
-            SEXP names = allocVector(STRSXP, 5);               \
+            SEXP names = allocVector(STRSXP, 7);               \
             setAttrib(value, R_NamesSymbol, names);            \
             int indx = -1;                                     \
             SET_STRING_ELT(names, ++indx, mkChar("ENC"));      \
             SET_VECTOR_ELT(value,   indx, (_ENC_));            \
+            SET_STRING_ELT(names, ++indx, mkChar("no.site.file"));\
+            SET_VECTOR_ELT(value,   indx, (_NO_SITE_FILE_));   \
+            SET_STRING_ELT(names, ++indx, mkChar("no.init.file"));\
+            SET_VECTOR_ELT(value,   indx, (_NO_INIT_FILE_));   \
             SET_STRING_ELT(names, ++indx, mkChar("no.echo"));  \
             SET_VECTOR_ELT(value,   indx, (_NO_ECHO_));        \
             SET_STRING_ELT(names, ++indx, mkChar("FILE"));     \
@@ -361,11 +303,13 @@ SEXP do_shINFO do_formals
 
 
         return_shINFO(
-            ScalarString(NA_STRING),
-            R_LogicalNAValue,
-            ScalarString(NA_STRING),
-            ScalarString(NA_STRING),
-            R_LogicalNAValue
+            /* ENC          */ ScalarString(NA_STRING),
+            /* no.site.file */ R_LogicalNAValue,
+            /* no.init.file */ R_LogicalNAValue,
+            /* no.echo      */ R_LogicalNAValue,
+            /* FILE         */ ScalarString(NA_STRING),
+            /* EXPR         */ ScalarString(NA_STRING),
+            /* has.input    */ R_LogicalNAValue
         );
     }
 
@@ -386,22 +330,32 @@ SEXP do_shINFO do_formals
 
     char enc[31] = "";
     Rboolean has_enc = FALSE;
+    Rboolean no_site_file = FALSE;
+    Rboolean no_init_file = FALSE;
+    Rboolean no_echo = FALSE;
     const char *FILE = NULL;
     char cmdlines[10000];
     cmdlines[0] = '\0';
     Rboolean has_input = FALSE;
-    Rboolean no_echo = FALSE;
 
 
     if (ARGC <= 1) {
         UNPROTECT(1);
-        return_shINFO(
-            ScalarString(has_enc ? mkChar(enc) : NA_STRING),
-            ScalarLogical(no_echo),
-            ScalarString(FILE ? mkChar(FILE) : NA_STRING),
-            ScalarString(strlen(cmdlines) ? mkChar(cmdlines) : NA_STRING),
-            ScalarLogical(has_input)
-        );
+
+
+#define default_return_shINFO                                  \
+        return_shINFO(                                         \
+            ScalarString(has_enc ? mkChar(enc) : NA_STRING),   \
+            ScalarLogical(no_site_file),                       \
+            ScalarLogical(no_init_file),                       \
+            ScalarLogical(no_echo),                            \
+            ScalarString(FILE ? mkChar(FILE) : NA_STRING),     \
+            ScalarString(strlen(cmdlines) ? mkChar(cmdlines) : NA_STRING),\
+            ScalarLogical(has_input)                           \
+        )
+
+
+        default_return_shINFO;
     }
 
 
@@ -436,11 +390,11 @@ SEXP do_shINFO do_formals
 #if defined(_WIN32)
 
 
-// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1064
+// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1067
     Rboolean processing = TRUE;
 
 
-// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1174
+// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1185
     env_command_line(&ac, av);
 
 
@@ -450,8 +404,8 @@ SEXP do_shINFO do_formals
 #endif
 
 
-// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1176
-    common_command_line(&ac, av, enc, &has_enc, &no_echo);
+// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1187
+    common_command_line(&ac, av, enc, &has_enc, &no_site_file, &no_init_file, &no_echo);
     // Rprintf("--encoding=%s\nhas encoding: %s\n", enc, has_enc ? "TRUE" : "FALSE");
 
 
@@ -461,43 +415,41 @@ SEXP do_shINFO do_formals
 #endif
 
 
-// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1179
+// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1190
     while (--ac) {
         if (processing && **++av == '-') {
-            // if (!strcmp(*av, "--help") || !strcmp(*av, "-h")) {
-            // } else if (!strcmp(*av, "--cd-to-userdocs")) {
-            // } else if (!strcmp(*av, "--no-environ")) {
-            // } else if (!strcmp(*av, "--ess")) {
-            // } else if (!strcmp(*av, "--internet2")) {
-            // } else if (!strcmp(*av, "--mdi")) {
-            // } else if (!strcmp(*av, "--sdi") || !strcmp(*av, "--no-mdi")) {
-            // } else if (!strcmp(*av, "--debug")) {
-            // } else
+            // if (!strcmp(*av, "--help") || !strcmp(*av, "-h"));
+            // else if (!strcmp(*av, "--cd-to-userdocs"));
+            // else if (!strcmp(*av, "--no-environ"));
+            // else if (!strcmp(*av, "--ess"));
+            // else if (!strcmp(*av, "--internet2"));
+            // else if (!strcmp(*av, "--mdi"));
+            // else if (!strcmp(*av, "--sdi") || !strcmp(*av, "--no-mdi"));
+            // else if (!strcmp(*av, "--debug"));
+            // else
             if (!strcmp(*av, "--args")) {
                 break;
-            } else if (!strcmp(*av, "-f")) {
+            } else if (CharacterMode == RTerm && !strcmp(*av, "-f")) {
                 has_input = TRUE;
-                ac--;
-                av++;
+                ac--; av++;
                 if (!ac) {
-                    errorcall(call, "option '-f' requires a filename argument");
+                    errorcall(R_NilValue, _("option '%s' requires an argument"), "-f");
                 }
-                /* if (av != "-") */
-                if (strcmp(*av, "-")) {
+                if (strcmp(*av, "-")) { /* av != "-" */
                     FILE = *av;
                 }
-            } else if (!strncmp(*av, "--file=", 7)) {
+            } else if (CharacterMode == RTerm && !strncmp(*av, "--file=", 7)) {
                 has_input = TRUE;
                 if (strcmp((*av)+7, "-")) {  /* av != "--file=-" */
                     FILE = (*av)+7;
                 }
-            // } else if (!strncmp(*av, "--workspace=", 12)) {
-            } else if (!strcmp(*av, "-e")) {
+            }
+            // else if (!strncmp(*av, "--workspace=", 12));
+            else if (CharacterMode == RTerm && !strcmp(*av, "-e")) {
                 has_input = TRUE;
-                ac--;
-                av++;
+                ac--; av++;
                 if (!ac || !strlen(*av)) {
-                    error("option '-e' requires a non-empty argument");
+                    errorcall(R_NilValue, _("option '%s' requires a non-empty argument"), "-e");
                 }
                 if (strlen(cmdlines) + strlen(*av) + 2 <= 10000) {
                     strcat(cmdlines, *av);
@@ -524,12 +476,10 @@ SEXP do_shINFO do_formals
         if (!strcmp(*avv, "--args"))
             break;
         if (!strncmp(*avv, "--gui", 5) || !strncmp(*avv, "-g", 2)) {
-            if (!strncmp(*avv, "--gui", 5) && strlen(*avv) >= 7) {
-            }
+            if (!strncmp(*avv, "--gui", 5) && strlen(*avv) >= 7);
             else {
                 if (i + 1 < ac) {
-                    avv++;
-                    ioff++;
+                    avv++; ioff++;
                 }
             }
             /* now remove it/them */
@@ -548,7 +498,7 @@ SEXP do_shINFO do_formals
 
 
 // https://github.com/wch/r-source/blob/trunk/src/unix/system.c#L405
-    common_command_line(&ac, av, enc, &has_enc, &no_echo);
+    common_command_line(&ac, av, enc, &has_enc, &no_site_file, &no_init_file, &no_echo);
     // Rprintf("--encoding=%s\nhas encoding: %s\n", enc, has_enc ? "TRUE" : "FALSE");
 
 
@@ -564,14 +514,13 @@ SEXP do_shINFO do_formals
 // https://github.com/wch/r-source/blob/trunk/src/unix/system.c#L406
     while (--ac) {
         if (**++av == '-') {
-            // if (!strcmp(*av, "--no-readline")) {
-            // } else
+            // if (!strcmp(*av, "--no-readline"));
+            // else
             if (!strcmp(*av, "-f")) {
                 has_input = TRUE;
-                ac--;
-                av++;
+                ac--; av++;
                 if (!ac) {
-                    errorcall(call, "option '-f' requires a filename argument");
+                    errorcall(R_NilValue, _("option '%s' requires an argument"), "-f");
                 }
 #define R_INIT_TREAT_F(_AV_)                                   \
                 if (strcmp(_AV_, "-")) {                       \
@@ -592,10 +541,9 @@ SEXP do_shINFO do_formals
 
             } else if (!strcmp(*av, "-e")) {
                 has_input = TRUE;
-                ac--;
-                av++;
+                ac--; av++;
                 if (!ac) {
-                    error("option '-e' requires a non-empty argument");
+                    errorcall(R_NilValue, _("option '%s' requires a non-empty argument"), "-e");
                 }
                 if (strlen(cmdlines) + strlen(*av) + 2 <= 10000) {
                     char *p = cmdlines + strlen(cmdlines);
@@ -625,11 +573,5 @@ SEXP do_shINFO do_formals
 #endif
 
 
-    return_shINFO(
-        ScalarString(has_enc ? mkChar(enc) : NA_STRING),
-        ScalarLogical(no_echo),
-        ScalarString(FILE ? mkChar(FILE) : NA_STRING),
-        ScalarString(strlen(cmdlines) ? mkChar(cmdlines) : NA_STRING),
-        ScalarLogical(has_input)
-    );
+    default_return_shINFO;
 }

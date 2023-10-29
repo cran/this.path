@@ -105,6 +105,12 @@ SEXP shallow_duplicate(SEXP s)
 }
 
 
+int IS_SCALAR(SEXP x, int type)
+{
+    return TYPEOF(x) == type && xlength(x) == 1;
+}
+
+
 Rboolean anyNA_default(SEXP x, Rboolean recursive, SEXP rho);
 
 
@@ -235,9 +241,9 @@ SEXP do_anyNA do_formals
 }
 
 
-SEXP do_anyNAdataframe do_formals
+SEXP do_anyNA_data_frame do_formals
 {
-    do_start_no_call_op("anyNAdataframe", 2);
+    do_start_no_call_op("anyNA.data.frame", 2);
 
 
     SEXP x = CAR(args);
@@ -250,9 +256,9 @@ SEXP do_anyNAdataframe do_formals
 }
 
 
-SEXP do_anyNAnumericversion do_formals
+SEXP do_anyNA_numeric_version do_formals
 {
-    do_start_no_call_op("anyNAnumericversion", 1);
+    do_start_no_call_op("anyNA.numeric_version", 1);
 
 
     SEXP x = CAR(args);
@@ -264,9 +270,9 @@ SEXP do_anyNAnumericversion do_formals
 }
 
 
-SEXP do_anyNAdefault do_formals
+SEXP do_anyNA_default do_formals
 {
-    do_start_no_call_op("anyNAdefault", 2);
+    do_start_no_call_op("anyNA.default", 2);
     return ScalarLogical(anyNA_default(CAR(args), asLogical(CADR(args)), rho));
 }
 
@@ -306,9 +312,9 @@ SEXP topenv(SEXP target, SEXP envir)
 }
 
 
-SEXP do_direxists do_formals
+SEXP do_dir_exists do_formals
 {
-    do_start_no_call_op_rho("direxists", 1);
+    do_start_no_call_op_rho("dir.exists", 1);
 
 
     SEXP fn = CAR(args);
@@ -442,9 +448,9 @@ SEXP do_lengths do_formals
 }
 
 
-SEXP do_lengthsdefault do_formals
+SEXP do_lengths_default do_formals
 {
-    do_start_no_call_op("lengths", 2);
+    do_start_no_call_op("lengths.default", 2);
     return lengths_default(args, rho);
 }
 
@@ -683,7 +689,7 @@ SEXP do_endsWith do_formals
 
 SEXP do_dotslength do_formals
 {
-    do_start_no_call_op("dotslength", 0);
+    do_start_no_call_op("...length", 0);
 
 
     SEXP env = eval(expr_parent_frame, rho);
@@ -747,9 +753,9 @@ void R_removeVarFromFrame(SEXP name, SEXP env)
 SEXP R_NewEnv(SEXP enclos, int hash, int size)
 {
     SEXP expr = LCONS(new_envSymbol,
-        CONS(/* hash */ ScalarLogical(hash),
-            CONS(/* parent */ enclos,
-                CONS(/* size */ ScalarInteger(size), R_NilValue))));
+                      CONS(/* hash */ ScalarLogical(hash),
+                           CONS(/* parent */ enclos,
+                                CONS(/* size */ ScalarInteger(size), R_NilValue))));
     PROTECT(expr);
     SEXP value = eval(expr, R_BaseEnv);
     UNPROTECT(1);
@@ -786,7 +792,7 @@ Rboolean R_existsVarInFrame(SEXP rho, SEXP symbol)
     REPROTECT(expr = CONS(ScalarString(PRINTNAME(symbol)), expr), indx);
     REPROTECT(expr = LCONS(getFromBase(existsSymbol), expr), indx);
     SEXP value = PROTECT(eval(expr, R_EmptyEnv));
-    if (TYPEOF(value) != LGLSXP || XLENGTH(value) != 1)
+    if (!IS_SCALAR(value, LGLSXP))
         error(_("invalid '%s' value"), "exists()");
     Rboolean lvalue = LOGICAL(value)[0];
     UNPROTECT(2);

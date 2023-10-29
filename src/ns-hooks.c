@@ -5,9 +5,11 @@
 #include "symbols.h"
 
 
-SEXP mynamespace        = NULL,
-     DocumentContextCls = NULL,
-     last_condition     = NULL;
+SEXP mynamespace          = NULL,
+     DocumentContextClass = NULL,
+     last_condition       = NULL,
+     _custom_gui_path_character_environment = NULL,
+     _custom_gui_path_function_environment  = NULL;
 
 
 #ifdef R_THIS_PATH_NEED_BLANKSCALARSTRING
@@ -19,6 +21,9 @@ SEXP expr_commandArgs                               = NULL,
      expr_invisible                                 = NULL,
      expr_parent_frame                              = NULL,
      expr_sys_call                                  = NULL,
+     expr_sys_call_which                            = NULL,
+     expr_sys_function_which                        = NULL,
+     eval_op                                        = NULL,
      expr_sys_nframe                                = NULL,
      expr_sys_parents                               = NULL,
      expr_missing_file                              = NULL,
@@ -27,7 +32,6 @@ SEXP expr_commandArgs                               = NULL,
      expr_info_dollar_source_path                   = NULL,
      expr_knitr_output_dir                          = NULL,
      expr_testthat_source_file_uses_brio_read_lines = NULL,
-     expr__sys_path_toplevel                        = NULL,
      expr_getOption_topLevelEnvironment             = NULL,
      expr__toplevel_context_number                  = NULL,
      expr__isMethodsDispatchOn                      = NULL,
@@ -111,13 +115,13 @@ SEXP do_onLoad do_formals
     R_PreserveObject(mynamespace);
 
 
-    const char *cls[] = { "ThisPathDocumentContext", "environment", NULL };
-    int numCls = 0;
-    while (cls[numCls]) ++numCls;
-    DocumentContextCls = allocVector(STRSXP, numCls);
-    R_PreserveObject(DocumentContextCls);
-    for (int i = 0; i < numCls; i++)
-        SET_STRING_ELT(DocumentContextCls, i, mkChar(cls[i]));
+    const char *Class[] = { "ThisPathDocumentContext", "environment", NULL };
+    int nClass = 0;
+    while (Class[nClass]) ++nClass;
+    DocumentContextClass = allocVector(STRSXP, nClass);
+    R_PreserveObject(DocumentContextClass);
+    for (int i = 0; i < nClass; i++)
+        SET_STRING_ELT(DocumentContextClass, i, mkChar(Class[i]));
 
 
     /* it might seem more intuitive to say
@@ -132,8 +136,36 @@ SEXP do_onLoad do_formals
     R_PreserveObject(last_condition);
 
 
+    _custom_gui_path_character_environment =
+        R_NewEnv(/* enclos */ mynamespace, /* hash */ TRUE, /* size */ 10);
+    R_PreserveObject(_custom_gui_path_character_environment);
+    defineVar(guinameSymbol, R_MissingArg, _custom_gui_path_character_environment);
+    {
+        SEXP na = ScalarString(NA_STRING);
+        PROTECT(na);
+        ENSURE_NAMEDMAX(na);
+        defineVar(ofileSymbol, makeEVPROMISE(na, na), _custom_gui_path_character_environment);
+        R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
+        UNPROTECT(1);
+    }
+    defineVar(fileSymbol, makePROMISE(
+        LCONS(_normalizeNotDirectorySymbol, CONS(ofileSymbol, R_NilValue)),
+        _custom_gui_path_character_environment
+    ), _custom_gui_path_character_environment);
+    R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
+    defineVar(_getContentsSymbol, R_NilValue, _custom_gui_path_character_environment);
+    R_LockEnvironment(_custom_gui_path_character_environment, FALSE);
+
+
+    _custom_gui_path_function_environment =
+        R_NewEnv(/* enclos */ R_EmptyEnv, /* hash */ TRUE, /* size */ 2);
+    R_PreserveObject(_custom_gui_path_function_environment);
+    defineVar(_custom_gui_path_functionSymbol, R_NilValue, _custom_gui_path_function_environment);
+    R_LockEnvironment(_custom_gui_path_function_environment, FALSE);
+
+
 #ifdef R_THIS_PATH_NEED_BLANKSCALARSTRING
-    R_BlankScalarString = mkString("");
+    R_BlankScalarString = ScalarString(R_BlankString);
     R_PreserveObject(R_BlankScalarString);
 #endif
 
@@ -151,10 +183,13 @@ SEXP do_onLoad do_formals
     /* rprojroot.R */
     LockCLOENV(install(".find.root"), TRUE);
     LockCLOENV(install(".proj"), FALSE);
-    /* ./R/thispath.R */
+    /* startup.R */
+    LockCLOENV(_site_fileSymbol, TRUE);
+    LockCLOENV(_init_fileSymbol, TRUE);
+    /* thispath.R */
     LockCLOENV(_shFILESymbol, TRUE);
-    LockCLOENV(_sys_path_jupyterSymbol, TRUE);
-    /* ./R/zzz.R */
+    LockCLOENV(_jupyter_pathSymbol, TRUE);
+    /* zzz.R */
     // LockCLOENV(install("eval.with.message"), FALSE);
 
 
@@ -194,15 +229,11 @@ SEXP do_onLoad do_formals
     } while (0)
 
 
-    /* ./R/lineno.R */
-    convertclosure2activebinding(install("LINE"));
     /* ./R/ns-hooks.R */
     convertclosure2activebinding(install(".mbcslocale"));
     convertclosure2activebinding(install(".utf8locale"));
     convertclosure2activebinding(install(".latin1locale"));
     convertclosure2activebinding(install(".R_MB_CUR_MAX"));
-    /* ./R/thispath.R */
-    convertclosure2activebinding(install("FILE"));
     /* ./R/trycatch.R */
     convertclosure2activebinding(install("last.condition"));
 
@@ -386,6 +417,22 @@ SEXP do_onLoad do_formals
               EncodeChar(PRINTNAME(sys_callSymbol)), "function");
 
 
+    expr_sys_call_which = LCONS(CAR(expr_sys_call), CONS(ScalarInteger(0), R_NilValue));
+    R_PreserveObject(expr_sys_call_which);
+
+
+    {
+        expr_sys_function_which = LCONS(getFromBase(sys_functionSymbol), CDR(expr_sys_call_which));
+        R_PreserveObject(expr_sys_function_which);
+    }
+
+
+    eval_op = INTERNAL(R_EvalSymbol);
+    if (TYPEOF(eval_op) != BUILTINSXP)
+        error(_("object '%s' of mode '%s' was not found"),
+              EncodeChar(PRINTNAME(R_EvalSymbol)), "builtin");
+
+
     expr_sys_nframe = LCONS(getFromBase(sys_nframeSymbol), R_NilValue);
     R_PreserveObject(expr_sys_nframe);
     if (!isFunction(CAR(expr_sys_nframe)))
@@ -491,10 +538,6 @@ SEXP do_onLoad do_formals
     }
 
 
-    expr__sys_path_toplevel = LCONS(_sys_path_toplevelSymbol, R_NilValue);
-    R_PreserveObject(expr__sys_path_toplevel);
-
-
     {
         SEXP tmp;
         PROTECT(tmp = getFromBase(install("getOption")));
@@ -526,8 +569,8 @@ SEXP do_onLoad do_formals
 
 
     {
-        /* if {plumber} is loaded, call '.fix.plumber.parseUTF8' */
-        if (findVarInFrame(R_NamespaceRegistry, plumberSymbol) != R_UnboundValue) {
+        /* if package:plumber is loaded, call '.fix.plumber.parseUTF8' */
+        if (!ISUNBOUND(findVarInFrame(R_NamespaceRegistry, plumberSymbol))) {
             SEXP expr = LCONS(install(".fix.plumber.parseUTF8"), R_NilValue);
             PROTECT(expr);
             eval(expr, mynamespace);
@@ -535,7 +578,7 @@ SEXP do_onLoad do_formals
         }
 
 
-        /* for when {plumber} is loaded (or possibly unloaded then reloaded), set as a hook */
+        /* for when package:plumber is loaded (or possibly unloaded then reloaded), set as a hook */
         SEXP expr = LCONS(install(".maybe.setHook.packageEvent.plumber.fix.plumber.parseUTF8"), R_NilValue);
         PROTECT(expr);
         eval(expr, mynamespace);
@@ -559,8 +602,10 @@ SEXP do_onUnload do_formals
 
 
     maybe_release(mynamespace);
-    maybe_release(DocumentContextCls);
+    maybe_release(DocumentContextClass);
     maybe_release(last_condition);
+    maybe_release(_custom_gui_path_character_environment);
+    maybe_release(_custom_gui_path_function_environment);
 
 
 #ifdef R_THIS_PATH_NEED_BLANKSCALARSTRING
@@ -568,23 +613,24 @@ SEXP do_onUnload do_formals
 #endif
 
 
-    maybe_release(expr_commandArgs                              );
-    maybe_release(expr_invisible                                );
-    maybe_release(expr_parent_frame                             );
-    maybe_release(expr_sys_call                                 );
-    maybe_release(expr_sys_nframe                               );
-    maybe_release(expr_sys_parents                              );
-    maybe_release(expr_missing_file                             );
-    maybe_release(expr_missing_input                            );
-    maybe_release(expr_missing_input                            );
-    maybe_release(expr_info_dollar_source_path                  );
-    maybe_release(expr_knitr_output_dir                         );
+    maybe_release(expr_commandArgs);
+    maybe_release(expr_invisible);
+    maybe_release(expr_parent_frame);
+    maybe_release(expr_sys_call);
+    maybe_release(expr_sys_call_which);
+    maybe_release(expr_sys_function_which);
+    maybe_release(expr_sys_nframe);
+    maybe_release(expr_sys_parents);
+    maybe_release(expr_missing_file);
+    maybe_release(expr_missing_input);
+    maybe_release(expr_missing_input);
+    maybe_release(expr_info_dollar_source_path);
+    maybe_release(expr_knitr_output_dir);
     maybe_release(expr_testthat_source_file_uses_brio_read_lines);
-    maybe_release(expr__sys_path_toplevel                       );
-    maybe_release(expr_getOption_topLevelEnvironment            );
-    maybe_release(expr__toplevel_context_number                 );
-    maybe_release(expr__isMethodsDispatchOn                     );
-    maybe_release(expr_UseMethod_lengths                        );
+    maybe_release(expr_getOption_topLevelEnvironment);
+    maybe_release(expr__toplevel_context_number);
+    maybe_release(expr__isMethodsDispatchOn);
+    maybe_release(expr_UseMethod_lengths);
 
 
     {

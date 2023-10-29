@@ -45,6 +45,11 @@ if (getRversion() < "3.3.0") {
 }
 
 
+if (getRversion() < "3.4.0") {
+    export(withAutoprint)
+}
+
+
 if (getRversion() < "3.5.0") {
     export(...length)
     export(isTRUE)
@@ -167,24 +172,31 @@ export(sys.proj       , env.proj       , src.proj       ,
        this.proj      , reset.proj     , reset.this.proj)
 
 
+## startup.R    ----
+
+
+export(site.file, init.file)
+
+
 ## thispath.R   ----
 
 
 export(shFILE               , normalized.shFILE    ,
-       set.sys.path.jupyter , set.this.path.jupyter,
+       set.jupyter.path     , set.sys.path.jupyter , set.this.path.jupyter,
+       set.gui.path         , thisPathNotExistsError,
        sys.path             , sys.dir              ,
        env.path             , env.dir              ,
        src.path             , src.dir              ,
        this.path            , this.dir             ,
-       this.path2           , this.dir2            ,
-       this.dir3            , sys.here             ,
-       env.here             , src.here             ,
-       here                 , ici                  ,
-       Sys.path             , Sys.dir              ,
-       try.shFILE           , try.sys.path         ,
-       try.env.path         , try.src.path         ,
-       try.this.path        , FILE                 ,
-       local.path           )
+       sys.srcref           , this.path2           ,
+       this.dir2            , this.dir3            ,
+       sys.here             , env.here             ,
+       src.here             , here                 ,
+       ici                  , Sys.path             ,
+       Sys.dir              , try.shFILE           ,
+       try.sys.path         , try.env.path         ,
+       try.src.path         , try.this.path        ,
+       FILE                 , local.path           )
 
 
 ## trycatch.R   ----
@@ -196,6 +208,9 @@ export(tryCatch2, tryCatch3, last.condition)
 ## wrapsource.R ----
 
 
-export(wrap.source    , set.sys.path   , unset.sys.path ,
-       set.env.path   , set.src.path   , inside.source  ,
-       set.this.path  , unset.this.path)
+export(wrap.source          , set.sys.path         ,
+       unset.sys.path       , set.env.path         ,
+       set.src.path         , set.sys.path.function,
+       with_sys.path        , with_site.file       ,
+       with_init.file       , inside.source        ,
+       set.this.path        , unset.this.path      )
