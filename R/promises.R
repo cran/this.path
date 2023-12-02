@@ -290,9 +290,20 @@ delayedAssign(".gui.jupyter",
 )
 
 
-delayedAssign(".gui.aqua", .os.unix    && .Platform$GUI == "AQUA" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter)
-delayedAssign(".gui.rgui", .os.windows && .Platform$GUI == "Rgui" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter && .External2(.C_RConsole))
-delayedAssign(".gui.tk"  , .os.unix    && .Platform$GUI == "Tk"   && !.gui.rstudio && !.gui.vscode && !.gui.jupyter)
+delayedAssign(".gui.emacs",
+    interactive() &&
+    Sys.getenv("STATATERM") == "emacs" &&
+    .maybe.unembedded.shell &&
+    (
+        (.os.unix    && .shINFO[["no.readline"]]) ||
+        (.os.windows && .shINFO[["ess"]])
+    )
+)
+
+
+delayedAssign(".gui.aqua", .os.unix    && .Platform$GUI == "AQUA" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter && !.gui.emacs)
+delayedAssign(".gui.rgui", .os.windows && .Platform$GUI == "Rgui" && !.gui.rstudio && !.gui.vscode && !.gui.jupyter && !.gui.emacs && .External2(.C_RConsole))
+delayedAssign(".gui.tk"  , .os.unix    && .Platform$GUI == "Tk"   && !.gui.rstudio && !.gui.vscode && !.gui.jupyter && !.gui.emacs)
 
 
 `.tools:rstudio` <- emptyenv()
@@ -310,8 +321,8 @@ delayedAssign(".gui.tk"  , .os.unix    && .Platform$GUI == "Tk"   && !.gui.rstud
 .External2(.C_init.tools.rstudio)
 
 
-delayedAssign(".os.unix.in.shell"   , .os.unix.maybe.unembedded.shell    && !.gui.vscode && !.gui.jupyter)
-delayedAssign(".os.windows.in.shell", .os.windows.maybe.unembedded.shell && !.gui.vscode && !.gui.jupyter)
+delayedAssign(".os.unix.in.shell"   , .os.unix.maybe.unembedded.shell    && !.gui.vscode && !.gui.jupyter && !.gui.emacs)
+delayedAssign(".os.windows.in.shell", .os.windows.maybe.unembedded.shell && !.gui.vscode && !.gui.jupyter && !.gui.emacs)
 delayedAssign(".in.shell", .os.unix.in.shell || .os.windows.in.shell)
 
 
@@ -320,6 +331,7 @@ delayedAssign(".unrecognized.manner",
     !.gui.rstudio &&
     !.gui.vscode &&
     !.gui.jupyter &&
+    !.gui.emacs &&
     !.gui.rgui &&
     !.gui.aqua &&
     !.gui.tk
@@ -333,6 +345,7 @@ delayedAssign(".GUI",
     else if (.gui.rstudio) "RStudio"
     else if (.gui.vscode) "vscode"
     else if (.gui.jupyter) "jupyter"
+    else if (.gui.emacs) "emacs"
     # else if (.gui.rgui) "Rgui"
     # else if (.gui.aqua) "AQUA"
     # else if (.gui.tk) "Tk"

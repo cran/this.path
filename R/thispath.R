@@ -61,11 +61,6 @@ shFILE <- function (original = FALSE, for.msg = FALSE, default, else.)
 }
 
 
-normalized.shFILE <- eval(call("function", as.pairlist(alist(... = )), bquote(
-stop(.defunctError("shFILE", .(.pkgname), old = "normalized.shFILE"))
-)))
-
-
 
 
 
@@ -191,6 +186,10 @@ delayedAssign("thisPathNotExistsError", .thisPathNotExistsError)
 
 .thisPathInAQUAError <- function (call = .getCurrentCall(), call. = TRUE)
 .External2(.C_thisPathInAQUAError, if (call.) call)
+
+
+.thisPathInEmacsError <- function (call = .getCurrentCall(), call. = TRUE)
+.External2(.C_thisPathInEmacsError, if (call.) call)
 
 
 ## helper functions for sys.path()     ----
@@ -411,6 +410,168 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
 })
 
 
+.emacs.path <- evalq(envir = new.env(), {
+    delayedAssign("emacsclient", local({
+        ## https://www.gnu.org/software/emacs/manual/html_node/emacs/Misc-Variables.html#index-emacs_005fdir
+        if (.os.windows) {
+            x <- Sys.getenv("emacs_dir")
+            if (!nzchar(x)) stop("environment variable 'emacs_dir' is unset; are you actually in Emacs?")
+            x <- utils::shortPathName(x)
+            paste0(x, "\\bin\\emacsclient.exe")
+        } else {
+            x <- Sys.which("emacsclient")
+            if (!nzchar(x)) stop("command 'emacsclient' not found; add to PATH and retry")
+            x
+        }
+    }))
+    ## https://www.gnu.org/software/emacs/manual/html_node/elisp/Finding-All-Frames.html
+    ## https://www.gnu.org/software/emacs/manual/html_node/elisp/Buffer-File-Name.html
+    expr <- "
+(let ((R-pid    %d)
+      (filename %s)
+      (contents %s)
+      (frames (frame-list-z-order))
+      ess-r-mode-buffer
+      found-matching-pid-anywhere
+      active)
+  ;; for testing purposes
+  (setq found-matching-pid-anywhere (= R-pid 0))
+  (while frames
+    (setq ess-r-mode-buffer nil)
+    (setq active t)
+    (let ((buffers (frame-parameter (car frames) 'buffer-list))
+          (found-matching-pid (= R-pid 0)))
+      (while buffers
+        (with-current-buffer (car buffers)
+          (if buffer-file-name
+              (if (and (not ess-r-mode-buffer) (or (string= major-mode \"ess-r-mode\") (string= major-mode \"ess-mode\"))) (progn
+                  (setq ess-r-mode-buffer (current-buffer))
+                  (if found-matching-pid (setq active nil))
+              ))
+          ;; else
+          (if (and (not found-matching-pid) (or (string= major-mode \"inferior-ess-r-mode\") (string= major-mode \"inferior-ess-mode\")))
+              (let ((process (get-buffer-process (current-buffer))))
+                (if (and process (= (process-id process) R-pid)) (progn
+                    (setq found-matching-pid t)
+                    (setq found-matching-pid-anywhere t)
+                ))
+              )
+          ))
+        )
+        (if (and ess-r-mode-buffer found-matching-pid) (progn
+            (setq buffers nil)
+            (setq frames nil)
+        ))
+        (setq buffers (cdr buffers))
+      )
+    )
+    (setq frames (cdr frames))
+  )
+  (if found-matching-pid-anywhere
+      (if ess-r-mode-buffer
+          (with-current-buffer ess-r-mode-buffer
+            (if contents (progn
+                (write-region nil nil filename nil 0)
+                (if active 'success-active 'success-source)
+            ) ;; else
+            (if buffer-file-number (progn
+                (write-region buffer-file-name nil filename nil 0)
+                (if active 'success-active 'success-source)
+            ) ;; else
+                (if active 'untitled-active 'untitled-source)
+            ))
+          )
+      )
+  ;; else
+      'no-matching-pid
+  )
+)
+    "
+    expr <- gsub("^[ \t\n]+|[ \t\n]+$", "", expr)
+    expr <- gsub(";.*?\n", "\n", expr)
+    expr <- gsub("[ \t\n]+", " ", expr)
+    expr <- gsub("( ", "(", expr, fixed = TRUE)
+    expr <- gsub(" )", ")", expr, fixed = TRUE)
+function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+{
+    # exe <- Sys.which("emacsclient"); contents <- TRUE; Sys.getpid <- function() 0L; stop("comment this out later")
+
+
+    file <- tempfile(fileext = ".txt")
+    on.exit(unlink(file))
+    ## create right now so no other program
+    ## may claim this filename in the meantime
+    file.create(file)
+    exe <- .External2(.C_forcePromise.no.warn, "emacsclient")
+    EXPR <- sprintf(expr,
+        Sys.getpid(),
+        encodeString(file, quote = "\""),
+        if (contents) "t" else "nil"
+    )
+    args <- c(exe, "-e", EXPR)
+    command <- paste(shQuote(args), collapse = " ")
+    # cat(command, sep = "\n")
+    rval <- suppressWarnings(system(command, intern = TRUE))
+    if (!is.null(status <- attr(rval, "status")) && status) {
+        if (status == -1L)
+            stop(gettextf("'%s' could not be run", "emacsclient", domain = "R-base"), domain = NA)
+        else stop(sprintf("'%s' execution failed with error code %d and message:\n\n", "emacsclient", status),
+            paste(rval, collapse = "\n"),
+            "\n\nperhaps add (server-start) to your ~/.emacs file and restart the session\n",
+            "or type M-x server-start in your current session?", domain = NA)
+    }
+
+
+    if (!.IS_SCALAR_STR(rval))
+        stop("command 'emacsclient' failed to return a character string")
+
+
+    if (.scalar_streql(rval, "success-active")) {
+        x <- readChar(file, nchars = file.size(file), useBytes = TRUE)
+        if (verbose) cat("Source: active document in Emacs\n")
+        if (contents)
+            # list(.External2(.C_splitlines, x))
+            strsplit(x, "\r\n|[\r\n]", useBytes = TRUE)
+        else if (.isfalse(original))
+            .normalizePath(x)
+        else x
+    }
+    else if (.scalar_streql(rval, "success-source")) {
+        x <- readChar(file, nchars = file.size(file), useBytes = TRUE)
+        if (verbose) cat("Source: source document in Emacs\n")
+        if (contents)
+            # list(.External2(.C_splitlines, x))
+            strsplit(x, "\r\n|[\r\n]", useBytes = TRUE)
+        else if (.isfalse(original))
+            .normalizePath(x)
+        else x
+    }
+    else if (.scalar_streql(rval, "untitled-active")) {
+        if (for.msg)
+            gettext("Untitled", domain = "RGui", trim = FALSE)
+        else stop("active document in Emacs does not exist")
+    }
+    else if (.scalar_streql(rval, "untitled-source")) {
+        if (for.msg)
+            gettext("Untitled", domain = "RGui", trim = FALSE)
+        else stop("source document in Emacs does not exist")
+    }
+    else if (.scalar_streql(rval, "nil")) {
+        if (for.msg)
+            NA_character_
+        else stop("R is running from Emacs with no documents open")
+    }
+    else if (.scalar_streql(rval, "no-matching-pid")) {
+        if (for.msg)
+            NA_character_
+        else stop(sprintf("R process %d not found in primary Emacs sesion\n this.path() only works in primary Emacs session\n\n if you want to run multiple R sessions in Emacs, do not run multiple\n Emacs sessions, one R session each. instead run one Emacs session with\n multiple frames, one R session each. this gives the same appearance\n while allowing this.path() to work across all R sessions.",
+            Sys.getpid()), domain = NA)
+    }
+    else stop("invalid 'emacsclient' return value")
+}
+})
+
+
 .rgui.path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
 .External2(.C_rgui.path, verbose, original, for.msg, contents, .untitled, .r.editor)
 
@@ -474,7 +635,9 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
                     else
                         "Source: source document in RStudio\n"
                 )
-            list(.External2(.C_remove_trailing_blank_string, context[["contents"]]))
+            x <- context[["contents"]]
+            x <- .External2(.C_remove_trailing_blank_string, x)
+            list(x)
         }
         else if (nzchar(path <- context[["path"]])) {
             ## the encoding is not explicitly set (at least on Windows),
@@ -526,7 +689,9 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
         }
         else if (contents) {
             if (verbose) cat("Source: document in VSCode\n")
-            list(.External2(.C_remove_trailing_blank_string, context[["contents"]]))
+            x <- context[["contents"]]
+            x <- .External2(.C_remove_trailing_blank_string, x)
+            list(x)
         }
         else if (startsWith(context[["id"]], "untitled:")) {
             if (for.msg)
@@ -566,6 +731,13 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
         if (for.msg)
             NA_character_
         else stop(.thisPathInAQUAError())
+    }
+
+
+    else if (.gui.emacs) {
+
+
+        .emacs.path(verbose, original, for.msg, contents)
     }
 
 
@@ -857,25 +1029,6 @@ sys.srcref <- function (n = 1L, which = if (n) sys.parent(n) else 0L)
 
 
 
-this.path2 <- eval(call("function", as.pairlist(alist(... = )), bquote(
-stop(.defunctError("sys.path(..., default = NULL)", .(.pkgname), old = "this.path2(...)"))
-)))
-
-
-this.dir2 <- eval(call("function", as.pairlist(alist(... = )), bquote(
-stop(.defunctError("sys.dir(..., default = NULL)", .(.pkgname), old = "this.dir2(...)"))
-)))
-
-
-
-this.dir3 <- eval(call("function", as.pairlist(alist(... = )), bquote(
-stop(.defunctError("sys.dir(..., default = getwd())", .(.pkgname), old = "this.dir3(...)"))
-)))
-
-
-
-
-
 .here <- function (path, .. = 0L)
 {
     if (grepl("^(https|http|ftp|ftps)://", path)) {
@@ -896,7 +1049,7 @@ stop(.defunctError("sys.dir(..., default = getwd())", .(.pkgname), old = "this.d
 }
 
 
-sys.here <- function (..., .. = 0L, local = FALSE)
+sys.here <- function (..., local = FALSE, .. = 0L)
 {
     base <- .External2(.C_sys.path, local)
     base <- .here(base, ..)
@@ -904,8 +1057,8 @@ sys.here <- function (..., .. = 0L, local = FALSE)
 }
 
 
-env.here <- function (..., .. = 0L, n = 0L, envir = parent.frame(n + 1L),
-    matchThisEnv = getOption("topLevelEnvironment"))
+env.here <- function (..., n = 0L, envir = parent.frame(n + 1L), matchThisEnv = getOption("topLevelEnvironment"),
+    .. = 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
     base <- .External2(.C_env.path, envir, matchThisEnv)
@@ -914,7 +1067,8 @@ env.here <- function (..., .. = 0L, n = 0L, envir = parent.frame(n + 1L),
 }
 
 
-src.here <- function (..., .. = 0L, n = 0L, srcfile = if (n) sys.parent(n) else 0L)
+src.here <- function (..., n = 0L, srcfile = if (n) sys.parent(n) else 0L,
+    .. = 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
     base <- .External2(.C_src.path, srcfile)
@@ -923,9 +1077,9 @@ src.here <- function (..., .. = 0L, n = 0L, srcfile = if (n) sys.parent(n) else 
 }
 
 
-here <- function (..., .. = 0L, local = FALSE, n = 0L, envir = parent.frame(n + 1L),
-    matchThisEnv = getOption("topLevelEnvironment"),
-    srcfile = if (n) sys.parent(n) else 0L)
+here <- function (..., local = FALSE, n = 0L, envir = parent.frame(n + 1L),
+    matchThisEnv = getOption("topLevelEnvironment"), srcfile = if (n) sys.parent(n) else 0L,
+    .. = 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
     base <- .External2(.C_this.path, local, envir, matchThisEnv, srcfile)

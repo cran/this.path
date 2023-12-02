@@ -13,6 +13,7 @@
 \newcommand{\optionorsQuote}{\ifelse{text}{\sQuote{#1}}{\option{#1}}}
 
 
+\newcommand{\Emacs}{\href{https://ess.r-project.org/}{Emacs}}
 \newcommand{\Jupyter}{\href{https://jupyter.org/}{Jupyter}}
 \newcommand{\Python}{\href{https://www.python.org/}{Python}}
 \newcommand{\radian}{\href{https://github.com/randy3k/radian}{radian}}
@@ -28,7 +29,7 @@
 \newcommand{\knitrknitlink}{\codelink3{knitr:knit}{knitr::knit}{()}}
 \newcommand{\plumberplumblink}{\codelink3{plumber:plumb}{plumber::plumb}{()}}
 \newcommand{\shinyrunApplink}{\codelink3{shiny:runApp}{shiny::runApp}{()}}
-\newcommand{\targetslink}{\CRANpkg{targets}}
+\newcommand{\targetslink}{\ifelse{text}{\sQuote{package:targets}}{\CRANpkg{targets}}}
 \newcommand{\testthatsourcefilelink}{\codelink3{testthat:source_file}{testthat::source_file}{()}}
 \newcommand{\Rscriptlink}{\codelink2{utils}{Rscript}}
 

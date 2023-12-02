@@ -45,10 +45,11 @@ tmp(
     ".os.unix.console.radian", ".os.windows.console.radian", ".console.radian",
     ".gui.vscode",
     ".gui.jupyter",
+    ".gui.emacs",
     ".gui.aqua", ".gui.rgui", ".gui.tk",
     ".os.unix.in.shell", ".os.windows.in.shell", ".in.shell",
     ".unrecognized.manner",
-    "initwd", ".ucrt",
+    "initwd", ".ucrt", ".GUI",
 
 
     ## relpath.R  ----
@@ -322,9 +323,11 @@ if (getRversion() < "3.0.0") {
     fix.External2.fun(.thisPathNotExistsError)
     fix.External2.fun(.thisPathInZipFileError)
     fix.External2.fun(.thisPathInAQUAError)
+    fix.External2.fun(.thisPathInEmacsError)
     fix.External2.fun(.is.clipboard)
     fix.External2.fun(.fixNewlines)
     fix.External2.fun(.jupyter.path)
+    fix.External2.fun(.emacs.path)
     fix.External2.fun(.rgui.path)
     fix.External2.fun(.gui.path)
     fix.External2.fun(set.jupyter.path)
