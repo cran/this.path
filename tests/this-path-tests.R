@@ -16,7 +16,10 @@ local({
         cat("\n> getwd()\n")
         print(getwd())
         cat("\n> sys.path(verbose = TRUE)\n")
-        print(this.path::sys.path(verbose = TRUE))
+        stopifnot(identical(
+            print(this.path::sys.path(verbose = TRUE)),
+            getOption("this.path::sys.path() expectation")
+        ))
     }, file = abs.path.R)
     abs.path.R <- normalizePath(abs.path.R, "/", TRUE)
     abs.path.dir <- normalizePath(R.home(), "/", TRUE)
@@ -90,6 +93,10 @@ local({
         cat(dep, sep = "\n+ ")
         eval(expr, eval.envir)
     }
+
+
+    oopt <- options(`this.path::sys.path() expectation` = normalizePath(abs.path.R, "/", TRUE))
+    on.exit(options(oopt), add = TRUE)
 
 
     ## try using source in all possible manners
@@ -167,20 +174,21 @@ local({
         on.exit(unlink(abs.path.Rmd), add = TRUE)
         writeLines(c(
             "```{r}",
-            readLines(abs.path.R)[c(2L, 4L)],
+            readLines(abs.path.R)[-c(1L, 3L)],
             "```"
         ), abs.path.Rmd)
 
 
+        options(`this.path::sys.path() expectation` = normalizePath(abs.path.Rmd, "/", TRUE))
         setwd(basename.dir)
-        fun(knitr::knit(.(basename.Rmd)                         , output = stdout(), quiet = TRUE))
-        fun(knitr::knit(print(conn <- file(.(basename.Rmd)))    , output = stdout(), quiet = TRUE)); close(conn)
+        fun(knitr::knit(.(basename.Rmd)                     , output = stdout(), quiet = TRUE))
+        fun(knitr::knit(print(conn <- file(.(basename.Rmd))), output = stdout(), quiet = TRUE)); close(conn)
         setwd(rel.path.dir)
-        fun(knitr::knit(.(rel.path.Rmd)                         , output = stdout(), quiet = TRUE))
-        fun(knitr::knit(print(conn <- file(.(rel.path.Rmd)))    , output = stdout(), quiet = TRUE)); close(conn)
+        fun(knitr::knit(.(rel.path.Rmd)                     , output = stdout(), quiet = TRUE))
+        fun(knitr::knit(print(conn <- file(.(rel.path.Rmd))), output = stdout(), quiet = TRUE)); close(conn)
         setwd(abs.path.dir)
-        fun(knitr::knit(.(abs.path.Rmd)                         , output = stdout(), quiet = TRUE))
-        fun(knitr::knit(print(conn <- file(.(abs.path.Rmd)))    , output = stdout(), quiet = TRUE)); close(conn)
+        fun(knitr::knit(.(abs.path.Rmd)                     , output = stdout(), quiet = TRUE))
+        fun(knitr::knit(print(conn <- file(.(abs.path.Rmd))), output = stdout(), quiet = TRUE)); close(conn)
     }
 
 
@@ -195,6 +203,7 @@ local({
         compiler::cmpfile(abs.path.R, abs.path.Rc)
 
 
+        options(`this.path::sys.path() expectation` = normalizePath(abs.path.Rc, "/", TRUE))
         setwd(basename.dir)
         fun(compiler::loadcmp(.(basename.Rc), envir = environment(), chdir = FALSE))
         fun(compiler::loadcmp(.(basename.Rc), envir = environment(), chdir = TRUE ))
@@ -209,6 +218,7 @@ local({
 
     ## 'box::use' cannot handle file URIs nor connections nor absolute paths
     if (requireNamespace("box", quietly = TRUE)) {
+        options(`this.path::sys.path() expectation` = normalizePath(abs.path.R, "/", TRUE))
         setwd(basename.dir); box::set_script_path(this.path::path.join(basename.dir, "."))
         fun(box::use(module = ./.(as.symbol(sub("\\.R$", "", basename.R))))); box::unload(module)
         if (!this.path:::.is.abs.path(rel.path.R)) {
@@ -232,10 +242,13 @@ local({
         shinytmp <- replace.backslash(shinytmp)
         on.exit(unlink(shinytmp, recursive = TRUE, force = TRUE), add = TRUE)
         dir.create(shinytmp)
+        file <- this.path::path.join(shinytmp, "app.R")
         writeLines(c(
             readLines(abs.path.R),
             "stop(structure(list(message = \"\", call = NULL), class = c(\"thispath.tests.R.catch.this.error\", \"error\", \"condition\")))"
-        ), this.path::path.join(shinytmp, "app.R"))
+        ), file)
+        options(`this.path::sys.path() expectation` = normalizePath(file, "/", TRUE))
+        rm(file)
         abs.path.app.R <- normalizePath(shinytmp, "/", TRUE)
         abs.path.app.dir <- abs.path.dir
         basename.app.R <- "."
@@ -261,6 +274,7 @@ local({
 
     ## 'plumber::plumb' cannot handle file URIs nor connections
     if (requireNamespace("plumber", quietly = TRUE)) {
+        options(`this.path::sys.path() expectation` = normalizePath(abs.path.R, "/", TRUE))
         setwd(basename.dir)
         fun(plumber::plumb(.(basename.R)))
         setwd(rel.path.dir)
@@ -275,6 +289,7 @@ local({
             readLines(abs.path.R),
             "plumber::Plumber$new()"
         ), entrypoint.R)
+        options(`this.path::sys.path() expectation` = normalizePath(entrypoint.R, "/", TRUE))
         setwd(basename.dir)
         fun(plumber::plumb())
         setwd(rel.path.dir)
@@ -285,4 +300,81 @@ local({
 
 
     invisible()
+})
+
+
+local({
+    FILE.R <- tempfile(fileext = ".R")
+    on.exit(unlink(FILE.R))
+    this.path:::.write.code({
+        stopifnot(identical(
+            this.path::this.path(),
+            getOption("this.path::this.path() expectation")
+        ))
+    }, FILE.R)
+    oopt <- options(
+        `this.path::this.path() expectation` = normalizePath(FILE.R, "/", TRUE),
+        keep.source = TRUE
+    )
+    on.exit(options(oopt), add = TRUE)
+    eval(
+        parse(FILE.R),
+        structure(list2env(list(.packageName = FILE.R), parent = .BaseNamespaceEnv), path = FILE.R)
+    )
+    eval(parse(FILE.R))
+})
+
+
+local({
+    FILE.R <- tempfile(fileext = ".R")
+    on.exit(unlink(FILE.R))
+    this.path:::.write.code({
+        list(
+            this.path::src.path(original = TRUE),
+            this.path::src.path(original = NA),
+            this.path::src.path(),
+            this.path::src.path(original = TRUE),
+            this.path::src.path(original = NA)
+        )
+    }, FILE.R)
+    oopt <- options(keep.source = TRUE)
+    on.exit(options(oopt), add = TRUE)
+    stopifnot(identical(
+        eval(parse(FILE.R)),
+        list(FILE.R, normalizePath(FILE.R, "/", TRUE))[c(1L, 1L, 2L, 1L, 2L)]
+    ))
+})
+
+
+local({
+    FILE1.R <- tempfile(pattern = "file1_", fileext = ".R")
+    on.exit(unlink(FILE1.R), add = TRUE)
+    this.path:::.write.code({
+        fun <- function(x) x
+        fun1 <- function() fun(this.path::src.path())
+    }, FILE1.R)
+    source(FILE1.R, environment(), keep.source = TRUE)
+
+
+    FILE2.R <- tempfile(pattern = "file2_", fileext = ".R")
+    on.exit(unlink(FILE2.R), add = TRUE)
+    this.path:::.write.code({
+        fun2 <- function() fun(this.path::src.path())
+    }, FILE2.R)
+    source(FILE2.R, environment(), keep.source = TRUE)
+
+
+    ## it might seem weird to use eval(expression())
+    ## it is just to prevent the expressions from having source references
+    stopifnot(identical(eval(expression(fun1())), normalizePath(FILE1.R, "/", TRUE)))
+    stopifnot(identical(eval(expression(fun2())), normalizePath(FILE2.R, "/", TRUE)))
+
+
+    FILE3.R <- tempfile("file3_", fileext = ".R")
+    on.exit(unlink(FILE3.R), add = TRUE)
+    this.path:::.write.code({
+        x <- list(fun1(), fun2(), fun(this.path::src.path()))
+    }, FILE3.R)
+    source(FILE3.R, environment(), keep.source = TRUE)
+    stopifnot(identical(x, as.list(normalizePath(c(FILE1.R, FILE2.R, FILE3.R), "/", TRUE))))
 })

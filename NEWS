@@ -1,5 +1,13 @@
 this.path News
 
+CHANGES IN this.path 2.3.1 (2023-12-10):
+
+BUG FIXES:
+
+    * sys.srcref() now works when passed as a non-forced argument to a
+      function containing source references. By extension, this.path()
+      and LINENO() now work as well.
+
 CHANGES IN this.path 2.3.0 (2023-12-02):
 
 SIGNIFICANT USER-VISIBLE CHANGES:

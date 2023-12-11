@@ -1,5 +1,14 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.3.1 (2023-12-10)}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item{\code{sys.srcref()} now works when passed as a non-forced argument
+        to a function containing source references. By extension,
+        \code{this.path()} and \code{LINENO()} now work as well.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.3.0 (2023-12-02)}{
   \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
     \itemize{

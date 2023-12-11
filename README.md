@@ -2,10 +2,9 @@
 
 ## Description
 
-**this.path** aims to provide a mechanism for retrieving the path of an
-R script within itself without needing to explicitly write its path
-elsewhere. Additionally, it provides a mechanism for a script to refer
-to files relative to its directory, independent of working directory.
+`package:this.path` provides a mechanism to retrieve the path of an R
+script within itself without the explicit need to write its path
+elsewhere.
 
 ## Installation
 
@@ -22,8 +21,8 @@ install.packages("this.path",
 
 ## Details
 
-The most important functions from **this.path** are `this.path()`,
-`this.dir()`, `here()`, and `this.proj()`:
+The most important functions from `package:this.path` are
+`this.path()`, `this.dir()`, `here()`, and `this.proj()`:
 
 *   `this.path()` returns the normalized path of the script in which it
     is written.
@@ -35,10 +34,23 @@ The most important functions from **this.path** are `this.path()`,
 *   `this.proj()` constructs file paths against the project root of
     `this.dir()`.
 
-**this.path** also provides functions for constructing and manipulating
-file paths:
+New additions include:
 
-*  `path.join()`, `basename2()`, and `dirname2()` are drop in
+*   `LINENO()` returns the line number of the executing expression.
+
+*   `shFILE()` looks through the command line arguments, extracting
+    *FILE* from either of the following: `-f FILE` or `--file=FILE`
+
+*   `set.sys.path()` implements `this.path()` for any `source()`-like
+    functions outside of the builtins.
+
+*   with_site.file() and with_init.file() allow this.path() and related
+    to be used in the site-wide startup profile file or a user profile.
+
+`package:this.path` also provides functions for constructing and
+manipulating file paths:
+
+*   `path.join()`, `basename2()`, and `dirname2()` are drop in
     replacements for `file.path()`, `basename()`, and `dirname()` which
     better handle drives and network shares.
 
@@ -52,185 +64,214 @@ file paths:
 *   `relpath()`, `rel2here()`, and `rel2proj()` turn absolute paths
     into relative paths.
 
-New additions to **this.path** include:
+## Note
 
-*   `LINENO()` returns the line number of the executing expression.
+This package started from a stack overflow posting:
 
-*   `wrap.source()`, `set.sys.path()`, and `unset.sys.path()` implement
-    `this.path()` for any `source()`-like functions outside of the
-    builtins.
+[https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script/64129649#64129649](https://stackoverflow.com/questions/1815606/determine-path-of-the-executing-script/64129649#64129649)
 
-*   `shFILE()` looks through the command line arguments, extracting
-    *FILE* from either of the following: `-f FILE` or `--file=FILE`
+If you like this package, please consider upvoting my answer so that
+more people will see it! If you have an issue with this package, please
+use `bug.report(package = "this.path")` to report your issue.
 
-## **this.path** vs **whereami**
+## Alternatives
 
-The only equivalent to `this.path()` (that I have seen) is
-`whereami::thisfile()`. R package **whereami** has many issues that
-**this.path** resolves:
+If you are unhappy with the performance of `package:this.path`, or
+would otherwise like to know some other solutions, here are 4
+alternatives:
 
-1.  `this.path()` works with `sys.source()`, `debugSource()` in
-    'RStudio', `compiler::loadcmp()`, `box::use()`, `knitr::knit()`,
-    `plumber::plumb()`, `shiny::runApp()`, `package:targets`, and
-    `testthat::source_file()`. It also works in interactive mode inside
-    'Rgui', 'RStudio', 'VSCode', 'Jupyter', and 'Emacs'.
+### Alternative 1: Other Packages That Determine Current R Script
 
-2.  Related to `source()`, `this.path()`:
+There are a few other packages and functions that provide the ability
+to retrieve the path of the current R script:
 
-    2.1. takes argument `chdir` into account.
+*   [`package:envDocument`](https://CRAN.R-project.org/package=envDocument),
+    specifically `envDocument::getScriptPath()`
 
-    2.2. recognizes that `file = ""`, `file = "clipboard"`, and
-         `file = "stdin"` are not referring to files and skips them.
+*   [`package:funr`](https://CRAN.R-project.org/package=funr),
+    specifically `funr::get_script_path()` and `funr::sys.script()`
 
-    2.3. accounts for `file` being a URL pathname.
+*   [`package:scriptName`](https://CRAN.R-project.org/package=scriptName),
+    specifically `scriptName::current_filename()`
 
-    2.4. accounts for `file` being a connection instead of a character
-         string.
+*   [`package:whereami`](https://CRAN.R-project.org/package=whereami),
+    specifically `whereami::thisfile()`
 
-    2.5. skips calls in which `file` is missing and `exprs` is used
-         instead.
+These are lacking in functionality compared to `package:this.path`:
 
-3.  If an R script is being run from a shell, `this.path()` does a
-    better job of extracting the command line argument `-f FILE` or
-    `--file=FILE`.
+*   `this.path()` is compatible with GUIs 'Rgui',
+    '[RStudio](https://posit.co/download/rstudio-desktop/)',
+    '[VSCode](https://code.visualstudio.com/)',
+    '[Jupyter](https://jupyter.org/)', and
+    '[Emacs](https://www.gnu.org/software/emacs/)' +
+    '[ESS](https://ess.r-project.org/)', as well as functions and
+    packages `sys.source()`, `debugSource()` in 'RStudio',
+    `compiler::loadcmp()`,
+    [`box::use()`](https://CRAN.R-project.org/package=box),
+    [`knitr::knit()`](https://CRAN.R-project.org/package=knitr),
+    [`plumber::plumb()`](https://CRAN.R-project.org/package=plumber),
+    [`shiny::runApp()`](https://CRAN.R-project.org/package=shiny),
+    [`package:targets`](https://CRAN.R-project.org/package=targets),
+    and
+    [`testthat::source_file()`](https://CRAN.R-project.org/package=testthat).
 
-4.  `this.path()` saves all normalized paths within their appropriate
+*   Related to `source()`, `this.path()`:
+
+    *   takes argument `chdir` into account.
+
+    *   recognizes that `file = ""`, `file = "clipboard"`, and
+        `file = "stdin"` are not referring to files and skips them.
+
+    *   accounts for `file` being a URL pathname.
+
+    *   accounts for `file` being a connection instead of a character
+        string.
+
+    *   skips calls in which `file` is missing and `exprs` is used
+        instead.
+
+*   `this.path()` does a better job of extracting *FILE* from the
+    command line arguments `-f FILE` and `--file=FILE`.
+
+*   `this.path()` saves all normalized paths within their appropriate
     environments, making it much faster subsequent times within the
-    same script, and independent of working directory.
+    same script and independent of working directory.
 
-5.  If `this.path()` does not find an executing script, it throws an
-    error. This is better than `whereami::thisfile()` which returns
-    `NULL` when it cannot find the executing script. If the executing
+*   If `this.path()` does not find an executing script, it throws an
+    error. This is better than returning `NULL`; if the executing
     script cannot be found, obviously there is a problem that needs to
     be addressed, so the script should not continue.
 
-**whereami** also has some objectively incorrect coding issues:
+These packages also have some objectively incorrect coding issues such
+as:
 
-1.  It treats R and Rscript as two separate applications to look for
-    command line arguments. At least since R 2.5.0 (>= 15 years ago),
-    Rscript directly calls R, so there should not be separate cases.
-    Additionally, it does **NOT** take into account the differences
-    between the command line applications on Windows and under
-    Unix-alikes.
+*   searching only the first call on the stack
 
-2.  It checks for uses of `knitr::knit()` after checking the entire
-    call stack for `source()` and after checking the command line
-    arguments. This is incorrect, it should be checking for
-    `knitr::knit()` at the same time as it checks for `source()`.
+*   failing to check the command line arguments
 
-3.  When **whereami** is loaded or attached, it changes option
-    `keep.source` to `TRUE`. A package should **never** be changing
-    global options without asking / / informing the user beforehand,
-    especially not a CRAN package.
+*   imposing unnecessary restrictions on pathnames
 
-4.  When `whereami::thisfile()` is called, it forces **knitr** to be
-    loaded as well. Again, it is changing the global environment
-    without permission. It should do something like
-    `isNamespaceLoaded("knitr")` instead of `requireNamespace("knitr")`
-    since, contrary to what the package claims, **whereami** enhances
-    **knitr** rather than requires it.
+*   searching the call stack in the wrong order
 
-Code aside, **whereami** suggests that an R script needing to know its
-own path should only be done if absolutely necessary, and that it
-should be set outside the context of the R script if possible. I find
-this vague and unconvincing. Other scripting languages have methods of
-requesting a script's path without issue, so R should too. We should
-not be scaring programmers into thinking that this is rule-breaking or
-bad practice.
+*   returning the directory instead of the path of the executing script
 
-## **this.path** vs **here**
+*   searching for a path in the wrong order
 
-**this.path** provides a function `this.path::here()`. The only
-equivalent (that I know of) is R package **here** with its function
-`here::here()`. **this.path** provides a mechanism for specifying a
-path relative to the executing script's directory, while **here**
-provides a mechanism for specifying a path relative to the project's
-root.
+*   searching for a source call by name instead of by value
 
-As a long time **here** user, I appreciate all the functionality and
-convenience this package offered, but it has some faults that I could
-not ignore (which **this.path** fixes). I do not dislike **here**, it
-just no longer fits my use-cases.
+*   changing global options without explicit user permission
 
-1.  `here::here()` returns the initial working directory when it cannot
+*   loading unnecessary additional packages without explicit user
+    permission
+
+### Alternative 2: Packages That Determine Project Root
+
+[`package:here`](https://CRAN.R-project.org/package=here) provides
+function `here::here()` with the ability to retrieve the project root,
+but it lacks functionality:
+
+*   `here::here()` returns the initial working directory when it cannot
     find the project's directory. If the project's directory cannot be
     found, there is something wrong and an error should be thrown, but
     it doesn't, and this leads to incorrect / / unexpected behaviour.
 
-2.  **here** does not work when the initial working directory is set
-    outside the context of the project. Occasionally, I would set the
-    working directory to a temporary directory where my R script would
-    create a log file of the details of the script. This leads to
-    **here** not being able to find the project's directory and
+*   `here::here()` does not work when the initial working directory is
+    set outside the context of the project. Occasionally, I would set
+    the working directory to a temporary directory where my R script
+    would create a log file of the details of the script. This leads to
+    `package:here` not being able to find the project root and
     incorrectly returning the initial working directory.
 
-3.  **here** does not work for projects containing sub-projects. In my
-    scenario, I had a project "A", and later I had a project "B" of
-    which "A" is a sub-project. I would run a script in "B" which runs
-    another script in "A", but the project root is already set to the
+*   `here::here()` does not work when multiple projects are in use nor
+    for projects containing sub-projects. In my scenario, I had a
+    project "A" and a project "B". I would run a script in "B" which
+    runs a script in "A", but the project root is already set to the
     root of "B", so the script in "A" fails.
 
-4.  **here** does not work when a project is stored on the internet.
-    When I say on the internet, I am not referring to a project stored
-    on a network share, that works correctly. I am talking about
-    projects uploaded to a website. The work I do requires that all
-    source code and input be publicly available through our website,
-    and that the code should run as expected (slow as it may be, and
-    only code that exclusively reads files and / / or produces
-    graphics). Since the project root of **here** cannot be a URL
-    pathname, I cannot use it.
+[`package:rprojroot`](https://CRAN.R-project.org/package=rprojroot) is
+the R package upon which `package:here` is built. It provides a list of
+project root criteria `rprojroot::criteria`. `package:rprojroot` is not
+useful on its own since, like `here::here()`, it does not work when the
+working directory is set outside the context of the project. However,
+you can combine it with `package:this.path` to get the best results. An
+example:
 
-It should be noted that if you prefer specifying files relative to the
-project's directory instead of the executing script's directory, you
-could use `this.path::this.proj()` instead. It behaves very similarly
-to `here::here()`, but can handle multiple projects in use at once.
+```R
+## substitute 'rprojroot::criteria$is_r_package' with your criterion
 
-## Other methods
+fix_file <- this.path::path.functions(
+    rprojroot::criteria$is_r_package$find_file(
+        path = this.path::here()
+    )
+)$here
 
-There are a few alternatives to `this.path()`, though they are
-limiting.
+## or
 
-### Change working directory
+fix_file <- this.path::path.functions(
+    rprojroot::find_root(
+        rprojroot::criteria$is_r_package,
+        this.path::here()
+    )
+)$here
+```
+
+If the default criteria are not sufficient for your needs, you can make
+your own using:
+
+*   `rprojroot::has_basename()`
+
+*   `rprojroot::has_dir()`
+
+*   `rprojroot::has_file()`
+
+*   `rprojroot::has_file_pattern()`
+
+*   `rprojroot::root_criterion()`
+
+`package:rprojroot` recommends using
+`<criterion>$find_file(path = whereami::thisfile())` for this purpose,
+but as mentioned in section **Alternative 1**, `whereami::thisfile()`
+is seriously lacking compared to `this.path::this.path()`.
+
+### Alternative 3: Always Change Working Directory
 
 The working directory could always be changed to the directory of the
-executing script before running it. This would be
+executing script before running it. This would be:
 
-```{bash}
+```bash
 cd /path/to
 Rscript ./file.R
 ```
 
-or
+or:
 
-```{r}
+```R
 source("/path/to/file.R", chdir = TRUE)
 ```
 
-This works for a lot of use-cases, except for interactive use when
-moving between files in different directories, nor when an R script is
-stored on a website. Sometimes it is convenient to have the working
-directory set elsewhere. This also means that R scripts cannot be made
-to act like executables. If a script needs to call other scripts in the
-same directory, it could not do so without the its own path.
+This fails when moving amongst files in different directories.
+Additionally, sometimes it is convenient to have the working directory
+set elsewhere. This means that R scripts cannot be made to act like
+executables. If a script needs to call other scripts in the same
+directory, it could not do so without the its own path.
 
-### `utils::getSrcFilename()`
+### Alternative 4: Source References
 
-Everywhere `this.path()` would be used, write
-`utils::getSrcFilename(function() NULL, full.names = TRUE)`
-instead (yes, it is quite lengthy), and everywhere `this.dir()` would
-be used, write `utils::getSrcDirectory(function() NULL)` (again,
-quite lengthy).
+`utils::getSrcFilename()` provides the ability to retrieve the filename
+of a source reference. Everywhere `this.path()` would be used, write 
+`utils::getSrcFilename(function() NULL, full.names = TRUE)` instead
+(yes, it is quite lengthy), and everywhere `this.dir()` would be used,
+write `utils::getSrcDirectory(function() NULL)` instead (again, quite
+lengthy).
 
-While this will work for R scripts uploaded to a website, this will not
-work in interactive use since scripts must be run with `source()`.
-Also, it means option `keep.source` must be set to `TRUE`; this may not
-be a big deal, but something to be aware of. This means R scripts could
-not be run from a shell ever again, making it an incredibly
-inconvenient substitute.
+This fails in interactive use since scripts must be run with
+`source()`. Also, it means option `keep.source` must be set to `TRUE`;
+this may not be a big deal, but something to be aware of. This means R
+scripts could not be run from a shell ever again, making it an
+incredibly inconvenient substitute.
 
 ## Closing
 
-If you think I have overlooked something in **whereami** or **here**,
-or think there are any improvements I could make to **this.path**,
-please let me know, I am open to all suggestions! And I hope this
-package serves you well!
+If you think I have overlooked some of the alternatives, or think there
+are any improvements I could make to `package:this.path`, please let me
+know, I am open to suggestions! I hope this package serves you well!
