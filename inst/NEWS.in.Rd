@@ -1,5 +1,71 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.4.0 (2024-02-16)}{
+  \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
+    \itemize{
+      \item{\code{with_init.file()} now accepts a braced expression, the
+        sub-expressions of which are evaluated and auto-printed.}
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item{\code{this.path()} is now compatible with function
+        \code{utils::Sweave()}.}
+
+      \item{\code{this.path()} is now compatible with background jobs in
+        \sQuote{\RStudio}.}
+
+      \item{Added \code{with_script_path()} which sets the current script in
+        \pkgorsQuote{package:box} to \code{this.path()}, then evaluates its
+        argument, most commonly a \pkgorsQuote{package:box} import statement.}
+
+      \item{Added \code{make_fix_file()} which makes a function that constructs
+        file paths, starting with the project root of \code{this.dir()}.}
+    }
+  }
+  \subsection{DEPRECATED AND DEFUNCT}{
+    \itemize{
+      \item{\code{set.sys.path.jupyter()} is defunct and should be replaced
+        with \code{set.jupyter.path()}.}
+
+      \item{\code{fileArgs()} is defunct and should be replaced
+        with \code{progArgs()}.}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item{\code{this.path()} now works correctly in the site-wide startup
+        profile file.}
+
+      \item{\code{this.path()} now works correctly with source file aliases.}
+
+      \item{Updated \code{shFILE()} to work better with older versions of \R.}
+
+      \item{Improved \code{LINENO()}, specifically \code{sys.LINENO()}, when
+        comparing paths to determine the appropriate source reference.}
+
+      \item{\code{this.proj()} now throws an error that it does not work for
+        URL pathnames.}
+
+      \item{Removed the restriction that \code{reset.proj()} could only be
+        called from a top level context.}
+
+      \item{\code{withArgs()} will now be found anywhere on the stack as long
+        as it and the \sourcenolink-like function are called in the same frame.
+
+        e.g. \code{withArgs(try(source("./example.R")), 1, 2, 3)} now works as
+        intended.}
+
+      \item{Unified behaviour of \code{is.main()} across all GUIs.}
+
+      \item{All promises are now braced, giving a more sensible call stack in
+        case of warnings / / errors.}
+
+      \item{Namespaces loaded with \code{requireNamespace()} are now loaded
+        quietly.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.3.1 (2023-12-10)}{
   \subsection{BUG FIXES}{
     \itemize{
@@ -38,7 +104,7 @@
         references.}
 
       \item{\code{this.path()} is now compatible with package
-        \CRANpkg{targets}.}
+        \CRANpackage{targets}.}
 
       \item{Added \code{with_site.file()} and \code{with_init.file()} that
         allow \code{this.path()} to be used within the site-wide startup
@@ -191,8 +257,8 @@
       \item{Fixed \code{relpath()} on Windows when comparing paths with network
         shares.}
 
-      \item{Fixed \pkg{this.path} used in the site-wide startup profile file, a
-        user profile, or the function \code{.First()} on Windows in
+      \item{Fixed \pkg{package:this.path} used in the site-wide startup profile
+        file, a user profile, or the function \code{.First()} on Windows in
         \sQuote{\RStudio}.}
     }
   }

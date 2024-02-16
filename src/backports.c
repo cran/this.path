@@ -687,6 +687,9 @@ SEXP do_endsWith do_formals
 #if R_version_less_than(3, 5, 0)
 
 
+#define length_DOTS(_v_) (TYPEOF(_v_) == DOTSXP ? length(_v_) : 0)
+
+
 SEXP do_dotslength do_formals
 {
     do_start_no_call_op("...length", 0);
@@ -696,8 +699,31 @@ SEXP do_dotslength do_formals
     SEXP vl = findVar(R_DotsSymbol, env);
     if (vl == R_UnboundValue)
         error(_("incorrect context: the current call has no '...' to look in"));
-    return ScalarInteger((TYPEOF(vl) == DOTSXP ? length(vl) : 0));
+    return ScalarInteger(length_DOTS(vl));
 }
+
+
+SEXP ddfind(int i, SEXP rho)
+{
+    if (i <= 0)
+        error(_("indexing '...' with non-positive index %d"), i);
+    SEXP vl = findVar(R_DotsSymbol, rho);
+    if (vl != R_UnboundValue) {
+        if (length_DOTS(vl) >= i) {
+            vl = nthcdr(vl, i - 1);
+            return CAR(vl);
+        }
+        else
+            error(_((i == 1) ? "the ... list contains fewer than %d element" :
+                               "the ... list contains fewer than %d elements"),
+                  i);
+    }
+    else error(_("..%d used in an incorrect context, no ... to look in"), i);
+    return R_NilValue;
+}
+
+
+#undef length_DOTS
 
 
 #endif
@@ -748,6 +774,37 @@ void R_removeVarFromFrame(SEXP name, SEXP env)
 
 
 #if R_version_less_than(4, 1, 0)
+
+
+// ...elt(n) was added in R 3.5.0
+// but did not propogate visibility until R 4.1.0
+SEXP do_dotselt do_formals
+{
+    do_start_no_op("...elt", 1);
+
+
+    SEXP env = eval(expr_parent_frame, rho);
+    SEXP si = CAR(args);
+    if (!isNumeric(si) || XLENGTH(si) != 1)
+        errorcall(call, _("indexing '...' with an invalid index"));
+    int i = asInteger(si);
+#if R_version_at_least(3, 0, 0)
+    return eval(ddfind(i, env), env);
+#else
+    SEXP expr;
+    PROTECT_INDEX indx;
+    char buf[15];
+    snprintf(buf, 15, "..%d", i);
+    PROTECT_WITH_INDEX(expr = CONS(install(buf), R_NilValue), &indx);
+    REPROTECT(expr = LCONS(getFromBase(withVisibleSymbol), expr), indx);
+    SEXP value = eval(expr, env);
+    PROTECT(value);
+    set_this_path_value(VECTOR_ELT(value, 0));
+    set_this_path_visible(asLogical(VECTOR_ELT(value, 1)));
+    UNPROTECT(2);
+    return R_NilValue;
+#endif
+}
 
 
 SEXP R_NewEnv(SEXP enclos, int hash, int size)

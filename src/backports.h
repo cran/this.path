@@ -22,11 +22,15 @@ extern int IS_ASCII(SEXP x);
 
 extern Rboolean R_existsVarInFrame(SEXP rho, SEXP symbol);
 
+extern SEXP ddfind(int i, SEXP rho);
+
 
 #if R_version_less_than(3, 0, 0)
 #define XLENGTH LENGTH
 #define xlength length
 #define R_xlen_t R_len_t
+#define R_XLEN_T_MAX R_LEN_T_MAX
+#define asXLength asLength
 #endif
 
 
@@ -135,6 +139,11 @@ extern int IS_SCALAR(SEXP x, int type);
 #if R_version_less_than(3, 2, 0)
 #define R_THIS_PATH_NEED_BLANKSCALARSTRING
 extern SEXP R_BlankScalarString;
+#endif
+
+
+#if R_version_less_than(3, 2, 0)
+#define installChar(x) install(CHAR((x)))
 #endif
 
 

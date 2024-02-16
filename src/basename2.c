@@ -1,4 +1,3 @@
-#include "drivewidth.h"
 #include "thispathdefn.h"
 
 
@@ -35,7 +34,7 @@ SEXP basename2(int windows, SEXP args)
             SET_STRING_ELT(value, i, R_BlankString); */
             continue;
         }
-        drivewidth = get_drive_width(windows, ptr, nchar);
+        drivewidth = _drive_width(windows, ptr, nchar);
         nchar -= drivewidth;  /* number of characters in the pathspec */
         if (nchar == 0) {
             /* don't bother assigning an empty string, should already be empty
@@ -116,14 +115,14 @@ SEXP basename2(int windows, SEXP args)
 
 SEXP do_windows_basename2 do_formals
 {
-    do_start_no_call_op_rho("windows.basename2", 1);
+    do_start_no_call_op_rho("windows_basename2", 1);
     return basename2(TRUE, args);
 }
 
 
 SEXP do_unix_basename2 do_formals
 {
-    do_start_no_call_op_rho("unix.basename2", 1);
+    do_start_no_call_op_rho("unix_basename2", 1);
     return basename2(FALSE, args);
 }
 
@@ -206,7 +205,7 @@ SEXP dirname2(SEXP call, int windows, const char *name, SEXP args)
         }
 
 
-        drivewidth = get_drive_width(windows, ptr, nchar);
+        drivewidth = _drive_width(windows, ptr, nchar);
         if (drivewidth == nchar) {  /* pathspec is 0 bytes long */
             if ((windows) && drivewidth == 2) {
                 char _buf[4];
@@ -364,15 +363,15 @@ SEXP dirname2(SEXP call, int windows, const char *name, SEXP args)
 
 SEXP do_windows_dirname2 do_formals
 {
-    do_start_no_op_rho("windows.dirname2", -1);
-    return dirname2(call, TRUE, ".C_windows.dirname2", args);
+    do_start_no_op_rho("windows_dirname2", -1);
+    return dirname2(call, TRUE, ".C_windows_dirname2", args);
 }
 
 
 SEXP do_unix_dirname2 do_formals
 {
-    do_start_no_op_rho("unix.dirname2", -1);
-    return dirname2(call, FALSE, ".C_unix.dirname2", args);
+    do_start_no_op_rho("unix_dirname2", -1);
+    return dirname2(call, FALSE, ".C_unix_dirname2", args);
 }
 
 

@@ -48,6 +48,29 @@ R_xlen_t asXLength(SEXP x)
 #endif
 
 
+int ddVal(SEXP symbol)
+{
+    const char *buf;
+    char *endp;
+    int rval;
+
+    buf = CHAR(PRINTNAME(symbol));
+    if (!strncmp(buf, "..", 2) && strlen(buf) > 2) {
+        buf += 2;
+        rval = (int) strtol(buf, &endp, 10);
+        return ((*endp != '\0') ? 0 : rval);
+    }
+    return 0;
+}
+
+
+SEXP ddfindVar(SEXP symbol, SEXP rho)
+{
+    int i = ddVal(symbol);
+    return ddfind(i, rho);
+}
+
+
 Rboolean needQuote(SEXP x)
 {
     switch (TYPEOF(x)) {
@@ -173,110 +196,6 @@ SEXP findFunction(SEXP symbol, SEXP rho)
 }
 
 
-SEXP as_environment_char(const char *what)
-{
-    SEXP name;
-    for (SEXP t = ENCLOS(R_GlobalEnv); t != R_EmptyEnv ; t = ENCLOS(t)) {
-        name = getAttrib(t, R_NameSymbol);
-        if (isString(name) &&
-            length(name) > 0 &&
-            !strcmp(translateChar(STRING_ELT(name, 0)), what))
-        {
-            return t;
-        }
-    }
-    SEXP expr = LCONS(as_environmentSymbol, CONS(mkString(what), R_NilValue));
-    PROTECT(expr);
-    errorcall(expr, _("no item called \"%s\" on the search list"), what);
-    UNPROTECT(1);
-    return R_NilValue;
-}
-
-
-SEXP errorCondition(const char *msg, SEXP call, const char **cls, int numFields)
-{
-    /* 'cls' is an array of strings */
-
-
-    SEXP value = allocVector(VECSXP, 2 + numFields);
-    PROTECT(value);
-    SEXP names = allocVector(STRSXP, 2 + numFields);
-    setAttrib(value, R_NamesSymbol, names);
-
-
-    SET_STRING_ELT(names, 0, mkChar("message"));
-    SET_VECTOR_ELT(value, 0, mkString(msg));
-    SET_STRING_ELT(names, 1, mkChar("call"));
-    SET_VECTOR_ELT(value, 1, call);
-
-
-    /* count the number of strings in 'cls' */
-    int numCls = 0;
-    while (cls[numCls]) ++numCls;
-
-
-    SEXP klass = allocVector(STRSXP, numCls + 2);
-    setAttrib(value, R_ClassSymbol, klass);
-    for (int i = 0; i < numCls; i++)
-        SET_STRING_ELT(klass, i         , mkChar(cls[i]));
-    SET_STRING_ELT(    klass, numCls    , mkChar("error"));
-    SET_STRING_ELT(    klass, numCls + 1, mkChar("condition"));
-
-
-    UNPROTECT(1);
-    return value;
-}
-
-
-SEXP errorCondition1(const char *msg, SEXP call, const char *cls, int numFields)
-{
-    /* 'cls' is a string */
-
-
-    SEXP value = allocVector(VECSXP, 2 + numFields);
-    PROTECT(value);
-    SEXP names = allocVector(STRSXP, 2 + numFields);
-    setAttrib(value, R_NamesSymbol, names);
-
-
-    SET_STRING_ELT(names, 0, mkChar("message"));
-    SET_VECTOR_ELT(value, 0, mkString(msg));
-    SET_STRING_ELT(names, 1, mkChar("call"));
-    SET_VECTOR_ELT(value, 1, call);
-
-
-    SEXP klass = allocVector(STRSXP, 3);
-    setAttrib(value, R_ClassSymbol, klass);
-    SET_STRING_ELT(klass, 0, mkChar(cls));
-    SET_STRING_ELT(klass, 1, mkChar("error"));
-    SET_STRING_ELT(klass, 2, mkChar("condition"));
-
-
-    UNPROTECT(1);
-    return value;
-}
-
-
-SEXP simpleError(const char *msg, SEXP call)
-{
-    return errorCondition1(msg, call, "simpleError", 0);
-}
-
-
-#define funbody(class_as_CHARSXP, summConn)                    \
-    const char *klass = EncodeChar((class_as_CHARSXP));        \
-    const char *format = "'this.path' not implemented when source()-ing a connection of class '%s'";\
-    const int n = strlen(format) + strlen(klass) + 1;          \
-    char msg[n];                                               \
-    snprintf(msg, n, format, klass);                           \
-    SEXP cond = errorCondition1(msg, call, "this.path::thisPathUnrecognizedConnectionClassError", 1);\
-    PROTECT(cond);                                             \
-    SEXP names = getAttrib(cond, R_NamesSymbol);               \
-    PROTECT(names);                                            \
-    SET_STRING_ELT(names, 2, mkChar("summary"));               \
-    SET_VECTOR_ELT(cond , 2, (summConn));                      \
-    UNPROTECT(2);                                              \
-    return cond
 #if defined(R_CONNECTIONS_VERSION_1)
 SEXP summaryconnection(Rconnection Rcon)
 {
@@ -304,12 +223,6 @@ SEXP summaryconnection(Rconnection Rcon)
     UNPROTECT(1);
     return value;
 }
-
-
-SEXP thisPathUnrecognizedConnectionClassError(SEXP call, Rconnection Rcon)
-{
-    funbody(mkChar(Rcon->class), summaryconnection(Rcon));
-}
 #else
 SEXP summaryconnection(SEXP sConn)
 {
@@ -320,103 +233,7 @@ SEXP summaryconnection(SEXP sConn)
     UNPROTECT(1);
     return value;
 }
-
-
-SEXP thisPathUnrecognizedConnectionClassError(SEXP call, SEXP summary)
-{
-    funbody(STRING_ELT(VECTOR_ELT(summary, 1), 0), summary);
-}
 #endif
-#undef funbody
-
-
-SEXP thisPathUnrecognizedMannerError(SEXP call)
-{
-    const char *msg = "R is running in an unrecognized manner";
-    const char *cls[] = {
-        "this.path::thisPathUnrecognizedMannerError",
-        thisPathNotFoundErrorCls,
-        NULL
-    };
-    return errorCondition(msg, call, cls, 0);
-}
-
-
-SEXP thisPathNotImplementedError(const char *msg, SEXP call)
-{
-#define thisPathNotImplementedErrorCls                         \
-    "this.path::thisPathNotImplementedError",                  \
-    "this.path_this.path_unimplemented_error",                 \
-    "notImplementedError",                                     \
-    "NotImplementedError"
-    const char *cls[] = {thisPathNotImplementedErrorCls, NULL};
-    return errorCondition(msg, call, cls, 0);
-}
-
-
-SEXP thisPathNotExistsError(const char *msg, SEXP call)
-{
-    const char *cls[] = {
-        thisPathNotExistsErrorCls,
-        "this.path::thisPathNotExistError",
-        "this.path_this.path_not_exists_error",
-        thisPathNotFoundErrorCls,
-        NULL
-    };
-    return errorCondition(msg, call, cls, 0);
-}
-
-
-SEXP thisPathInZipFileError(SEXP call, SEXP description)
-{
-    const char *msg = "'this.path' cannot be used within a zip file";
-    SEXP cond = errorCondition1(msg, call, "this.path::thisPathInZipFileError", 1);
-    PROTECT(cond);
-    SEXP names = getAttrib(cond, R_NamesSymbol);
-    PROTECT(names);
-    SET_STRING_ELT(names, 2, mkChar("description"));
-    SET_VECTOR_ELT(cond , 2, ScalarString(description));
-    UNPROTECT(2);
-    return cond;
-}
-
-
-SEXP thisPathInAQUAError(SEXP call)
-{
-    const char *msg = "R is running from AQUA which is currently unimplemented\n"
-                      " consider using RStudio / / VSCode until such a time when this is implemented";
-    const char *cls[] = {
-        "this.path::thisPathInAQUAError",
-        thisPathNotFoundErrorCls,
-        thisPathNotImplementedErrorCls,
-        NULL
-    };
-    return errorCondition(msg, call, cls, 0);
-}
-
-
-SEXP thisPathInEmacsError(SEXP call)
-{
-    const char *msg = "R is running from Emacs which is currently unimplemented\n"
-                      " consider using RStudio / / VSCode until such a time when this is implemented";
-    const char *cls[] = {
-        "thisPathInEmacsError",
-        thisPathNotFoundErrorCls,
-        thisPathNotImplementedErrorCls,
-        NULL
-    };
-    return errorCondition(msg, call, cls, 0);
-}
-
-
-void stop(SEXP cond)
-{
-    SEXP expr = LCONS(stopSymbol, CONS(cond, R_NilValue));
-    PROTECT(expr);
-    eval(expr, R_BaseEnv);
-    UNPROTECT(1);
-    return;
-}
 
 
 SEXP DocumentContext(void)
@@ -429,61 +246,61 @@ SEXP DocumentContext(void)
 }
 
 
-/* instead of doing:
+/* we used to do:
  * document.context$ofile <- NULL
- * to declare that a document context does not refer to a file, now we do:
+ * to indicate that a document context does not refer to a file, now we do:
  * document.context <- emptyenv()
- * this is much easier to test for and to read and to debug
+ * this is much easier to test for, to read, and to debug
  */
 
 
-#define _assign(file, documentcontext)                         \
-    INCREMENT_NAMED_defineVar(ofileSymbol, (file), (documentcontext));\
+#define _assign(ofile, documentcontext)                        \
+    INCREMENT_NAMED_defineVar(ofileSymbol, (ofile), (documentcontext));\
     SEXP e = makePROMISE(R_NilValue, (documentcontext));       \
     defineVar(fileSymbol, e, (documentcontext))
 
 
-static R_INLINE
-SEXP NA_TYPE2sym(NA_TYPE normalize_action)
-{
-    switch (normalize_action) {
-    case NA_DEFAULT: return _normalizePathSymbol        ;
-    case NA_NOT_DIR: return _normalizeNotDirectorySymbol;
-    case NA_FIX_DIR: return _normalizeFixDirectorySymbol;
-    default:
-        errorcall(R_NilValue, _("invalid '%s' value"), "normalize_action");
-        return R_NilValue;
+#define _assign_default(srcfile_original, owd, trans, documentcontext, na)\
+    if (srcfile_original) {                                    \
+        SET_PRCODE(e, LCONS(_normalizePath_srcfilealiasSymbol, \
+                            CONS(srcfile_original,             \
+                                 CONS(trans, R_NilValue))));   \
+    }                                                          \
+    else if (owd) {                                            \
+        INCREMENT_NAMED_defineVar(wdSymbol, owd, documentcontext);\
+        SEXP sym;                                              \
+        switch (na) {                                          \
+        case NA_DEFAULT: sym = _normalizePath_againstSymbol        ; break;\
+        case NA_NOT_DIR: sym = _normalizePath_not_dir_againstSymbol; break;\
+        case NA_FIX_DIR: sym = _normalizePath_fix_dir_againstSymbol; break;\
+        default:                                               \
+            errorcall(R_NilValue, _("invalid '%s' value"), "na");\
+            sym = R_NilValue;                                  \
+        }                                                      \
+        SET_PRCODE(e, LCONS(sym, CONS(wdSymbol, CONS(trans, R_NilValue))));\
+    }                                                          \
+    else {                                                     \
+        SEXP sym;                                              \
+        switch (na) {                                          \
+        case NA_DEFAULT: sym = _normalizePathSymbol        ; break;\
+        case NA_NOT_DIR: sym = _normalizePath_not_dirSymbol; break;\
+        case NA_FIX_DIR: sym = _normalizePath_fix_dirSymbol; break;\
+        default:                                               \
+            errorcall(R_NilValue, _("invalid '%s' value"), "na");\
+            sym = R_NilValue;                                  \
+        }                                                      \
+        SET_PRCODE(e, LCONS(sym, CONS(trans, R_NilValue)));    \
     }
-}
 
 
-void assign_default(SEXP file, SEXP documentcontext, NA_TYPE normalize_action)
-{
-    _assign(file, documentcontext);
-    SET_PRCODE(e, LCONS(NA_TYPE2sym(normalize_action), CONS(file, R_NilValue)));
-}
-
-
-void assign_chdir(SEXP file, SEXP owd, SEXP documentcontext)
-{
-    _assign(file, documentcontext);
-    INCREMENT_NAMED_defineVar(wdSymbol, owd, documentcontext);
-    SET_PRCODE(e, LCONS(_normalizeAgainstSymbol,
-                        CONS(wdSymbol,
-                             CONS(file, R_NilValue))));
-    return;
-}
-
-
-void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, NA_TYPE normalize_action)
+void assign_default(SEXP srcfile_original, SEXP owd, SEXP ofile, SEXP file, SEXP documentcontext, NORMALIZE_ACTION na)
 {
     _assign(ofile, documentcontext);
 
 
-    /* translate the string, then extract the string after file://
-     * or file:/// on windows where path is file:///d:/path/to/file */
     const char *url;
-    cetype_t ienc;
+    cetype_t ienc = CE_NATIVE;
+// https://github.com/wch/r-source/blob/trunk/src/main/connections.c#L5531
 #ifdef _WIN32
     if (!IS_ASCII(file)) {
         ienc = CE_UTF8;
@@ -493,26 +310,50 @@ void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, NA_TYPE normal
         url = CHAR(file);
     }
 #else
-    ienc = getCharCE(file);
-    url = CHAR(file);
+    url = translateChar(file);
 #endif
 
 
-#ifdef _WIN32
-    if (strlen(url) > 9 && url[7] == '/' && url[9] == ':')
-        url += 8;
-    else url += 7;
-#else
-    url += 7;
-#endif
-
-
-    SET_PRCODE(e, LCONS(NA_TYPE2sym(normalize_action),
-                        CONS(ScalarString(mkCharCE(url, ienc)), R_NilValue)));
+    _assign_default(srcfile_original, owd, ScalarString(mkCharCE(url, ienc)), documentcontext, na);
+    return;
 }
 
 
-void assign_file_uri2(SEXP description, SEXP documentcontext, NA_TYPE normalize_action)
+void assign_file_uri(SEXP srcfile_original, SEXP owd, SEXP ofile, SEXP file, SEXP documentcontext, NORMALIZE_ACTION na)
+{
+    _assign(ofile, documentcontext);
+
+
+    /* translate the string, then extract the string after file://
+     * or file:/// on windows where path is file:///d:/path/to/file */
+    const char *url;
+    cetype_t ienc = CE_NATIVE;
+// https://github.com/wch/r-source/blob/trunk/src/main/connections.c#L5531
+#ifdef _WIN32
+    if (!IS_ASCII(file)) {
+        ienc = CE_UTF8;
+        url = translateCharUTF8(file);
+    } else {
+        ienc = getCharCE(file);
+        url = CHAR(file);
+    }
+#else
+    url = translateChar(file);
+#endif
+
+
+// https://github.com/wch/r-source/blob/trunk/src/main/connections.c#L5650
+    int nh = 7;
+#ifdef _WIN32
+    if (strlen(url) > 9 && url[7] == '/' && url[9] == ':') nh = 8;
+#endif
+
+
+    _assign_default(srcfile_original, owd, ScalarString(mkCharCE(url + nh, ienc)), documentcontext, na);
+}
+
+
+void assign_file_uri2(SEXP srcfile_original, SEXP owd, SEXP description, SEXP documentcontext, NORMALIZE_ACTION na)
 {
     const char *url = CHAR(description);
     char _buf[8 + strlen(url) + 1];
@@ -532,10 +373,9 @@ void assign_file_uri2(SEXP description, SEXP documentcontext, NA_TYPE normalize_
 
 
 
-    SEXP ofile = ScalarString(mkCharCE(buf, getCharCE(description)));
+    SEXP ofile = ScalarString(mkCharCE(_buf, getCharCE(description)));
     _assign(ofile, documentcontext);
-    SET_PRCODE(e, LCONS(NA_TYPE2sym(normalize_action),
-                        CONS(ScalarString(description), R_NilValue)));
+    _assign_default(srcfile_original, owd, ScalarString(description), documentcontext, na);
 }
 
 
@@ -544,17 +384,28 @@ void assign_url(SEXP ofile, SEXP file, SEXP documentcontext)
     _assign(ofile, documentcontext);
 
 
+    const char *url;
+    cetype_t ienc = CE_NATIVE;
+// https://github.com/wch/r-source/blob/trunk/src/main/connections.c#L5531
 #ifdef _WIN32
-    if (!IS_ASCII(file))
-        ofile = ScalarString(mkCharCE(translateCharUTF8(file), CE_UTF8));
+    if (!IS_ASCII(file)) {
+        ienc = CE_UTF8;
+        url = translateCharUTF8(file);
+    } else {
+        ienc = getCharCE(file);
+        url = CHAR(file);
+    }
+#else
+    url = translateChar(file);
 #endif
 
 
-    SET_PRCODE(e, LCONS(_normalizeurl_1Symbol, CONS(ofile, R_NilValue)));
+    SET_PRCODE(e, LCONS(_normalizeURL_1Symbol, CONS(ScalarString(mkCharCE(url, ienc)), R_NilValue)));
     eval(e, R_EmptyEnv);  /* force the promise */
 }
 
 
+#undef _assign_default
 #undef _assign
 
 
@@ -564,35 +415,13 @@ void overwrite_ofile(SEXP ofilearg, SEXP documentcontext)
 }
 
 
-SEXP sys_call(SEXP which, SEXP rho)
+int _gui_rstudio = -1;
+int _maybe_unembedded_shell = -1;
+Rboolean _in_site_file = TRUE;
+Rboolean _in_init_file = FALSE;
+SEXP get_debugSource(void)
 {
-    SEXP expr;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(which, R_NilValue), &indx);
-    REPROTECT(expr = LCONS(getFromBase(sys_callSymbol), expr), indx);
-    SEXP value = eval(expr, rho);
-    UNPROTECT(1);
-    return value;
-}
-
-
-int sys_parent(int n, SEXP rho)
-{
-    SEXP expr;
-    PROTECT_INDEX indx;
-    PROTECT_WITH_INDEX(expr = CONS(ScalarInteger(n), R_NilValue), &indx);
-    REPROTECT(expr = LCONS(getFromBase(sys_parentSymbol), expr), indx);
-    int value = asInteger(eval(expr, rho));
-    UNPROTECT(1);
-    return value;
-}
-
-
-static Rboolean _init_tools_rstudio(void)
-{
-    SEXP _tools_rstudio = getFromMyNS(_tools_rstudioSymbol);
-    if (_tools_rstudio != R_EmptyEnv)
-        return TRUE;
+    if (!gui_rstudio) return R_UnboundValue;
 
 
     const char *what = "tools:rstudio";
@@ -605,114 +434,54 @@ static Rboolean _init_tools_rstudio(void)
             length(name) > 0 &&
             !strcmp(translateChar(STRING_ELT(name, 0)), what))
         {
-
-
-#define check4closure(var, sym)                                \
-            SEXP var = getInFrame((sym), t, FALSE);            \
-            PROTECT(var);                                      \
-            if (TYPEOF(var) != CLOSXP)                         \
-                error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME((sym))), "closure")
-
-
-            check4closure(_rs_api_getActiveDocumentContext, _rs_api_getActiveDocumentContextSymbol);
-            check4closure(_rs_api_getSourceEditorContext  , _rs_api_getSourceEditorContextSymbol  );
-            check4closure(debugSource                     , debugSourceSymbol                     );
-
-
-#undef check4closure
-
-
-#define assigninmynamespace(sym, val)                          \
-            do {                                               \
-                SEXP e = findVarInFrame(mynamespace, (sym));   \
-                if (TYPEOF(e) == PROMSXP) {                    \
-                    SET_PRCODE(e, (val));                      \
-                    SET_PRENV(e, R_NilValue);                  \
-                    SET_PRVALUE(e, (val));                     \
-                    SET_PRSEEN(e, 0);                          \
-                } else {                                       \
-                    if (R_BindingIsLocked((sym), mynamespace)) {\
-                        R_unLockBinding((sym), mynamespace);   \
-                        INCREMENT_NAMED_defineVar((sym), makeEVPROMISE((val), (val)), mynamespace);\
-                        R_LockBinding((sym), mynamespace);     \
-                    }                                          \
-                    else INCREMENT_NAMED_defineVar((sym), makeEVPROMISE((val), (val)), mynamespace);\
-                }                                              \
-            } while (0)
-
-
-            assigninmynamespace(_rs_api_getActiveDocumentContextSymbol, _rs_api_getActiveDocumentContext);
-            assigninmynamespace(_rs_api_getSourceEditorContextSymbol  , _rs_api_getSourceEditorContext  );
-            assigninmynamespace(_debugSourceSymbol                    , debugSource                     );
-            assigninmynamespace(_tools_rstudioSymbol                  , t                               );
-
-
-#undef assigninmynamespace
-
-
-            UNPROTECT(3);
-            return TRUE;
+            return getInFrame(debugSourceSymbol, t, TRUE);
         }
     }
 
 
-    return FALSE;
+    return R_UnboundValue;
 }
 
 
-int _gui_rstudio = -1;
-Rboolean has_tools_rstudio = FALSE;
-
-
-Rboolean init_tools_rstudio(Rboolean skipCheck)
+SEXP duplicateEnv(SEXP env)
 {
-    if (skipCheck || gui_rstudio) {
-        if (!has_tools_rstudio) {
-            has_tools_rstudio = _init_tools_rstudio();
-        }
-    }
-    return has_tools_rstudio;
-}
-
-
-int _maybe_unembedded_shell = -1;
-
-
-#ifdef _WIN32
-int is_clipboard(const char *url)
-{
-    return strcmp (url, "clipboard"     ) == 0 ||
-           strncmp(url, "clipboard-", 10) == 0;
-}
-const char *must_not_be_clipboard_message = "must not be \"clipboard\" nor start with \"clipboard-\"";
-#else
-int is_clipboard(const char *url)
-{
-    return strcmp(url, "clipboard"    ) == 0 ||
-           strcmp(url, "X11_primary"  ) == 0 ||
-           strcmp(url, "X11_secondary") == 0 ||
-           strcmp(url, "X11_clipboard") == 0;
-}
-const char *must_not_be_clipboard_message = "must not be \"clipboard\", \"X11_primary\", \"X11_secondary\", nor \"X11_clipboard\"";
+    if (TYPEOF(env) != ENVSXP)
+        error("wtf are you doing? %s %d", __FILE__, __LINE__);
+    if (env == R_EmptyEnv)
+        return env;
+    SEXP value = R_NewEnv(
+        /* enclos */ ENCLOS(env),
+        /* hash */ HASHTAB(env) != R_NilValue,
+        /* size */ 29
+    );
+    PROTECT(value);
+    SEXP names = R_lsInternal3(env, TRUE, FALSE);
+    PROTECT(names);
+    for (int i = LENGTH(names) - 1; i >= 0; i--) {
+        SEXP sym = installTrChar(STRING_ELT(names, i));
+#if R_version_at_least(4, 0, 0)
+        if (R_BindingIsActive(sym, env))
+            R_MakeActiveBinding(sym, R_ActiveBindingFunction(sym, env), value);
+        else
 #endif
-
-
-int is_url(const char *url)
-{
-    if      (strncmp(url, "http://" , 7) == 0)
-        return 7;
-    else if (strncmp(url, "https://", 8) == 0)
-        return 8;
-    else if (strncmp(url, "ftp://"  , 6) == 0)
-        return 6;
-    else if (strncmp(url, "ftps://" , 7) == 0)
-        return 7;
-    else
-        return 0;
+            INCREMENT_NAMED_defineVar(sym, findVarInFrame(env, sym), value);
+        if (R_BindingIsLocked(sym, env))
+            R_LockBinding(sym, value);
+    }
+    if (R_EnvironmentIsLocked(env))
+        R_LockEnvironment(value, FALSE);
+    DUPLICATE_ATTRIB(/* to */ value, /* from */ env);
+    if (OBJECT(env))
+        SET_OBJECT(value, 1);
+    if (IS_S4_OBJECT(env))
+        SET_S4_OBJECT(value);
+    UNPROTECT(2);
+    return value;
 }
 
 
-int is_file_uri(const char *url)
-{
-    return strncmp(url, "file://", 7) == 0;
-}
+// SEXP do_duplicateEnv do_formals
+// {
+//     do_start_no_call_op_rho("duplicateEnv", 1);
+//     return duplicateEnv(CAR(args));
+// }

@@ -1,27 +1,6 @@
-# .onLoad <- evalq(envir = new.env(), {
-#     delayedAssign(".otoplevel", Sys.getenv("R_THIS_PATH_TOP_LEVEL", NA))
-# function (libname, pkgname)
-# {
-#     if (is.na(.otoplevel))
-#         Sys.setenv(R_THIS_PATH_TOP_LEVEL = TRUE)
-#     else if (otoplevel)
-#         Sys.setenv(R_THIS_PATH_TOP_LEVEL = FALSE)
-# }
-# })
-#
-#
-# .onUnload <- evalq(envir = environment(.onLoad),
-# function (libpath)
-# {
-#     if (is.na(otoplevel))
-#         Sys.unsetenv("R_THIS_PATH_TOP_LEVEL")
-#     else if (otoplevel)
-#         Sys.setenv(R_THIS_PATH_TOP_LEVEL = TRUE)
-# })
+## functions to be converted to active bindings from '.onLoad' ----
 
 
-## a series of functions which need to be
-## converted to active bindings during loading
 .mbcslocale <- function ()
 .External2(.C_mbcslocale)
 
@@ -38,8 +17,76 @@ l10n_info()[[3L]]
 .External2(.C_R_MB_CUR_MAX)
 
 
-## function to be run from '.onLoad'
-.fix.plumber.parseUTF8 <- function (pkgname, pkgpath)
+## functions to be run from '.onLoad' ----
+
+
+.fix_utils_Sweave <- function (pkgname, pkgpath)
+{
+    ## the arguments are unused, they only exist to match the arguments
+    ## provided to a user hook (see loadNamespace, specifically runUserHook)
+    nsname <- "utils"
+    ns <- .getNamespace(nsname)
+    sym <- "Sweave"
+    fun <- ns[[sym]]
+    if (typeof(fun) == "closure" &&
+        is.call(b <- body(fun)) && length(b) >= 7L &&
+        identical(b[[6L]], quote(text <- SweaveReadFile(file, syntax, encoding = encoding))) &&
+        identical(b[[7L]], quote(attr(file, "encoding") <- encoding <- attr(text, "encoding"))))
+    {
+        body(fun) <- as.call(append(as.list(b), after = 6L,
+            expression(file <- attr(text, "files")[1L])
+        ))
+        if (bindingIsLocked(sym, ns)) {
+            (unlockBinding)(sym, ns)
+            assign(sym, fun, envir = ns, inherits = FALSE)
+            lockBinding(sym, ns)
+        }
+        else assign(sym, fun, envir = ns, inherits = FALSE)
+    }
+    invisible()
+}
+
+
+.fix_utils_RweaveLatexRuncode <- function (pkgname, pkgpath)
+{
+    ## the arguments are unused, they only exist to match the arguments
+    ## provided to a user hook (see loadNamespace, specifically runUserHook)
+    nsname <- "utils"
+    ns <- .getNamespace(nsname)
+    sym <- "RweaveLatexRuncode"
+    fun <- ns[[sym]]
+    if (typeof(fun) == "closure" &&
+        is.call(b <- body(fun)) && length(b) >= 34L &&
+        is.call(b_33 <- b[[indx33 <- 33L + identical(b[[29L]], quote(refline <- NA))]]) && length(b_33) >= 4L &&
+        is.call(b_33_4 <- b_33[[4L]]) && length(b_33_4) >= 6L &&
+        is.call(b_33_4_6 <- b_33_4[[6L]]) && length(b_33_4_6) >= 3L &&
+        is.call(b_33_4_6_3 <- b_33_4_6[[3L]]) && length(b_33_4_6_3) >= 4L &&
+        is.call(b_33_4_6_3_4 <- b_33_4_6_3[[4L]]) && length(b_33_4_6_3_4) >= 3L &&
+        is.call(b_33_4_6_3_4_3 <- b_33_4_6_3_4[[3L]]) && length(b_33_4_6_3_4_3) >= 2L &&
+        is.call(b_33_4_6_3_4_3_2 <- b_33_4_6_3_4_3[[2L]]) && length(b_33_4_6_3_4_3_2) >= 2L &&
+        identical(b_33_4_6_3_4_3_2[[2L]], quote(ce)))
+    {
+        b[[c(indx33, 4L, 6L, 3L, 4L, 3L, 2L, 2L)]] <- quote(chunkexps[nce])
+        body(fun) <- b
+        if (bindingIsLocked(sym, ns)) {
+            (unlockBinding)(sym, ns)
+            assign(sym, fun, envir = ns, inherits = FALSE)
+            lockBinding(sym, ns)
+        }
+        else assign(sym, fun, envir = ns, inherits = FALSE)
+    }
+    invisible()
+}
+
+
+.fix_utils <- function (pkgname, pkgpath)
+{
+    .fix_utils_Sweave(pkgname, pkgpath)
+    .fix_utils_RweaveLatexRuncode(pkgname, pkgpath)
+}
+
+
+.fix_plumber_parseUTF8 <- function (pkgname, pkgpath)
 {
     ## the arguments are unused, they only exist to match the arguments
     ## provided to a user hook (see loadNamespace, specifically runUserHook)
@@ -47,29 +94,46 @@ l10n_info()[[3L]]
     ns <- .getNamespace(nsname)
     sym <- "parseUTF8"
     fun <- ns[[sym]]
-    if (typeof(fun) != "closure" || length(body(fun)) < 6L)
-        return(invisible())
-    old <- quote(exprs <- try(parse(file, keep.source = TRUE, srcfile = src, encoding = enc)))
-    if (!identical(body(fun)[[6L]], old))
-        return(invisible())
-    body(fun)[[6L]] <- quote(exprs <- try(parse(file, keep.source = FALSE, srcfile = src, encoding = enc)))
-    if (bindingIsLocked(sym, ns)) {
-        (unlockBinding)(sym, ns)
-        assign(sym, fun, envir = ns, inherits = FALSE)
-        lockBinding(sym, ns)
+    if (typeof(fun) == "closure" &&
+        is.call(b <- body(fun)) && length(b) >= 6L &&
+        identical(b[[6L]], quote(exprs <- try(parse(file, keep.source = TRUE, srcfile = src, encoding = enc)))))
+    {
+        b[[6L]] <- quote(exprs <- try(parse(file, keep.source = FALSE, srcfile = src, encoding = enc)))
+        body(fun) <- b
+        if (bindingIsLocked(sym, ns)) {
+            (unlockBinding)(sym, ns)
+            assign(sym, fun, envir = ns, inherits = FALSE)
+            lockBinding(sym, ns)
+        }
+        else assign(sym, fun, envir = ns, inherits = FALSE)
     }
-    else assign(sym, fun, envir = ns, inherits = FALSE)
     invisible()
 }
 
 
-.maybe.setHook.packageEvent.plumber.fix.plumber.parseUTF8 <- function ()
+.maybe_setHook_packageEvent_utils_fix_utils <- function ()
+{
+    hookName <- packageEvent("utils")
+    old <- getHook(hookName)
+    new <- list(.fix_utils_Sweave, .fix_utils_RweaveLatexRuncode)
+    if (!length(old))
+        setHook(hookName, new, "prepend")
+    else if (any(i <- !(new %in% old)))
+        setHook(hookName, new[i], "prepend")
+}
+
+
+.maybe_setHook_packageEvent_plumber_fix_plumber_parseUTF8 <- function ()
 {
     hookName <- packageEvent("plumber")
-    hooks <- getHook(hookName)
-    if (length(hooks) && !(list(.fix.plumber.parseUTF8) %in% hooks))
-        setHook(hookName, .fix.plumber.parseUTF8, "prepend")
+    old <- getHook(hookName)
+    new <- list(.fix_plumber_parseUTF8)
+    if (!length(old) || !(new %in% old))
+        setHook(hookName, new, "prepend")
 }
+
+
+## '.onLoad' and '.onUnload' ----
 
 
 .onLoad <- function (libname, pkgname)

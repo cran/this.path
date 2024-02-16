@@ -33,12 +33,12 @@ the first element of 'args' is '.NAME', as usual. The next 3 elements must be
 the 'call', 'op', and 'rho' that would have been provided if .External2() was
 available. for example:
 
- .External2(.C_sys.path, verbose)
+ .External2(.C_sys_path, verbose)
 
 becomes:
 
- .External(.C_sys.path,
-     quote(.External(.C_sys.path, verbose)),
+ .External(.C_sys_path,
+     quote(.External(.C_sys_path, verbose)),
      .External,
      environment(),
      verbose)
@@ -91,6 +91,11 @@ extern SEXP do_dotslength do_formals;
 #endif
 
 
+#if R_version_less_than(4, 1, 0)
+extern SEXP do_dotselt do_formals;
+#endif
+
+
 /* basename2.c */
 
 
@@ -101,6 +106,22 @@ extern SEXP do_basename2         do_formals;
 extern SEXP do_windows_dirname2 do_formals;
 extern SEXP do_unix_dirname2    do_formals;
 extern SEXP do_dirname2         do_formals;
+
+
+/* error.c */
+
+
+extern SEXP do_ThisPathInAQUAError                      do_formals;
+extern SEXP do_ThisPathInZipFileError                   do_formals;
+extern SEXP do_ThisPathNotExistsError                   do_formals;
+extern SEXP do_ThisPathNotFoundError                    do_formals;
+extern SEXP do_ThisPathNotImplementedError              do_formals;
+extern SEXP do_ThisPathUnrecognizedConnectionClassError do_formals;
+extern SEXP do_ThisPathUnrecognizedMannerError          do_formals;
+
+extern SEXP do_last_condition do_formals;
+extern SEXP do_tryCatch2      do_formals;
+extern SEXP do_tryCatch3      do_formals;
 
 
 /* ext.c */
@@ -123,9 +144,10 @@ extern SEXP do_unix_extgets    do_formals;
 extern SEXP do_extgets         do_formals;
 
 
-/* isabspath.c */
+/* files.c */
 
 
+extern SEXP do_is_clipboard        do_formals;
 extern SEXP do_windows_is_abs_path do_formals;
 extern SEXP do_unix_is_abs_path    do_formals;
 extern SEXP do_is_abs_path         do_formals;
@@ -190,6 +212,7 @@ extern SEXP do_PRINFO                 do_formals;
 extern SEXP do_mkPROMISE              do_formals;
 extern SEXP do_mkEVPROMISE            do_formals;
 extern SEXP do_unlockEnvironment      do_formals;
+extern SEXP do_is_R_MissingArg        do_formals;
 
 
 /* rgui_path.c */
@@ -205,65 +228,7 @@ extern SEXP do_RConsole      do_formals;
 extern SEXP do_reset_proj do_formals;
 
 
-/* shfile.c */
-
-
-extern SEXP do_init_file do_formals;
-extern SEXP do_site_file do_formals;
-extern SEXP do_shFILE    do_formals;
-extern SEXP do_shINFO    do_formals;
-
-
-/* thispath.c */
-
-
-extern SEXP do_thisPathUnrecognizedConnectionClassError do_formals;
-extern SEXP do_thisPathUnrecognizedMannerError          do_formals;
-extern SEXP do_thisPathNotImplementedError              do_formals;
-extern SEXP do_thisPathNotExistsError                   do_formals;
-extern SEXP do_thisPathInZipFileError                   do_formals;
-extern SEXP do_thisPathInAQUAError                      do_formals;
-extern SEXP do_thisPathInEmacsError                     do_formals;
-
-extern SEXP do_is_clipboard       do_formals;
-extern SEXP do_init_tools_rstudio do_formals;
-extern SEXP do_jupyter_path       do_formals;
-extern SEXP do_set_jupyter_path   do_formals;
-extern SEXP do_rgui_path          do_formals;
-extern SEXP do_remove_trailing_blank_string do_formals;
-extern SEXP do_fixNewlines        do_formals;
-extern SEXP do_set_gui_path       do_formals;
-extern SEXP do_sys_path           do_formals;
-extern SEXP do_getframenumber     do_formals;
-extern SEXP do_env_path           do_formals;
-extern SEXP do_sys_srcref         do_formals;
-extern SEXP do_src_path           do_formals;
-extern SEXP do_src_LINENO         do_formals;
-extern SEXP do_this_path          do_formals;
-
-
-/* trycatch.c */
-
-
-extern SEXP do_last_condition do_formals;
-extern SEXP do_tryCatch2      do_formals;
-extern SEXP do_tryCatch3      do_formals;
-
-
-/* utils.c */
-
-
-extern SEXP do_istrue        do_formals;
-extern SEXP do_isfalse       do_formals;
-extern SEXP do_asInteger     do_formals;
-extern SEXP do_asIntegerGE0  do_formals;
-extern SEXP do_IS_SCALAR_STR do_formals;
-extern SEXP do_AS_SCALAR_STR do_formals;
-extern SEXP do_scalar_streql do_formals;
-extern SEXP do_get_dyn       do_formals;
-
-
-/* wrapsource.c */
+/* setsyspath.c */
 
 
 extern SEXP do_SET_PRSEEN_2          do_formals;
@@ -273,6 +238,62 @@ extern SEXP do_unset_sys_path        do_formals;
 extern SEXP do_set_env_path          do_formals;
 extern SEXP do_set_src_path          do_formals;
 extern SEXP do_set_sys_path_function do_formals;
+
+
+/* shfile.c */
+
+
+extern SEXP do_init_file do_formals;
+extern SEXP do_site_file do_formals;
+extern SEXP do_shFILE    do_formals;
+extern SEXP do_shINFO    do_formals;
+
+
+/* startup.c */
+
+
+extern SEXP do_with_startup_file       do_formals;
+extern SEXP do_is_valid_init_file_expr do_formals;
+extern SEXP do_set_init_file           do_formals;
+extern SEXP do_unset_init_file         do_formals;
+
+
+/* sys.c */
+
+
+extern SEXP do_sys_srcref do_formals;
+extern SEXP do_sys_whiches do_formals;
+
+
+/* thispath.c */
+
+
+extern SEXP do_fixNewlines        do_formals;
+extern SEXP do_splitlines         do_formals;
+extern SEXP do_remove_trailing_blank_string do_formals;
+extern SEXP do_Rgui_path          do_formals;
+extern SEXP do_jupyter_path       do_formals;
+extern SEXP do_set_jupyter_path   do_formals;
+extern SEXP do_set_gui_path       do_formals;
+extern SEXP do_sys_path           do_formals;
+extern SEXP do_getframenumber     do_formals;
+extern SEXP do_env_path           do_formals;
+extern SEXP do_src_path           do_formals;
+extern SEXP do_src_LINENO         do_formals;
+extern SEXP do_this_path          do_formals;
+
+
+/* utils.c */
+
+
+extern SEXP do_istrue        do_formals;
+extern SEXP do_isfalse       do_formals;
+extern SEXP do_asLogical     do_formals;
+extern SEXP do_asInteger     do_formals;
+extern SEXP do_asIntegerGE0  do_formals;
+extern SEXP do_IS_SCALAR_STR do_formals;
+extern SEXP do_AS_SCALAR_STR do_formals;
+extern SEXP do_scalar_streql do_formals;
 
 
 #endif  /* R_THISPATH_THISPATH_H */

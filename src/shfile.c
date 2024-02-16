@@ -10,15 +10,12 @@ extern UImode CharacterMode;
 #endif
 
 
-// #define debug
-
-
 
 
 
 SEXP do_site_file do_formals
 {
-    do_start_no_call_op_rho("site.file", 2);
+    do_start_no_call_op_rho("site_file", 2);
 #define get_file_from_closure2(sym)                            \
     (get_file_from_closure(asLogical(CAR(args)), asLogical(CADR(args)), (sym)))
     return get_file_from_closure2(_site_fileSymbol);
@@ -27,7 +24,7 @@ SEXP do_site_file do_formals
 
 SEXP do_init_file do_formals
 {
-    do_start_no_call_op_rho("init.file", 2);
+    do_start_no_call_op_rho("init_file", 2);
     return get_file_from_closure2(_init_fileSymbol);
 }
 
@@ -45,14 +42,14 @@ SEXP do_shFILE do_formals
 #if defined(_WIN32)
 
 
-// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L957
+// https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L964
 static void env_command_line(int *pac, const char **argv)
 {
-    int ac = *pac, newac = 1;
+    int ac = *pac, newac = 1; /* Remember argv[0] is process name */
     const char **av = argv;
     Rboolean hadE = FALSE;
 
-
+    /* We don't want to parse -e expressions */
     while (--ac) {
         ++av;
         if (strcmp(*av, "-e") == 0) {
@@ -60,8 +57,10 @@ static void env_command_line(int *pac, const char **argv)
             argv[newac++] = *av;
             continue;
         }
-        if (!hadE && **av != '-' && strchr(*av, '='));
-        else argv[newac++] = *av;
+        if (!hadE && **av != '-' && strchr(*av, '='))
+            ;
+        else
+            argv[newac++] = *av;
         hadE = FALSE;
     }
     *pac = newac;
@@ -79,7 +78,7 @@ common_command_line(int *pac, const char **argv,
     Rboolean *no_init_file,
     Rboolean *no_echo)
 {
-    int ac = *pac, newac = 1;
+    int ac = *pac, newac = 1;	/* argv[0] is process name */
     const char *p, **av = argv;
     Rboolean processing = TRUE;
 
@@ -106,9 +105,14 @@ common_command_line(int *pac, const char **argv,
             }
             else if (!strcmp(*av, "--no-environ"));
             else if (!strcmp(*av, "--verbose"));
+#if R_version_at_least(4, 0, 0)
             else if (!strcmp(*av, "--no-echo") ||
                      !strcmp(*av, "--slave") ||
                      !strcmp(*av, "-s"))
+#else
+            else if (!strcmp(*av, "--slave") ||
+                     !strcmp(*av, "-s"))
+#endif
             {
                 *no_echo = TRUE;
             }
@@ -158,11 +162,13 @@ common_command_line(int *pac, const char **argv,
                     if (ac > 1) { ac--; av++; }
                 }
             }
+#if R_version_at_least(4, 4, 0)
             else if (strncmp(*av, "--max-connections", 17) == 0) {
                 if (strlen(*av) < 19) {
                     if (ac > 1) { ac--; av++; }
                 }
             }
+#endif
             else { /* unknown -option */
                 argv[newac++] = *av;
             }
@@ -188,12 +194,16 @@ static char *unescape_arg(char *p, const char *avp)
         if (*q == '~' && *(q+1) == '+' && *(q+2) == '~') {
             q += 2;
             *p++ = ' ';
+#if R_version_at_least(3, 6, 0)
         } else if (*q == '~' && *(q+1) == 'n' && *(q+2) == '~') {
             q += 2;
             *p++ = '\n';
+#endif
+#if R_version_at_least(4, 1, 0)
         } else if (*q == '~' && *(q+1) == 't' && *(q+2) == '~') {
             q += 2;
             *p++ = '\t';
+#endif
         } else *p++ = *q;
     }
     return p;
@@ -203,22 +213,10 @@ static char *unescape_arg(char *p, const char *avp)
 #endif
 
 
-#define print_char_array(_ac_, _av_)                           \
-    do {                                                       \
-        SEXP tmp10 = allocVector(STRSXP, (_ac_));              \
-        PROTECT(tmp10);                                        \
-        for (int indx = 0; indx < (_ac_); indx++) {            \
-            SET_STRING_ELT(tmp10, indx, mkChar((_av_)[indx])); \
-        }                                                      \
-        my_PrintValueEnv(tmp10, R_BaseEnv);                    \
-        UNPROTECT(1);                                          \
-    } while (0)
-
-
 SEXP do_shINFO do_formals
 {
     /*
-    do_shINFO {this.path}                                        C Documentation
+    do_shINFO                 package:this.path                  C Documentation
 
     Get Information About The Command Line Arguments
 
@@ -256,7 +254,7 @@ SEXP do_shINFO do_formals
 
         character string; command line argument 'EXPR' or NA_character_
 
-    has.input
+    has_input
 
         length-one logical vector; was 'FILE' or 'EXPR' provided?
      */
@@ -266,13 +264,6 @@ SEXP do_shINFO do_formals
 
 
     if (!maybe_unembedded_shell) {
-
-
-#ifdef debug
-#define debugRprint(x, env) my_PrintValueEnv((x), (env))
-#else
-#define debugRprint(x, env) do {} while (0)
-#endif
 
 
 #define return_shINFO(_ENC_, _NO_SITE_FILE_, _NO_INIT_FILE_, _NO_READLINE_, _NO_ECHO_, _ESS_, _FILE_, _EXPR_, _HAS_INPUT_)\
@@ -285,13 +276,13 @@ SEXP do_shINFO do_formals
             int indx = -1;                                     \
             SET_STRING_ELT(names, ++indx, mkChar("ENC"));      \
             SET_VECTOR_ELT(value,   indx, (_ENC_));            \
-            SET_STRING_ELT(names, ++indx, mkChar("no.site.file"));\
+            SET_STRING_ELT(names, ++indx, mkChar("no_site_file"));\
             SET_VECTOR_ELT(value,   indx, (_NO_SITE_FILE_));   \
-            SET_STRING_ELT(names, ++indx, mkChar("no.init.file"));\
+            SET_STRING_ELT(names, ++indx, mkChar("no_init_file"));\
             SET_VECTOR_ELT(value,   indx, (_NO_INIT_FILE_));   \
-            SET_STRING_ELT(names, ++indx, mkChar("no.readline"));\
+            SET_STRING_ELT(names, ++indx, mkChar("no_readline"));\
             SET_VECTOR_ELT(value,   indx, (_NO_READLINE_));    \
-            SET_STRING_ELT(names, ++indx, mkChar("no.echo"));  \
+            SET_STRING_ELT(names, ++indx, mkChar("no_echo"));  \
             SET_VECTOR_ELT(value,   indx, (_NO_ECHO_));        \
             SET_STRING_ELT(names, ++indx, mkChar("ess"));      \
             SET_VECTOR_ELT(value,   indx, (_ESS_));            \
@@ -299,9 +290,8 @@ SEXP do_shINFO do_formals
             SET_VECTOR_ELT(value,   indx, (_FILE_));           \
             SET_STRING_ELT(names, ++indx, mkChar("EXPR"));     \
             SET_VECTOR_ELT(value,   indx, (_EXPR_));           \
-            SET_STRING_ELT(names, ++indx, mkChar("has.input"));\
+            SET_STRING_ELT(names, ++indx, mkChar("has_input"));\
             SET_VECTOR_ELT(value,   indx, (_HAS_INPUT_));      \
-            debugRprint(value, R_BaseEnv);                     \
             UNPROTECT(1);                                      \
             return value;                                      \
         } while (0)
@@ -309,14 +299,14 @@ SEXP do_shINFO do_formals
 
         return_shINFO(
             /* ENC          */ ScalarString(NA_STRING),
-            /* no.site.file */ R_LogicalNAValue,
-            /* no.init.file */ R_LogicalNAValue,
-            /* no.readline  */ R_LogicalNAValue,
-            /* no.echo      */ R_LogicalNAValue,
+            /* no_site_file */ R_LogicalNAValue,
+            /* no_init_file */ R_LogicalNAValue,
+            /* no_readline  */ R_LogicalNAValue,
+            /* no_echo      */ R_LogicalNAValue,
             /* ess          */ R_LogicalNAValue,
             /* FILE         */ ScalarString(NA_STRING),
             /* EXPR         */ ScalarString(NA_STRING),
-            /* has.input    */ R_LogicalNAValue
+            /* has_input    */ R_LogicalNAValue
         );
     }
 
@@ -327,12 +317,6 @@ SEXP do_shINFO do_formals
     ARGV = eval(expr_commandArgs, R_BaseEnv);
     PROTECT(ARGV);
     ARGC = LENGTH(ARGV);
-
-
-#ifdef debug
-    Rprintf("\noriginal arguments:\n");
-    my_PrintValueEnv(ARGV, R_BaseEnv);
-#endif
 
 
     char enc[31] = "";
@@ -378,28 +362,23 @@ SEXP do_shINFO do_formals
      * the arguments up to and including --args
      */
     SEXP argsChar = mkChar("--args");
+    PROTECT(argsChar);
     int ac = ARGC;
-    for (int i = 0; i < ARGC; i++) {
+    for (int i = 1; i < ARGC; i++) {
         if (STRING_ELT(ARGV, i) == argsChar) {
             ac = i + 1;
             break;
         }
     }
+    UNPROTECT(1);
 
 
     /* copy the arguments from the STRSXP to a *char[] */
     const char *argv[ac];
-    for (int i = 0; i < ac; i++) {
+    for (int i = 0; i < ac; i++)
         argv[i] = CHAR(STRING_ELT(ARGV, i));
-    }
     UNPROTECT(1);  /* ARGV */
     const char **av = argv;
-
-
-#ifdef debug
-    Rprintf("\nleading arguments:\n");
-    print_char_array(ac, av);
-#endif
 
 
 #if defined(_WIN32)
@@ -413,20 +392,8 @@ SEXP do_shINFO do_formals
     env_command_line(&ac, av);
 
 
-#ifdef debug
-    Rprintf("\nafter removing environment variables:\n");
-    print_char_array(ac, av);
-#endif
-
-
 // https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1187
     common_command_line(&ac, av, enc, &has_enc, &no_site_file, &no_init_file, &no_echo);
-
-
-#ifdef debug
-    Rprintf("\nafter removing common arguments:\n");
-    print_char_array(ac, av);
-#endif
 
 
 // https://github.com/wch/r-source/blob/trunk/src/gnuwin32/system.c#L1190
@@ -442,7 +409,15 @@ SEXP do_shINFO do_formals
             /*
             else if (!strcmp(*av, "--internet2"));
             else if (!strcmp(*av, "--mdi"));
-            else if (!strcmp(*av, "--sdi") || !strcmp(*av, "--no-mdi"));
+            else if (!strcmp(*av, "--sdi") || !strcmp(*av, "--no-mdi")); */
+#if R_version_less_than(4, 2, 0)
+            else if (!strncmp(*av, "--max-mem-size", 14)) {
+                if (strlen(*av) < 16) {
+                    ac--; av++;
+                }
+            }
+#endif
+            /*
             else if (!strcmp(*av, "--debug")); */
             else if (!strcmp(*av, "--args")) {
                 break;
@@ -490,8 +465,10 @@ SEXP do_shINFO do_formals
        If run from the shell script, only Tk|tk|X11|x11 are allowed.
      */
     for (i = 0, avv = av; i < ac; i++, avv++) {
+#if R_version_at_least(3, 5, 0)
         if (!strcmp(*avv, "--args"))
             break;
+#endif
         if (!strncmp(*avv, "--gui", 5) || !strncmp(*avv, "-g", 2)) {
             if (!strncmp(*avv, "--gui", 5) && strlen(*avv) >= 7);
             else {
@@ -508,20 +485,8 @@ SEXP do_shINFO do_formals
     }
 
 
-#ifdef debug
-    Rprintf("\nafter removing --gui/-g argument:\n");
-    print_char_array(ac, av);
-#endif
-
-
 // https://github.com/wch/r-source/blob/trunk/src/unix/system.c#L405
     common_command_line(&ac, av, enc, &has_enc, &no_site_file, &no_init_file, &no_echo);
-
-
-#ifdef debug
-    Rprintf("\nafter removing common arguments:\n");
-    print_char_array(ac, av);
-#endif
 
 
     char path[PATH_MAX];
@@ -581,12 +546,6 @@ SEXP do_shINFO do_formals
     }
 
 
-#endif
-
-
-#ifdef debug
-    set_R_Visible(TRUE);
-    Rprintf("\n");
 #endif
 
 

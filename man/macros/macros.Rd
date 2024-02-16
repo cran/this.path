@@ -1,16 +1,20 @@
+%% used in ./inst/NEWS.Rd
+\newcommand{\codeorsQuote}{\ifelse{text}{\sQuote{#1}}{\code{#1}}}
+\newcommand{\commandorsQuote}{\ifelse{text}{\sQuote{#1}}{\command{#1}}}
+\newcommand{\optionorsQuote}{\ifelse{text}{\sQuote{#1}}{\option{#1}}}
+\newcommand{\pkgorsQuote}{\ifelse{text}{\sQuote{#1}}{\pkg{#1}}}
+
+
 %% does not work well with characters that have
 %% special meaning in HTML or LaTeX or Rd
 \newcommand{\string}{\ifelse{text}{"#1"}{\code{"#1"}}}
 \newcommand{\blankstring}{\ifelse{text}{""}{\code{""}}}
-\newcommand{\codelink2}{\ifelse{html}{\code{\link[#1]{#2}}}{\code{#2}}}
-\newcommand{\codelink3}{\ifelse{html}{\code{\link[#1]{#2}#3}}{\code{#2#3}}}
-\newcommand{\codelink4}{\ifelse{html}{\code{#1\link[#2]{#3}#4}}{\code{#1#3#4}}}
+\newcommand{\codelink2}{\ifelse{html}{\code{\link[#1]{#2}}}{\codeorsQuote{#2}}}
+\newcommand{\codelink3}{\ifelse{html}{\code{\link[#1]{#2}#3}}{\codeorsQuote{#2#3}}}
+\newcommand{\codelink4}{\ifelse{html}{\code{#1\link[#2]{#3}#4}}{\codeorsQuote{#1#3#4}}}
 
 
-%% used in ./inst/NEWS.Rd
-\newcommand{\commandorsQuote}{\ifelse{text}{\sQuote{#1}}{\command{#1}}}
-\newcommand{\codeorsQuote}{\ifelse{text}{\sQuote{#1}}{\code{#1}}}
-\newcommand{\optionorsQuote}{\ifelse{text}{\sQuote{#1}}{\option{#1}}}
+\newcommand{\CRANpackage}{\href{https://CRAN.R-project.org/package=#1}{\pkgorsQuote{package:#1}}}
 
 
 \newcommand{\Emacs}{\href{https://ess.r-project.org/}{Emacs}}
@@ -23,53 +27,44 @@
 
 \newcommand{\sourcelink}{\codelink3{base}{source}{()}}
 \newcommand{\syssourcelink}{\codelink3{base}{sys.source}{()}}
-\newcommand{\debugSourceinRStudiolink}{\ifelse{text}{\code{debugSource()} in \sQuote{RStudio}}{\href{https://support.posit.co/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}}\code{()} in \sQuote{\RStudio}}}
+\newcommand{\debugSourceinRStudiolink}{\ifelse{text}{\sQuote{debugSource()} in \sQuote{RStudio}}{\href{https://support.posit.co/hc/en-us/articles/205612627-Debugging-with-the-RStudio-IDE}{\code{debugSource}}\code{()} in \sQuote{\RStudio}}}
 \newcommand{\compilerloadcmplink}{\codelink3{compiler:compile}{compiler::loadcmp}{()}}
+\newcommand{\utilsSweavelink}{\codelink3{utils:Sweave}{utils::Sweave}{()}}
 \newcommand{\boxuselink}{\codelink3{box:use}{box::use}{()}}
 \newcommand{\knitrknitlink}{\codelink3{knitr:knit}{knitr::knit}{()}}
 \newcommand{\plumberplumblink}{\codelink3{plumber:plumb}{plumber::plumb}{()}}
 \newcommand{\shinyrunApplink}{\codelink3{shiny:runApp}{shiny::runApp}{()}}
-\newcommand{\targetslink}{\ifelse{text}{\sQuote{package:targets}}{\CRANpkg{targets}}}
+\newcommand{\targetslink}{\CRANpackage{targets}}
+\newcommand{\targetstarcallrinnertrylink}{\codelink3{targets:tar_callr_inner_try}{targets::tar_callr_inner_try}{()}}
+\newcommand{\targetstarloadglobalslink}{\codelink3{targets:tar_load_globals}{targets::tar_load_globals}{()}}
+\newcommand{\targetstarsourcelink}{\codelink3{targets:tar_source}{targets::tar_source}{()}}
+\newcommand{\targetstarworkspacelink}{\codelink3{targets:tar_workspace}{targets::tar_workspace}{()}}
 \newcommand{\testthatsourcefilelink}{\codelink3{testthat:source_file}{testthat::source_file}{()}}
 \newcommand{\Rscriptlink}{\codelink2{utils}{Rscript}}
 
-\newcommand{\sourcenolink}{\code{source()}}
-\newcommand{\syssourcenolink}{\code{sys.source()}}
-\newcommand{\debugSourceinRStudionolink}{\code{debugSource()} in \sQuote{RStudio}}
-\newcommand{\compilerloadcmpnolink}{\code{compiler::loadcmp()}}
-\newcommand{\boxusenolink}{\code{box::use()}}
-\newcommand{\knitrknitnolink}{\code{knitr::knit()}}
-\newcommand{\plumberplumbnolink}{\code{plumber::plumb()}}
-\newcommand{\shinyrunAppnolink}{\code{shiny::runApp()}}
-\newcommand{\targetsnolink}{\code{targets}}
-\newcommand{\testthatsourcefilenolink}{\code{testthat::source_file()}}
-\newcommand{\Rscriptnolink}{\code{Rscript}}
+\newcommand{\sourcenolink}{\codeorsQuote{source()}}
+\newcommand{\syssourcenolink}{\codeorsQuote{sys.source()}}
+\newcommand{\debugSourceinRStudionolink}{\codeorsQuote{debugSource()} in \sQuote{RStudio}}
+\newcommand{\compilerloadcmpnolink}{\codeorsQuote{compiler::loadcmp()}}
+\newcommand{\utilsSweavenolink}{\codeorsQuote{utils::Sweave()}}
+\newcommand{\boxusenolink}{\codeorsQuote{box::use()}}
+\newcommand{\knitrknitnolink}{\codeorsQuote{knitr::knit()}}
+\newcommand{\plumberplumbnolink}{\codeorsQuote{plumber::plumb()}}
+\newcommand{\shinyrunAppnolink}{\codeorsQuote{shiny::runApp()}}
+\newcommand{\targetsnolink}{\pkgorsQuote{package:targets}}
+\newcommand{\targetstarcallrinnertrynolink}{\codeorsQuote{targets::tar_callr_inner_try()}}
+\newcommand{\targetstarloadglobalsnolink}{\codeorsQuote{targets::tar_load_globals()}}
+\newcommand{\targetstarsourcenolink}{\codeorsQuote{targets::tar_source()}}
+\newcommand{\targetstarworkspacenolink}{\codeorsQuote{targets::tar_workspace()}}
+\newcommand{\testthatsourcefilenolink}{\codeorsQuote{testthat::source_file()}}
+\newcommand{\Rscriptnolink}{\codeorsQuote{Rscript}}
 
 
-\newcommand{\sourceslistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \compilerloadcmplink, \boxuselink, \knitrknitlink, \plumberplumblink, \shinyrunApplink, \targetslink, \testthatsourcefilelink}
-\newcommand{\sourcesorlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \compilerloadcmplink, \boxuselink, \knitrknitlink, \plumberplumblink, \shinyrunApplink, \targetslink, or \testthatsourcefilelink}
-\newcommand{\sourcesandlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \compilerloadcmplink, \boxuselink, \knitrknitlink, \plumberplumblink, \shinyrunApplink, \targetslink, and \testthatsourcefilelink}
+\newcommand{\syspathcompatible}{\itemize{\item{\source#1} \item{\syssource#1} \item{\debugSourceinRStudio#1} \item{\compilerloadcmp#1} \item{\utilsSweave#1} \item{\boxuse#1} \item{\knitrknit#1} \item{\plumberplumb#1} \item{\shinyrunApp#1} \item{\targets#1} \item{\testthatsourcefile#1}}}
+\newcommand{\syspathcompatiblelinks}{\syspathcompatible{link}}
+\newcommand{\syspathcompatiblenolinks}{\syspathcompatible{nolink}}
 
-\newcommand{\sourceslistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \compilerloadcmpnolink, \boxusenolink, \knitrknitnolink, \plumberplumbnolink, \shinyrunAppnolink, \targetsnolink, \testthatsourcefilenolink}
-\newcommand{\sourcesorlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \compilerloadcmpnolink, \boxusenolink, \knitrknitnolink, \plumberplumbnolink, \shinyrunAppnolink, \targetsnolink, or \testthatsourcefilenolink}
-\newcommand{\sourcesandlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \compilerloadcmpnolink, \boxusenolink, \knitrknitnolink, \plumberplumbnolink, \shinyrunAppnolink, \targetsnolink, and \testthatsourcefilenolink}
 
-%% excludes box::use, plumber::plumb, shiny::runApp, and package:targets
-\newcommand{\sources1stargisfilelistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \compilerloadcmplink, \knitrknitlink, \testthatsourcefilelink}
-\newcommand{\sources1stargisfileorlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \compilerloadcmplink, \knitrknitlink, or \testthatsourcefilelink}
-\newcommand{\sources1stargisfileandlistlinks}{\sourcelink, \syssourcelink, \debugSourceinRStudiolink, \compilerloadcmplink, \knitrknitlink, and \testthatsourcefilelink}
-
-\newcommand{\sources1stargisfilelistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \compilerloadcmpnolink, \knitrknitnolink, \testthatsourcefilenolink}
-\newcommand{\sources1stargisfileorlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \compilerloadcmpnolink, \knitrknitnolink, or \testthatsourcefilenolink}
-\newcommand{\sources1stargisfileandlistnolinks}{\sourcenolink, \syssourcenolink, \debugSourceinRStudionolink, \compilerloadcmpnolink, \knitrknitnolink, and \testthatsourcefilenolink}
-
-%% currently, all source()-like functions in which the first argument is the
-%% file are also compatible with withArgs(), so the commands are the same.
-%% this may change in the future
-\newcommand{\sourcescompatiblewithwithArgslistlinks}{\sources1stargisfilelistlinks}
-\newcommand{\sourcescompatiblewithwithArgsorlistlinks}{\sources1stargisfileorlistlinks}
-\newcommand{\sourcescompatiblewithwithArgsandlistlinks}{\sources1stargisfileandlistlinks}
-
-\newcommand{\sourcescompatiblewithwithArgslistnolinks}{\sources1stargisfilelistnolinks}
-\newcommand{\sourcescompatiblewithwithArgsorlistnolinks}{\sources1stargisfileorlistnolinks}
-\newcommand{\sourcescompatiblewithwithArgsandlistnolinks}{\sources1stargisfileandlistnolinks}
+\newcommand{\sources}{\itemize{\item{\source#1} \item{\syssource#1} \item{\debugSourceinRStudio#1} \item{\compilerloadcmp#1} \item{\utilsSweave#1} \item{\boxuse#1} \item{\knitrknit#1} \item{\plumberplumb#1} \item{\shinyrunApp#1} \item{\targetstarcallrinnertry#1 \cr \targetstarloadglobals#1 \cr \targetstarsource#1 \cr \targetstarworkspace#1} \item{\testthatsourcefile#1}}}
+\newcommand{\sourceslinks}{\sources{link}}
+\newcommand{\sourcesnolinks}{\sources{nolink}}

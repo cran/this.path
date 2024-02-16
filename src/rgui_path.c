@@ -4,7 +4,6 @@
 #ifdef _WIN32
 
 
-#include "drivewidth.h"
 #include "thispathdefn.h"
 
 
@@ -203,7 +202,7 @@ static BOOL CALLBACK EnumRGuiPathProc(HWND handle, LPARAM param)
                     REPROTECT(EnumResult = mkString(title), EnumIndex);\
                     return FALSE;                              \
                 }                                              \
-                SEXP expr = LCONS(_normalizeNotDirectorySymbol,\
+                SEXP expr = LCONS(_normalizePath_not_dirSymbol,\
                                   CONS(mkString(title), R_NilValue));\
                 PROTECT(expr);                                 \
                 REPROTECT(EnumResult = eval(expr, mynamespace), EnumIndex);\
@@ -227,11 +226,11 @@ static BOOL CALLBACK EnumRGuiPathProc(HWND handle, LPARAM param)
 }
 
 
-SEXP rgui_path(Rboolean verbose, Rboolean original, Rboolean for_msg,
+SEXP Rgui_path(Rboolean verbose, Rboolean original, Rboolean for_msg,
                Rboolean contents, SEXP untitled, SEXP r_editor, SEXP rho)
 {
     if (!RConsole)
-        error("attempt to use 'rgui_path' while not in RGui");
+        error("attempt to use 'Rgui_path' while not in RGui");
 
 
     PROTECT_WITH_INDEX(EnumResult = NULL, &EnumIndex);
@@ -265,7 +264,7 @@ SEXP rgui_path(Rboolean verbose, Rboolean original, Rboolean for_msg,
 
 
     const char *msg = "R is running from Rgui with no documents open";
-    SEXP cond = thisPathNotExistsError(msg, PROTECT(getCurrentCall(rho)));
+    SEXP cond = ThisPathNotExistsError(msg, PROTECT(getCurrentCall(rho)));
     PROTECT(cond);
     stop(cond);
     UNPROTECT(2);
@@ -299,10 +298,10 @@ SEXP do_RConsole do_formals
 #include "backports.h"
 
 
-SEXP rgui_path(Rboolean verbose, Rboolean original, Rboolean for_msg,
+SEXP Rgui_path(Rboolean verbose, Rboolean original, Rboolean for_msg,
                Rboolean contents, SEXP untitled, SEXP r_editor, SEXP rho)
 {
-    error("rgui_path() is implemented only on Windows");
+    error("Rgui_path() is implemented only on Windows");
     return R_NilValue;
 }
 

@@ -1,1 +1,4 @@
 devel: FALSE
+renamed_files: TRUE
+substituted_file_contents: TRUE
+dedented_NEWS_subsections: TRUE

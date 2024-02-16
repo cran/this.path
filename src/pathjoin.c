@@ -1,4 +1,3 @@
-#include "drivewidth.h"
 #include "thispathdefn.h"
 #include <ctype.h>  /* includes toupper() */
 
@@ -59,7 +58,7 @@ void windows_path_join(SEXP x, int x_length, int commonLength, SEXP value)
 
 
             /* look for a drivespec in ptr */
-            drivewidth = get_drive_width_windows(ptr, nchar);
+            drivewidth = drive_width_windows(ptr, nchar);
 
 
             /* if we have no already found an absolute pathspec,
@@ -180,7 +179,7 @@ void windows_path_join(SEXP x, int x_length, int commonLength, SEXP value)
 
 
                 /* look for a drivespec in ptr */
-                maybe_drivewidth = get_drive_width_windows(maybe_ptr, maybe_nchar);
+                maybe_drivewidth = drive_width_windows(maybe_ptr, maybe_nchar);
 
 
                 if (maybe_drivewidth) {
@@ -392,7 +391,7 @@ void windows_path_join(SEXP x, int x_length, int commonLength, SEXP value)
                  * be sure to chop off the drive before pasting
                  */
                 if (i <= drive_indx) {
-                    drivewidth = get_drive_width_windows(ptr, nchar);
+                    drivewidth = drive_width_windows(ptr, nchar);
                     ptr += drivewidth;
                     nchar -= drivewidth;
 
@@ -612,6 +611,8 @@ SEXP path_join(SEXP call, int windows, const char *name, SEXP args, SEXP rho)
 
         /* evaluate each argument of 'dots' */
         xi = CAR(d);
+        if (xi == R_MissingArg)
+            errorcall(call, _("argument is missing, with no default"));
         xi = eval(xi, rho);
         if (commonLength) {
 
@@ -692,21 +693,21 @@ SEXP path_join(SEXP call, int windows, const char *name, SEXP args, SEXP rho)
 
 SEXP do_windows_path_join do_formals
 {
-    do_start_no_op("windows.path.join", 0);
-    return path_join(call, TRUE, ".windows.path.join", args, rho);
+    do_start_no_op("windows_path_join", 0);
+    return path_join(call, TRUE, ".windows_path_join", args, rho);
 }
 
 
 SEXP do_unix_path_join do_formals
 {
-    do_start_no_op("unix.path.join", 0);
-    return path_join(call, FALSE, ".unix.path.join", args, rho);
+    do_start_no_op("unix_path_join", 0);
+    return path_join(call, FALSE, ".unix_path_join", args, rho);
 }
 
 
 SEXP do_path_join do_formals
 {
-    do_start_no_op("path.join", 0);
+    do_start_no_op("path_join", 0);
 #ifdef _WIN32
     return path_join(call, TRUE, "path.join", args, rho);
 #else

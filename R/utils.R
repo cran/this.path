@@ -2,9 +2,10 @@
     show.command = TRUE, intern = TRUE, show.output.on.console = show.command,
     ...)
 {
-    command <- path.join(R.home("bin"), if (.os.windows)
-        "Rscript.exe"
-    else "Rscript")
+    command <- path.join(
+        R.home("bin"),
+        if (.OS_windows) "Rscript.exe" else "Rscript"
+    )
     args <- c(command, options)
     args <- c(shQuote(args), trailing)
     command <- paste(args, collapse = " ")
@@ -19,8 +20,9 @@
 }
 
 
-.build.this <- eval(call("function", as.pairlist(alist(chdir = FALSE, file = here(), which = "tar")), bquote({
-    ## .build.this {this.path}                                   R Documentation
+.build.this <- function (chdir = FALSE, file = here(), which = "tar")
+{
+    ## .build.this               package:this.path               R Documentation
     ##
     ## Building Packages
     ##
@@ -216,8 +218,8 @@
                 ## starts with .#
                 "^\\.#",
 
-                ## starts or ends with #
-                "^#", "#$",
+                ## starts and ends with #
+                "^#.*#$",
 
                 ## ends with ~ or .bak or .swp
                 "~$", "\\.bak$", "\\.swp$"
@@ -240,13 +242,13 @@
         gsub(".", "\\.", pkgname, fixed = TRUE),
         "_",
         valid_package_version,
-        c("\\.tar\\.gz", "\\.zip"),
+        c("\\.tar\\.gz", "\\.tgz", "\\.zip"),
         "$"
     )
 
 
-    for (exclude.pattern in prev_build_patterns) {
-        if (any(i <- grepl(exclude.pattern, files))) {
+    for (exclude_pattern in prev_build_patterns) {
+        if (any(i <- grepl(exclude_pattern, files))) {
             exclude <- c(exclude, files[i])
             files <- files[!i]
         }
@@ -256,10 +258,10 @@
     ## look for a ".buildignore" file containing
     ## a list of Perl patterns (case insensitive)
     ## specifying files to ignore when archiving
-    ignore.file <- path.join(file, ".buildignore")
-    if (file.exists(ignore.file)) {
-        for (exclude.pattern in readLines(ignore.file, warn = FALSE, encoding = "UTF-8")) {
-            if (any(i <- grepl(exclude.pattern, files, ignore.case = TRUE, perl = TRUE))) {
+    ignore_file <- path.join(file, ".buildignore")
+    if (file.exists(ignore_file)) {
+        for (exclude_pattern in readLines(ignore_file, warn = FALSE, encoding = "UTF-8")) {
+            if (any(i <- grepl(exclude_pattern, files, ignore.case = TRUE, perl = TRUE))) {
                 exclude <- c(exclude, files[i])
                 files <- files[!i]
             }
@@ -269,9 +271,9 @@
 
     ## for directories in 'exclude', also
     ## exclude the files within said directories
-    exclude.dirs <- exclude[dir.exists(path.join(file, exclude))]
-    for (exclude.prefix in paste0(exclude.dirs, "/", recycle0 = TRUE)) {
-        if (any(i <- startsWith(files, exclude.prefix))) {
+    exclude_dirs <- exclude[dir.exists(path.join(file, exclude))]
+    for (exclude_prefix in paste0(exclude_dirs, "/", recycle0 = TRUE)) {
+        if (any(i <- startsWith(files, exclude_prefix))) {
             exclude <- c(exclude, files[i])
             files <- files[!i]
         }
@@ -279,17 +281,12 @@
 
 
     ## create a new directory to hold the temporary files and archives
-    dir.create(my.tmpdir <- tempfile("dir"))
-    on.exit(
-        if (getRversion() >= "4.0.0")
-            (unlink)(my.tmpdir, recursive = TRUE, force = TRUE, expand = FALSE)
-        else unlink(my.tmpdir, recursive = TRUE, force = TRUE),
-        add = TRUE
-    )
+    dir.create(my_tmpdir <- tempfile("dir"))
+    on.exit(unlink(my_tmpdir, recursive = TRUE, force = TRUE, expand = FALSE), add = TRUE)
 
 
     ## create another directory to hold the temporary files
-    dir.create(pkgdir <- path.join(my.tmpdir, pkgname))
+    dir.create(pkgdir <- path.join(my_tmpdir, pkgname))
 
 
     ## within said directory, make the appropriate sub-directories
@@ -302,27 +299,13 @@
     ## fill the directory and sub-directories with their files,
     ## while maintaining file modify time
     if (any(i <- !file.copy(
-        ..(
-            if (getRversion() < "3.1.0")
-                expression(
-                    from <- path.join(file  , files[!isdir]),
-                    to <- path.join(pkgdir, files[!isdir])
-                )
-            else
-                expression(
-                    path.join(file  , files[!isdir]),
-                    path.join(pkgdir, files[!isdir]),
-                    copy.date = TRUE
-                )
-        )
+        path.join(file  , files[!isdir]),
+        path.join(pkgdir, files[!isdir]),
+        copy.date = TRUE
     )))
-        stop(ngettext(sum(i), "unable to copy file: ", "unable to copy files:\n  "),
+        stop(ngettext(sum(i), "unable to copy file: ",
+                              "unable to copy files:\n  "),
              paste(encodeString(files[!isdir][i], quote = "\""), collapse = "\n  "))
-    else ..(
-        if (getRversion() < "3.1.0")
-            expression(Sys.setFileTime(to, file.info(from)$mtime))
-        else expression()
-    )
 
 
     ## set the modify time of the sub-directories to their original values
@@ -334,55 +317,59 @@
 
     for (apk in which) {
         switch(apk, tar = {
-            build.name <- paste0(pkgname, "_", version, ".tar.gz")
-            build.path <- path.join(my.tmpdir, build.name)
-            args <- c("tar", "-czf", shQuote(build.path), "-C", shQuote(my.tmpdir), shQuote(pkgname))
+            build_name <- paste0(pkgname, "_", version, ".tar.gz")
+            build_path <- path.join(my_tmpdir, build_name)
+            args <- c("tar", "-czf", shQuote(build_path), "-C", shQuote(my_tmpdir), shQuote(pkgname))
             command <- paste(args, collapse = " ")
-            cat("* building '", build.name, "'\n", sep = "")
+            cat("* building '", build_name, "'\n", sep = "")
             res <- system(command, ignore.stdout = TRUE)
             if (res == -1L) {
                 stop("'", command, "' could not be run")
             } else if (res) {
                 stop("'", command, "' execution failed with error code ", res)
             } else if (i <- !file.copy(
-                build.path,
-                path.join(file, build.name),
+                build_path,
+                path.join(file, build_name),
                 overwrite = TRUE
             )) {
                 stop("unable to move:\n  ",
-                     encodeString(build.path, quote = "\""),
+                     encodeString(build_path, quote = "\""),
                      "\nto:\n  ",
-                     encodeString(path.join(file, build.name), quote = "\""))
+                     encodeString(path.join(file, build_name), quote = "\""))
             }
         }, zip = {
-            build.name <- paste0(pkgname, "_", version, ".zip")
-            build.path <- path.join(my.tmpdir, build.name)
-            args <- c("zip", "-r", shQuote(build.path), shQuote(pkgname))
+            build_name <- paste0(pkgname, "_", version, ".zip")
+            build_path <- path.join(my_tmpdir, build_name)
+            args <- c("zip", "-r", shQuote(build_path), shQuote(pkgname))
             command <- paste(args, collapse = " ")
-            cat("* building '", build.name, "'\n", sep = "")
-            res <- .do.with.wd(system(command, ignore.stdout = TRUE), my.tmpdir)
+            cat("* building '", build_name, "'\n", sep = "")
+            res <- .with_chdir(my_tmpdir, {
+                system(command, ignore.stdout = TRUE)
+            })
             if (res == -1L) {
                 stop("'", command, "' could not be run")
             } else if (res) {
                 stop("'", command, "' execution failed with error code ", res)
             } else if (i <- !file.copy(
-                build.path,
-                path.join(file, build.name),
+                build_path,
+                path.join(file, build_name),
                 overwrite = TRUE
             )) {
                 stop("unable to move:\n  ",
-                     encodeString(build.path, quote = "\""),
+                     encodeString(build_path, quote = "\""),
                      "\nto:\n  ",
-                     encodeString(path.join(file, build.name), quote = "\""))
+                     encodeString(path.join(file, build_name), quote = "\""))
             }
         }, stop("invalid 'which'; should not happen, please report!"))
     }
-}, splice = TRUE)))
+}
 
 
-.do.with.wd <- function (expr, wd)
+.with_chdir <- function (wd, expr)
 {
     owd <- getwd()
+    if (is.null(owd))
+        stop("cannot 'chdir' as current directory is unknown", domain = "R-base")
     on.exit(setwd(owd))
     setwd(wd)
     expr
@@ -518,7 +505,7 @@
 }
 
 
-.write.code <- function (x, file = stdout(), evaluated, simplify.brace = TRUE,
+.writeCode <- function (x, file = stdout(), evaluated, simplify.brace = TRUE,
     width.cutoff = 60L, deparseCtrl = c("keepInteger", "showAttributes", "useSource", "keepNA", "digits17"))
 {
     x <- .maybeQuote(x, evaluated, simplify.brace)
@@ -539,8 +526,8 @@ if (getRversion() < "3.2.0") {
     formals(.code2character)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
 
 
-    tmp <- formals(.write.code)[["deparseCtrl"]]
-    formals(.write.code)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
+    tmp <- formals(.writeCode)[["deparseCtrl"]]
+    formals(.writeCode)[["deparseCtrl"]] <- tmp[!vapply(tmp, identical, "digits17", FUN.VALUE = NA)]
 
 
     rm(tmp)
@@ -575,27 +562,52 @@ vapply(files, function(file) paste0(readLines(file), "\n", collapse = ""), "")
         if (!length(args))
             value <- structure(list(), names = character())
         else if (is.null(tags <- names(args)) ||
-                 all(i <- tags == ""))
+                 all(i <- !nzchar(tags)))
         {
             visible <- TRUE
             tags <- vapply(args, .AS_SCALAR_STR, "", USE.NAMES = FALSE)
             value <- as.list(Sys.getenv(tags, unset = NA, names = TRUE))
         }
         else {
+            args <- lapply(args, .AS_SCALAR_STR)
             if (any(i)) {
                 visible <- TRUE
-                tags[i] <- vapply(args[i], .AS_SCALAR_STR, "", USE.NAMES = FALSE)
-                args <- args[!i]
+                tags[i] <- names(args)[i] <- as.character(args[i])
+                # args[i] <- list(NULL)
             }
-            value <- as.list(Sys.getenv(tags, unset = NA, names = TRUE))
-            args <- lapply(args, .AS_SCALAR_STR)
-            na <- vapply(args, identical, NA_character_, FUN.VALUE = NA, USE.NAMES = FALSE)
-            if (any(na)) {
-                Sys.unsetenv(names(args)[na])
-                args <- args[!na]
+            tags[is.na(tags)] <- "NA"
+            if (.Platform$OS.type == "windows")
+                tags <- tolower(tags)
+            i <- !i
+            base_case <- function(args, i) {
+                # print(args)
+                # cat("\n\n\n\n\n")
+                value <- as.list(Sys.getenv(names(args), unset = NA, names = TRUE))
+                args <- args[i]
+                na <- is.na(args)
+                if (any(na)) {
+                    Sys.unsetenv(names(args)[na])
+                    args <- args[!na]
+                }
+                if (length(args))
+                    do.call("Sys.setenv", args)
+                value
             }
-            if (length(args))
-                do.call("Sys.setenv", args, quote = TRUE)
+            recurse <- function(args, tags, i) {
+                if (first_setter <- match(TRUE, i, 0L)) {
+                    n <- length(args)
+                    if (dup <- anyDuplicated(tags[first_setter:n])) {
+                        dup <- dup - 1L + first_setter
+                        indxs <- seq_len(dup - 1L)
+                        value <- base_case(args[indxs], i[indxs])
+                        indxs <- dup:n
+                        c(value, recurse(args[indxs], tags[indxs], i[indxs]))
+                    }
+                    else base_case(args, i)
+                }
+                else as.list(Sys.getenv(names(args), unset = NA, names = TRUE))
+            }
+            value <- recurse(args, tags, i)
         }
         if (visible)
             value
@@ -610,6 +622,10 @@ vapply(files, function(file) paste0(readLines(file), "\n", collapse = ""), "")
 
 .isfalse <- function (x)
 .External2(.C_isfalse, x)
+
+
+.asLogical <- function (x)
+.External2(.C_asLogical, x)
 
 
 .asInteger <- function (x)
@@ -627,7 +643,6 @@ vapply(files, function(file) paste0(readLines(file), "\n", collapse = ""), "")
 .AS_SCALAR_STR <- function (x)
 {
     switch (typeof(x),
-    `NULL` = NA_character_,
     logical = ,
     integer = ,
     double = ,
@@ -654,6 +669,342 @@ vapply(files, function(file) paste0(readLines(file), "\n", collapse = ""), "")
 .External2(.C_scalar_streql, e1, e2)
 
 
-.get.dyn <- function (x, ifnotfound = stop(gettextf("object '%s' not found", as.character(x), domain = "R"), domain = NA),
-    minframe = 1L, inherits = FALSE)
-.External2(.C_get.dyn, x, minframe, inherits)
+.identical <- if (getRversion() >= "4.2.0") {
+
+
+              function (x, y)
+identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
+    ignore.bytecode = FALSE, ignore.environment = FALSE, ignore.srcref = FALSE,
+    extptr.as.ref = TRUE)
+
+
+} else if (getRversion() >= "3.4.0") {
+
+
+              function (x, y)
+identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
+    ignore.bytecode = FALSE, ignore.environment = FALSE, ignore.srcref = FALSE)
+
+
+} else if (getRversion() >= "3.0.0") {
+
+
+              function (x, y)
+identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
+    ignore.bytecode = FALSE, ignore.environment = FALSE)
+
+
+} else if (getRversion() >= "2.14.0") {
+
+
+              function (x, y)
+identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
+    ignore.bytecode = FALSE)
+
+
+} else if (getRversion() >= "2.10.0") {
+
+
+              function (x, y)
+identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE)
+
+
+} else {
+
+
+              function (x, y)
+identical(x, y)
+
+
+}
+
+
+.source <- function (file, local = FALSE, echo = verbose, print.eval = echo,
+    exprs, spaced = use_file, verbose = getOption("verbose"),
+    prompt.echo = getOption("prompt"), max.deparse.length = 150,
+    width.cutoff = 60L, deparseCtrl = "showAttributes", chdir = FALSE,
+    encoding = getOption("encoding"), continue.echo = getOption("continue"),
+    skip.echo = 0, keep.source = getOption("keep.source"))
+{
+    file <- set.sys.path(file)
+    envir <- if (isTRUE(local))
+        parent.frame()
+    else if (isFALSE(local))
+        .GlobalEnv
+    else if (is.environment(local))
+        local
+    else stop("'local' must be TRUE, FALSE or an environment")
+    if (!missing(echo)) {
+        if (!is.logical(echo))
+            stop("'echo' must be logical")
+        if (!echo && verbose) {
+            warning("'verbose' is TRUE, 'echo' not; ... coercing 'echo <- TRUE'")
+            echo <- TRUE
+        }
+    }
+    if (verbose) {
+        cat("'envir' chosen:")
+        print(envir)
+    }
+    if (use_file <- missing(exprs)) {
+        ofile <- file
+        from_file <- FALSE
+        srcfile <- NULL
+        if (is.character(file)) {
+            if (!length(file) || file == "")
+                stop("empty file/url name")
+            have_encoding <- !missing(encoding) && !identical(encoding, "unknown")
+            if (identical(encoding, "unknown")) {
+                enc <- utils::localeToCharset()
+                encoding <- enc[length(enc)]
+            }
+            else enc <- encoding
+            if (length(enc) > 1L) {
+                encoding <- NA
+                owarn <- options(warn = 2)
+                for (e in enc) {
+                  if (is.na(e))
+                    next
+                  zz <- file(file, encoding = e)
+                  res <- tryCatch(readLines(zz, warn = FALSE),
+                    error = identity)
+                  close(zz)
+                  if (!inherits(res, "error")) {
+                    encoding <- e
+                    break
+                  }
+                }
+                options(owarn)
+            }
+            if (is.na(encoding))
+                stop("unable to find a plausible encoding")
+            if (verbose)
+                cat(gettextf("encoding = \"%s\" chosen", encoding),
+                  "\n", sep = "")
+            {
+                filename <- file
+                file <- file(filename, "r", encoding = encoding)
+                on.exit(close(file))
+                if (isTRUE(keep.source)) {
+                  lines <- readLines(file, warn = FALSE)
+                  on.exit()
+                  close(file)
+                  srcfile <- srcfilecopy(filename, lines, file.mtime(filename)[1],
+                    isFile = .is_abs_path(filename))
+                }
+                else {
+                  from_file <- TRUE
+                  srcfile <- filename
+                }
+                loc <- utils::localeToCharset()[1L]
+                encoding <- if (have_encoding)
+                  switch(loc, `UTF-8` = "UTF-8", `ISO8859-1` = "latin1",
+                    "unknown")
+                else "unknown"
+            }
+        }
+        else {
+            lines <- readLines(file, warn = FALSE)
+            srcfile <- if (isTRUE(keep.source))
+                srcfilecopy(deparse1(substitute(file), ""), lines)
+            else deparse1(substitute(file), "")
+        }
+        if (verbose) {
+            cat(sprintf(" --> from_file='%s'\n lines:", from_file))
+            utils::str(lines)
+        }
+        exprs <- if (!from_file) {
+            if (length(lines) && is.character(lines))
+                parse(file = stdin(), n = -1, text = lines, keep.source = FALSE, srcfile = srcfile, encoding = encoding)
+            else expression()
+        }
+        else parse(file = file, n = -1, keep.source = FALSE, srcfile = srcfile, encoding = encoding)
+        on.exit()
+        if (from_file)
+            close(file)
+        if (verbose)
+            cat("--> parsed", length(exprs), "expressions; now eval(.)ing them:\n")
+        if (chdir) {
+            if (is.character(ofile)) {
+                if (grepl("^(ftp|ftps|http|https|file)://", ofile))
+                  warning("'chdir = TRUE' makes no sense for a URL")
+                else if ((path <- dirname(ofile)) != ".") {
+                  owd <- getwd()
+                  if (is.null(owd))
+                    stop("cannot 'chdir' as current directory is unknown")
+                  on.exit(setwd(owd), add = TRUE)
+                  setwd(path)
+                }
+            }
+            else {
+                warning("'chdir = TRUE' makes no sense for a connection")
+            }
+        }
+    }
+    else {
+        if (!missing(file))
+            stop("specify either 'file' or 'exprs' but not both")
+        if (!is.expression(exprs))
+            exprs <- as.expression(exprs)
+    }
+    Ne <- length(exprs)
+    if (echo) {
+        sd <- "\""
+        nos <- "[^\"]*"
+        oddsd <- paste0("^", nos, sd, "(", nos, sd, nos, sd,
+            ")*", nos, "$")
+        trySrcLines <- function(srcfile, showfrom, showto) {
+            tryCatch(suppressWarnings(getSrcLines(srcfile, showfrom,
+                showto)), error = function(e) character())
+        }
+    }
+    yy <- NULL
+    lastshown <- 0
+    srcrefs <- attr(exprs, "srcref", exact = TRUE)
+    if (verbose && !is.null(srcrefs)) {
+        cat("has srcrefs:\n")
+        utils::str(srcrefs)
+    }
+    for (i in seq_len(Ne + echo)) {
+        tail <- i > Ne
+        if (!tail) {
+            if (verbose)
+                cat("\n>>>> eval(expression_nr.", i, ")\n\t\t =================\n")
+            ei <- exprs[i]
+        }
+        if (echo) {
+            nd <- 0
+            srcref <- if (tail)
+                attr(exprs, "wholeSrcref", exact = TRUE)
+            else if (i <= length(srcrefs))
+                srcrefs[[i]]
+            if (!is.null(srcref)) {
+                if (i == 1)
+                  lastshown <- min(skip.echo, srcref[8L] - 1)
+                if (lastshown < srcref[8L]) {
+                  srcfile <- attr(srcref, "srcfile", exact = TRUE)
+                  dep <- trySrcLines(srcfile, lastshown + 1,
+                    srcref[8L])
+                  if (length(dep)) {
+                    leading <- if (tail)
+                      length(dep)
+                    else srcref[7L] - lastshown
+                    lastshown <- srcref[8L]
+                    while (length(dep) && grepl("^[[:blank:]]*$",
+                      dep[1L])) {
+                      dep <- dep[-1L]
+                      leading <- leading - 1L
+                    }
+                    dep <- paste0(rep.int(c(prompt.echo, continue.echo),
+                      pmax(0L, c(leading, length(dep) - leading))),
+                      dep, collapse = "\n")
+                    nd <- nchar(dep, "c")
+                  }
+                  else srcref <- NULL
+                }
+            }
+            if (is.null(srcref)) {
+                if (!tail) {
+                  dep <- substr(paste(deparse(ei, width.cutoff = width.cutoff,
+                    control = deparseCtrl), collapse = "\n"),
+                    12L, 1000000L)
+                  dep <- paste0(prompt.echo, gsub("\n", paste0("\n",
+                    continue.echo), dep, fixed = TRUE))
+                  nd <- nchar(dep, "c") - 1L
+                }
+            }
+            if (nd) {
+                do.trunc <- nd > max.deparse.length
+                dep <- substr(dep, 1L, if (do.trunc)
+                  max.deparse.length
+                else nd)
+                cat(if (spaced)
+                  "\n", dep, if (do.trunc)
+                  paste(if (grepl(sd, dep) && grepl(oddsd, dep))
+                    " ...\" ..."
+                  else " ....", "[TRUNCATED] "), "\n", sep = "")
+            }
+        }
+        if (!tail) {
+            yy <- withVisible(eval(ei, envir))
+            i.symbol <- mode(ei[[1L]]) == "name"
+            if (!i.symbol) {
+                curr.fun <- ei[[1L]][[1L]]
+                if (verbose) {
+                  cat("curr.fun:")
+                  utils::str(curr.fun)
+                }
+            }
+            if (verbose >= 2) {
+                cat(".... mode(ei[[1L]])=", mode(ei[[1L]]), "; paste(curr.fun)=")
+                utils::str(paste(curr.fun))
+            }
+            if (print.eval && yy$visible)
+                .PrintValueEnv(yy$value, envir)
+            if (verbose)
+                cat(" .. after ", sQuote(deparse(ei, control = unique(c(deparseCtrl,
+                  "useSource")))), "\n", sep = "")
+        }
+    }
+    invisible(yy)
+}
+
+
+source.exprs <- function (exprs, evaluated = FALSE, envir = parent.frame(), echo = TRUE, print.eval = TRUE)
+{
+    if (!evaluated) {
+        exprs <- substitute(exprs)
+        if (is.call(exprs)) {
+            if (identical(exprs[[1]], .R_BraceSymbol))
+                exprs <- as.list(exprs)[-1]
+        }
+    }
+    if (!is.expression(exprs))
+        exprs <- as.expression(exprs)
+    Ne <- length(exprs)
+    if (echo)
+        trySrcLines <- function(srcfile, from, to) {
+            tryCatch(suppressWarnings(getSrcLines(srcfile, from, to)),
+                error = function(e) character())
+        }
+    yy <- NULL
+    lastshown <- 0L
+    srcrefs <- attr(exprs, "srcref")
+    for (i in seq_len(Ne + echo)) {
+        tail <- i > Ne
+        if (!tail)
+            ei <- exprs[i]
+        if (echo) {
+            srcref <- if (tail)
+                attr(exprs, "wholeSrcref")
+            else if (i <= length(srcrefs))
+                srcrefs[[i]]
+            if (!is.null(srcref)) {
+                firstl <- srcref[7L]
+                lastl <- srcref[8L]
+                if (i == 1L)
+                    lastshown <- firstl - 1L
+                if (lastshown < lastl) {
+                    srcfile <- attr(srcref, "srcfile")
+                    dep <- trySrcLines(srcfile, lastshown + 1L, lastl)
+                    if (length(dep)) {
+                        leading <- if (tail)
+                            length(dep)
+                        else firstl - lastshown
+                        lastshown <- lastl
+                        dep <- paste0(rep.int(c(getOption("prompt"), getOption("continue")),
+                            pmax(0L, c(         leading            , length(dep) - leading))),
+                            dep, collapse = "\n")
+                        cat(dep, "\n", sep = "")
+                    }
+                }
+            }
+        }
+        if (!tail) {
+            yy <- withVisible(eval(ei, envir))
+            if (print.eval && yy$visible)
+                .PrintValueEnv(yy$value, envir)
+        }
+    }
+    invisible(yy)
+}

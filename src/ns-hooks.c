@@ -5,9 +5,16 @@
 #include "symbols.h"
 
 
-SEXP mynamespace          = NULL,
+SEXP mynamespace = NULL,
      DocumentContextClass = NULL,
-     last_condition       = NULL,
+     ThisPathInAQUAErrorClass                      = NULL,
+     ThisPathInZipFileErrorClass                   = NULL,
+     ThisPathNotExistsErrorClass                   = NULL,
+     ThisPathNotFoundErrorClass                    = NULL,
+     ThisPathNotImplementedErrorClass              = NULL,
+     ThisPathUnrecognizedConnectionClassErrorClass = NULL,
+     ThisPathUnrecognizedMannerErrorClass          = NULL,
+     last_condition = NULL,
      _custom_gui_path_character_environment = NULL,
      _custom_gui_path_function_environment  = NULL;
 
@@ -33,7 +40,7 @@ SEXP expr_commandArgs                               = NULL,
      expr_knitr_output_dir                          = NULL,
      expr_testthat_source_file_uses_brio_read_lines = NULL,
      expr_getOption_topLevelEnvironment             = NULL,
-     expr__toplevel_context_number                  = NULL,
+     expr__toplevel_nframe                          = NULL,
      expr__isMethodsDispatchOn                      = NULL,
      expr_UseMethod_lengths                         = NULL;
 
@@ -78,9 +85,6 @@ SEXP do_R_MB_CUR_MAX do_formals
 }
 
 
-SEXP _packageName;
-
-
 SEXP do_onLoad do_formals
 {
     do_start_no_call_op_rho("onLoad", 2);
@@ -97,15 +101,8 @@ SEXP do_onLoad do_formals
 
 
     /* these arguments are passed from .onLoad() */
-    // SEXP libname = CAR(args);  // warning: unused variable 'libname'
-    SEXP pkgname = CADR(args);
-
-
-#if R_version_at_least(3, 2, 0)
-    _packageName = installChar(STRING_ELT(pkgname, 0));
-#else
-    _packageName = install(CHAR(STRING_ELT(pkgname, 0)));
-#endif
+    // SEXP libname = CAR(args);   // warning: unused variable 'libname'
+    // SEXP pkgname = CADR(args);  // warning: unused variable 'pkgname'
 
 
 #ifdef R_VERSION
@@ -121,8 +118,8 @@ SEXP do_onLoad do_formals
                 if (iv[0] == atoi(R_MAJOR) &&
                     iv[1] == atoi(R_MINOR));
                 else warningcall_immediate(R_NilValue,
-                    "package '%s' was built under R version %s.%s\n but is being loaded in R %d.%d.%d",
-                    CHAR(PRINTNAME(_packageName)), R_MAJOR, R_MINOR, iv[0], iv[1], iv[2]);
+                    "package 'this.path' was built under R version %s.%s\n but is being loaded in R %d.%d.%d",
+                                                                          R_MAJOR, R_MINOR,                iv[0], iv[1], iv[2]);
             }
         }
         UNPROTECT(2);
@@ -131,19 +128,146 @@ SEXP do_onLoad do_formals
 
 
     /* get my namespace from the namespace registry */
-    mynamespace = findVarInFrame(R_NamespaceRegistry, _packageName);
+    mynamespace = findVarInFrame(R_NamespaceRegistry, install("this.path"));
     if (TYPEOF(mynamespace) != ENVSXP)
         error(_("not an environment"));
     R_PreserveObject(mynamespace);
 
 
-    const char *Class[] = { "ThisPathDocumentContext", "environment", NULL };
-    int nClass = 0;
-    while (Class[nClass]) ++nClass;
-    DocumentContextClass = allocVector(STRSXP, nClass);
-    R_PreserveObject(DocumentContextClass);
-    for (int i = 0; i < nClass; i++)
-        SET_STRING_ELT(DocumentContextClass, i, mkChar(Class[i]));
+    INCREMENT_NAMED_defineVar(install(".mynamespace"), mynamespace, mynamespace);
+
+
+#define make_STRSXP_from_char_array(var, ...)                  \
+    do {                                                       \
+        const char *Class[] = __VA_ARGS__;                     \
+        int nClass = 0;                                        \
+        while (Class[nClass]) ++nClass;                        \
+        var = allocVector(STRSXP, nClass);                     \
+        R_PreserveObject(var);                                 \
+        for (int i = 0; i < nClass; i++)                       \
+            SET_STRING_ELT(var, i, mkChar(Class[i]));          \
+        MARK_NOT_MUTABLE(var);                                 \
+    } while (0)
+
+
+    make_STRSXP_from_char_array(
+        DocumentContextClass,
+        { "ThisPathDocumentContext", "environment", NULL }
+    );
+
+
+/* this code is written this way on purpose, do not reformat */
+#define NotImplementedErrorClass_string                        \
+    "NotImplementedError"
+#define ThisPathInAQUAErrorClass_string                        \
+    "ThisPathInAQUAError"
+#define ThisPathInZipFileErrorClass_string                     \
+    "ThisPathInZipFileError"
+#define ThisPathNotExistsErrorClass_string                     \
+    "ThisPathNotExistsError"
+#define ThisPathNotFoundErrorClass_string                      \
+    "ThisPathNotFoundError"
+#define ThisPathNotImplementedErrorClass_string                \
+    "ThisPathNotImplementedError"
+#define ThisPathUnrecognizedConnectionClassErrorClass_string   \
+    "ThisPathUnrecognizedConnectionClassError"
+#define ThisPathUnrecognizedMannerErrorClass_string            \
+    "ThisPathUnrecognizedMannerError"
+
+
+/* new names of the error classes along with the old names */
+#define NotImplementedErrorClass_strings                       \
+    NotImplementedErrorClass_string,                           \
+    "notImplementedError"
+#define ThisPathInAQUAErrorClass_strings                       \
+    ThisPathInAQUAErrorClass_string,                           \
+    "this.path::thisPathInAQUAError"
+#define ThisPathInZipFileErrorClass_strings                    \
+    ThisPathInZipFileErrorClass_string,                        \
+    "this.path::thisPathInZipFileError"
+#define ThisPathNotExistsErrorClass_strings                    \
+    ThisPathNotExistsErrorClass_string,                        \
+    "thisPathNotExistsError",                                  \
+    "this.path::thisPathNotExistsError",                       \
+    "this.path::thisPathNotExistError",                        \
+    "this.path_this.path_not_exists_error"
+#define ThisPathNotFoundErrorClass_strings                     \
+    ThisPathNotFoundErrorClass_string,                         \
+    "thisPathNotFoundError",                                   \
+    "this.path::thisPathNotFoundError"
+#define ThisPathNotImplementedErrorClass_strings               \
+    ThisPathNotImplementedErrorClass_string,                   \
+    "this.path::thisPathNotImplementedError",                  \
+    "this.path_this.path_unimplemented_error"
+#define ThisPathUnrecognizedConnectionClassErrorClass_strings  \
+    ThisPathUnrecognizedConnectionClassErrorClass_string,      \
+    "this.path::thisPathUnrecognizedConnectionClassError"
+#define ThisPathUnrecognizedMannerErrorClass_strings           \
+    ThisPathUnrecognizedMannerErrorClass_string,               \
+    "this.path::thisPathUnrecognizedMannerError"
+
+
+#define ErrorClass_strings                                     \
+    "error", "condition", NULL
+
+
+    make_STRSXP_from_char_array(
+        ThisPathInAQUAErrorClass,
+        {
+            ThisPathInAQUAErrorClass_strings,
+            ThisPathNotFoundErrorClass_strings,
+            ThisPathNotImplementedErrorClass_strings,
+            NotImplementedErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
+    make_STRSXP_from_char_array(
+        ThisPathInZipFileErrorClass,
+        {
+            ThisPathInZipFileErrorClass_strings,
+            ThisPathNotFoundErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
+    make_STRSXP_from_char_array(
+        ThisPathNotExistsErrorClass,
+        {
+            ThisPathNotExistsErrorClass_strings,
+            ThisPathNotFoundErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
+    make_STRSXP_from_char_array(
+        ThisPathNotFoundErrorClass,
+        {
+            ThisPathNotFoundErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
+    make_STRSXP_from_char_array(
+        ThisPathNotImplementedErrorClass,
+        {
+            ThisPathNotImplementedErrorClass_strings,
+            NotImplementedErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
+    make_STRSXP_from_char_array(
+        ThisPathUnrecognizedConnectionClassErrorClass,
+        {
+            ThisPathUnrecognizedConnectionClassErrorClass_strings,
+            ThisPathNotFoundErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
+    make_STRSXP_from_char_array(
+        ThisPathUnrecognizedMannerErrorClass,
+        {
+            ThisPathUnrecognizedMannerErrorClass_strings,
+            ThisPathNotFoundErrorClass_strings,
+            ErrorClass_strings
+        }
+    );
 
 
     /* it might seem more intuitive to say
@@ -171,11 +295,11 @@ SEXP do_onLoad do_formals
         UNPROTECT(1);
     }
     defineVar(fileSymbol, makePROMISE(
-        LCONS(_normalizeNotDirectorySymbol, CONS(ofileSymbol, R_NilValue)),
+        LCONS(_normalizePath_not_dirSymbol, CONS(ofileSymbol, R_NilValue)),
         _custom_gui_path_character_environment
     ), _custom_gui_path_character_environment);
     R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
-    defineVar(_getContentsSymbol, R_NilValue, _custom_gui_path_character_environment);
+    defineVar(_get_contentsSymbol, R_NilValue, _custom_gui_path_character_environment);
     R_LockEnvironment(_custom_gui_path_character_environment, FALSE);
 
 
@@ -197,23 +321,35 @@ SEXP do_onLoad do_formals
         SEXP sym = (symbol);                                   \
         SEXP tmp = getFromMyNS(sym);                           \
         if (TYPEOF(tmp) != CLOSXP)                             \
-            error(_("object '%s' of mode '%s' was not found"), EncodeChar(sym), "function");\
+            error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "function");\
         R_LockEnvironment(CLOENV(tmp), (bindings));            \
     } while (0)
 
 
     /* rprojroot.R */
-    LockCLOENV(install(".find.root"), TRUE);
+    LockCLOENV(install(".find_root"), TRUE);
     LockCLOENV(install(".proj"), FALSE);
     /* startup.R */
     LockCLOENV(_site_fileSymbol, TRUE);
+    LockCLOENV(install(".in_site_file"), FALSE);
     LockCLOENV(_init_fileSymbol, TRUE);
     /* thispath.R */
     LockCLOENV(_shFILESymbol, TRUE);
+    LockCLOENV(install(".vscode_path"), TRUE);
     LockCLOENV(_jupyter_pathSymbol, TRUE);
-    LockCLOENV(install(".emacs.path"), TRUE);
+    LockCLOENV(install(".emacs_path"), TRUE);
     /* zzz.R */
-    // LockCLOENV(install("eval.with.message"), FALSE);
+    // LockCLOENV(install(".eval_with_message"), FALSE);
+
+
+    {
+        SEXP sym = install(".startup_info");
+        Rboolean bindings = TRUE;
+        SEXP tmp = getFromMyNS(sym);
+        if (TYPEOF(tmp) != ENVSXP)
+            error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "environment");
+        R_LockEnvironment(tmp, bindings);
+    }
 
 
     /* force the promise 'initwd' */
@@ -257,6 +393,8 @@ SEXP do_onLoad do_formals
     convertclosure2activebinding(install(".utf8locale"));
     convertclosure2activebinding(install(".latin1locale"));
     convertclosure2activebinding(install(".R_MB_CUR_MAX"));
+    /* ./R/startup.R */
+    convertclosure2activebinding(install(".in_site_file"));
     /* ./R/trycatch.R */
     convertclosure2activebinding(install("last.condition"));
 
@@ -416,28 +554,28 @@ SEXP do_onLoad do_formals
     R_PreserveObject(expr_commandArgs);
     if (!isFunction(CAR(expr_commandArgs)))
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(commandArgsSymbol)), "function");
+              CHAR(PRINTNAME(commandArgsSymbol)), "function");
 
 
     expr_invisible = LCONS(getFromBase(invisibleSymbol), R_NilValue);
     R_PreserveObject(expr_invisible);
     if (!isFunction(CAR(expr_invisible)))
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(invisibleSymbol)), "function");
+              CHAR(PRINTNAME(invisibleSymbol)), "function");
 
 
     expr_parent_frame = LCONS(getFromBase(parent_frameSymbol), R_NilValue);
     R_PreserveObject(expr_parent_frame);
     if (!isFunction(CAR(expr_parent_frame)))
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(parent_frameSymbol)), "function");
+              CHAR(PRINTNAME(parent_frameSymbol)), "function");
 
 
     expr_sys_call = LCONS(getFromBase(sys_callSymbol), R_NilValue);
     R_PreserveObject(expr_sys_call);
     if (!isFunction(CAR(expr_sys_call)))
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(sys_callSymbol)), "function");
+              CHAR(PRINTNAME(sys_callSymbol)), "function");
 
 
     expr_sys_call_which = LCONS(CAR(expr_sys_call), CONS(ScalarInteger(0), R_NilValue));
@@ -453,21 +591,21 @@ SEXP do_onLoad do_formals
     eval_op = INTERNAL(R_EvalSymbol);
     if (TYPEOF(eval_op) != BUILTINSXP)
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(R_EvalSymbol)), "builtin");
+              CHAR(PRINTNAME(R_EvalSymbol)), "builtin");
 
 
     expr_sys_nframe = LCONS(getFromBase(sys_nframeSymbol), R_NilValue);
     R_PreserveObject(expr_sys_nframe);
     if (!isFunction(CAR(expr_sys_nframe)))
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(sys_nframeSymbol)), "function");
+              CHAR(PRINTNAME(sys_nframeSymbol)), "function");
 
 
     expr_sys_parents = LCONS(getFromBase(sys_parentsSymbol), R_NilValue);
     R_PreserveObject(expr_sys_parents);
     if (!isFunction(CAR(expr_sys_parents)))
         error(_("object '%s' of mode '%s' was not found"),
-              EncodeChar(PRINTNAME(sys_parentsSymbol)), "function");
+              CHAR(PRINTNAME(sys_parentsSymbol)), "function");
 
 
     {
@@ -478,7 +616,7 @@ SEXP do_onLoad do_formals
         UNPROTECT(1);
         if (!isFunction(CAR(expr_missing_file)))
             error(_("object '%s' of mode '%s' was not found"),
-                  EncodeChar(PRINTNAME(missingSymbol)), "function");
+                  CHAR(PRINTNAME(missingSymbol)), "function");
     }
 
 
@@ -490,7 +628,7 @@ SEXP do_onLoad do_formals
         UNPROTECT(1);
         if (!isFunction(CAR(expr_missing_input)))
             error(_("object '%s' of mode '%s' was not found"),
-                  EncodeChar(PRINTNAME(missingSymbol)), "function");
+                  CHAR(PRINTNAME(missingSymbol)), "function");
     }
 
 
@@ -502,7 +640,7 @@ SEXP do_onLoad do_formals
         UNPROTECT(1);
         if (!isFunction(CAR(expr_missing_ofile)))
             error(_("object '%s' of mode '%s' was not found"),
-                  EncodeChar(PRINTNAME(missingSymbol)), "function");
+                  CHAR(PRINTNAME(missingSymbol)), "function");
     }
 
 
@@ -516,7 +654,7 @@ SEXP do_onLoad do_formals
         UNPROTECT(1);
         if (!isFunction(CAR(expr_info_dollar_source_path)))
             error(_("object '%s' of mode '%s' was not found"),
-                  EncodeChar(PRINTNAME(R_DollarSymbol)), "function");
+                  CHAR(PRINTNAME(R_DollarSymbol)), "function");
     }
 
 
@@ -572,17 +710,17 @@ SEXP do_onLoad do_formals
     }
 
 
-    expr__toplevel_context_number = LCONS(getFromMyNS(install(".toplevel.context.number")), R_NilValue);
-    R_PreserveObject(expr__toplevel_context_number);
-    if (!isFunction(CAR(expr__toplevel_context_number)))
-        error(_("object '%s' of mode '%s' was not found"), ".toplevel.context.number", "function");
+    expr__toplevel_nframe = LCONS(getFromMyNS(install(".toplevel.nframe")), R_NilValue);
+    R_PreserveObject(expr__toplevel_nframe);
+    if (!isFunction(CAR(expr__toplevel_nframe)))
+        error(_("object '%s' of mode '%s' was not found"), ".toplevel.nframe", "function");
 
 
     expr__isMethodsDispatchOn = LCONS(getFromBase(_isMethodsDispatchOnSymbol), R_NilValue);
     R_PreserveObject(expr__isMethodsDispatchOn);
     if (!isFunction(CAR(expr__isMethodsDispatchOn)))
         error(_("object '%s' of mode '%s' was not found"),
-            EncodeChar(PRINTNAME(_isMethodsDispatchOnSymbol)), "function");
+            CHAR(PRINTNAME(_isMethodsDispatchOnSymbol)), "function");
 
 
 #if R_version_less_than(3, 2, 0)
@@ -592,9 +730,27 @@ SEXP do_onLoad do_formals
 
 
     {
-        /* if package:plumber is loaded, call '.fix.plumber.parseUTF8' */
+        /* if package:utils is loaded, call '.fix_utils' */
+        if (!ISUNBOUND(findVarInFrame(R_NamespaceRegistry, utilsSymbol))) {
+            SEXP expr = LCONS(install(".fix_utils"), R_NilValue);
+            PROTECT(expr);
+            eval(expr, mynamespace);
+            UNPROTECT(1);
+        }
+
+
+        /* for when package:utils is loaded (or possibly unloaded then reloaded), set as a hook */
+        SEXP expr = LCONS(install(".maybe_setHook_packageEvent_utils_fix_utils"), R_NilValue);
+        PROTECT(expr);
+        eval(expr, mynamespace);
+        UNPROTECT(1);
+    }
+
+
+    {
+        /* if package:plumber is loaded, call '.fix_plumber_parseUTF8' */
         if (!ISUNBOUND(findVarInFrame(R_NamespaceRegistry, plumberSymbol))) {
-            SEXP expr = LCONS(install(".fix.plumber.parseUTF8"), R_NilValue);
+            SEXP expr = LCONS(install(".fix_plumber_parseUTF8"), R_NilValue);
             PROTECT(expr);
             eval(expr, mynamespace);
             UNPROTECT(1);
@@ -602,7 +758,7 @@ SEXP do_onLoad do_formals
 
 
         /* for when package:plumber is loaded (or possibly unloaded then reloaded), set as a hook */
-        SEXP expr = LCONS(install(".maybe.setHook.packageEvent.plumber.fix.plumber.parseUTF8"), R_NilValue);
+        SEXP expr = LCONS(install(".maybe_setHook_packageEvent_plumber_fix_plumber_parseUTF8"), R_NilValue);
         PROTECT(expr);
         eval(expr, mynamespace);
         UNPROTECT(1);
@@ -626,6 +782,13 @@ SEXP do_onUnload do_formals
 
     maybe_release(mynamespace);
     maybe_release(DocumentContextClass);
+    maybe_release(ThisPathInAQUAErrorClass);
+    maybe_release(ThisPathInZipFileErrorClass);
+    maybe_release(ThisPathNotExistsErrorClass);
+    maybe_release(ThisPathNotFoundErrorClass);
+    maybe_release(ThisPathNotImplementedErrorClass);
+    maybe_release(ThisPathUnrecognizedConnectionClassErrorClass);
+    maybe_release(ThisPathUnrecognizedMannerErrorClass);
     maybe_release(last_condition);
     maybe_release(_custom_gui_path_character_environment);
     maybe_release(_custom_gui_path_function_environment);
@@ -651,7 +814,7 @@ SEXP do_onUnload do_formals
     maybe_release(expr_knitr_output_dir);
     maybe_release(expr_testthat_source_file_uses_brio_read_lines);
     maybe_release(expr_getOption_topLevelEnvironment);
-    maybe_release(expr__toplevel_context_number);
+    maybe_release(expr__toplevel_nframe);
     maybe_release(expr__isMethodsDispatchOn);
     maybe_release(expr_UseMethod_lengths);
 
@@ -660,7 +823,7 @@ SEXP do_onUnload do_formals
         SEXP expr;
         PROTECT_INDEX indx;
         PROTECT_WITH_INDEX(expr = CONS(libpath, R_NilValue), &indx);
-        REPROTECT(expr = CONS(ScalarString(PRINTNAME(_packageName)), expr), indx);
+        REPROTECT(expr = CONS(mkString("this.path"), expr), indx);
         REPROTECT(expr = LCONS(getFromBase(install("library.dynam.unload")), expr), indx);
         REPROTECT(expr = CONS(expr, R_NilValue), indx);
         REPROTECT(expr = LCONS(getFromBase(on_exitSymbol), expr), indx);

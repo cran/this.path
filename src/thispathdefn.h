@@ -4,13 +4,17 @@
 
 #include <R.h>
 #include <Rinternals.h>
+#include "devel.h"
+
 #include "backports.h"
-#include "defines.h"
+#include "error.h"
+#include "files.h"
 #include "ns-hooks.h"
 #include "print.h"
 #include "promises.h"
 #include "rversiondefines.h"
 #include "symbols.h"
+#include "sys.h"
 #include "translations.h"
 
 
@@ -32,45 +36,17 @@ extern SEXP topenv(SEXP target, SEXP envir);
 extern void R_LockBinding(SEXP sym, SEXP env);
 
 
-/* handle R_THIS_PATH_DEFINES */
-
-
-#if R_version_at_least(3, 3, 0)
-    #if defined(R_THIS_PATH_DEFINES)
-        #include <R_ext/Connections.h>
-        #if !defined(R_CONNECTIONS_VERSION)
-        #elif R_CONNECTIONS_VERSION == 1
-            #define R_CONNECTIONS_VERSION_1
-            /* R_GetConnection() is not part of the R API. it should not be
-               used unless you are fully aware of what you are doing. it is
-               subject to change without notice nor back-compatibility.
-               currently, this is only used in the development version of the
-               package; the release version on CRAN does not use this. */
-            extern Rconnection R_GetConnection(SEXP sConn);
-        #endif
-    #endif
-#endif
-
-
-#if defined(R_THIS_PATH_DEFINES) && R_version_at_least(3, 0, 0)
-/* R_Visible is not part of the R API. DO NOT USE OR MODIFY IT unless you are
-   absolutely certain it is what you wish to do. it is subject to change
-   without notice nor back-compatibility. only the development version of this
-   package uses this variable. */
-extern Rboolean R_Visible;
-#define set_R_Visible(v) (R_Visible = ((v) ? TRUE : FALSE))
-#else
-#define set_R_Visible(v) (eval((v) ? R_NilValue : expr_invisible, R_EmptyEnv))
-#endif
-
-
-
-
-
-extern Rboolean needQuote(SEXP x);
+/* my functions and defines */
 
 
 extern R_xlen_t asXLength(SEXP x);
+
+
+extern int ddVal(SEXP symbol);
+extern SEXP ddfindVar(SEXP symbol, SEXP rho);
+
+
+extern Rboolean needQuote(SEXP x);
 
 
 extern void UNIMPLEMENTED_TYPEt(const char *s, SEXPTYPE t);
@@ -98,73 +74,35 @@ extern SEXP findFunction3(SEXP symbol, SEXP rho, SEXP call);
 extern SEXP findFunction(SEXP symbol, SEXP rho);
 
 
-extern SEXP as_environment_char(const char *what);
-
-
-extern SEXP errorCondition (const char *msg, SEXP call, const char **cls, int numFields);
-extern SEXP errorCondition1(const char *msg, SEXP call, const char *cls, int numFields);
-extern SEXP simpleError(const char *msg, SEXP call);
-
-
-/* this code is written this way on purpose, do not reformat it */
-#define thisPathNotExistsErrorCls                              \
-    "this.path::thisPathNotExistsError"
-
-
-/* this code is written this way on purpose, do not reformat it */
-#define thisPathNotFoundErrorCls                               \
-    "this.path::thisPathNotFoundError"
-
-
 #if defined(R_CONNECTIONS_VERSION_1)
 extern SEXP summaryconnection(Rconnection Rcon);
-extern SEXP thisPathUnrecognizedConnectionClassError(SEXP call, Rconnection Rcon);
 #else
 extern SEXP summaryconnection(SEXP sConn);
-extern SEXP thisPathUnrecognizedConnectionClassError(SEXP call, SEXP summary);
 #endif
-extern SEXP thisPathUnrecognizedMannerError         (SEXP call);
-extern SEXP thisPathNotImplementedError             (const char *msg, SEXP call);
-extern SEXP thisPathNotExistsError                  (const char *msg, SEXP call);
-extern SEXP thisPathInZipFileError                  (SEXP call, SEXP description);
-extern SEXP thisPathInAQUAError                     (SEXP call);
-extern SEXP thisPathInEmacsError                    (SEXP call);
-
-
-extern void stop(SEXP cond);
 
 
 extern SEXP DocumentContext(void);
 
 
-typedef enum {NA_DEFAULT, NA_NOT_DIR, NA_FIX_DIR} NA_TYPE;
+typedef enum {NA_DEFAULT, NA_NOT_DIR, NA_FIX_DIR} NORMALIZE_ACTION;
 
 
-extern void assign_default(SEXP file, SEXP documentcontext, NA_TYPE normalize_action);
-extern void assign_chdir(SEXP file, SEXP owd, SEXP documentcontext);
-extern void assign_file_uri(SEXP ofile, SEXP file, SEXP documentcontext, NA_TYPE normalize_action);
-extern void assign_file_uri2(SEXP description, SEXP documentcontext, NA_TYPE normalize_action);
+extern void assign_default(SEXP srcfile_original, SEXP owd, SEXP ofile, SEXP file, SEXP documentcontext, NORMALIZE_ACTION na);
+extern void assign_file_uri(SEXP srcfile_original, SEXP owd, SEXP ofile, SEXP file, SEXP documentcontext, NORMALIZE_ACTION na);
+extern void assign_file_uri2(SEXP srcfile_original, SEXP owd, SEXP description, SEXP documentcontext, NORMALIZE_ACTION na);
 extern void assign_url(SEXP ofile, SEXP file, SEXP documentcontext);
 extern void overwrite_ofile(SEXP ofilearg, SEXP documentcontext);
 
 
-extern SEXP sys_call(SEXP which, SEXP rho);
-#define getCurrentCall(rho) ( eval(expr_sys_call, (rho)) )
-extern int sys_parent(int n, SEXP rho);
-
-
 extern int _gui_rstudio;
-extern Rboolean has_tools_rstudio;
-extern Rboolean init_tools_rstudio(Rboolean skipCheck);
-#define gui_rstudio                                            \
-    ((_gui_rstudio != -1) ? (_gui_rstudio) : (_gui_rstudio = asLogical(getFromMyNS(_gui_rstudioSymbol))))
-#define get_debugSource                                        \
-    ((has_tools_rstudio) ? getFromMyNS(_debugSourceSymbol) : R_UnboundValue)
-
-
 extern int _maybe_unembedded_shell;
-#define maybe_unembedded_shell                                 \
-    ((_maybe_unembedded_shell != -1) ? (_maybe_unembedded_shell) : (_maybe_unembedded_shell = asLogical(getFromMyNS(_maybe_unembedded_shellSymbol))))
+extern Rboolean _in_site_file;
+extern Rboolean _in_init_file;
+extern SEXP get_debugSource(void);
+#define gui_rstudio            ((_gui_rstudio            != -1) ? (_gui_rstudio           ) : (_gui_rstudio            = asLogical(getFromMyNS(_GUI_RStudioSymbol           ))))
+#define maybe_unembedded_shell ((_maybe_unembedded_shell != -1) ? (_maybe_unembedded_shell) : (_maybe_unembedded_shell = asLogical(getFromMyNS(_maybe_unembedded_shellSymbol))))
+#define in_site_file           ((!_in_site_file               ) ? (_in_site_file          ) : (_in_site_file           = asLogical(getFromMyNS(_in_site_fileSymbol          ))))
+#define in_init_file           (_in_init_file)
 
 
 #define streql(str1, str2) (strcmp((str1), (str2)) == 0)
@@ -173,12 +111,6 @@ extern int _maybe_unembedded_shell;
 // extern int IS_BYTES(SEXP x);
 #define IS_BYTES(x) (getCharCE((x)) == CE_BYTES)
 // extern int IS_LATIN1(SEXP x);
-
-
-extern int is_clipboard(const char *url);
-extern const char *must_not_be_clipboard_message;
-extern int is_url(const char *url);
-extern int is_file_uri(const char *url);
 
 
 /* doesn't work in general, for example sys.function() duplicates its return value */
@@ -239,7 +171,15 @@ typedef struct gzconn {
             PROTECT(summary); nprotect++;                      \
             SEXP description = STRING_ELT(VECTOR_ELT(summary, 0), 0);\
             const char *klass = CHAR(STRING_ELT(VECTOR_ELT(summary, 1), 0));\
-            if (streql(klass, "gzcon")) error("'this.path' not implemented for a gzcon()")
+            if (streql(klass, "gzcon")) {                      \
+                const char *msg = "'this.path' cannot be used within a 'gzcon()'";\
+                SEXP call = getCurrentCall(rho);               \
+                PROTECT(call);                                 \
+                SEXP cond = ThisPathNotFoundError(msg, call);  \
+                PROTECT(cond);                                 \
+                stop(cond);                                    \
+                UNPROTECT(2);                                  \
+            }
 #define Rcon_or_summary summary
 #endif
 
@@ -247,18 +187,18 @@ typedef struct gzconn {
 /* it is undesirable to have this as a #define but we also cannot
    evaluate all the arguments. used in:
 
+   setsyspath.c
+
+     * do_wrap_source()
+     * set_path()
+
    thispath.c
 
      * _sys_path()
      * _env_path()
      * _src_path()
-
-   wrapsource.c
-
-     * do_wrap_source()
-     * set_path()
  */
-#define checkfile(call, sym, ofile, frame, as_binding,         \
+#define set_documentcontext(call, sym, ofile, assign_here, assign_as_binding,\
     normalize_action, forcepromise, assign_returnvalue,        \
     maybe_chdir, getowd, hasowd, ofilearg,                     \
     character_only, conv2utf8, allow_blank_string,             \
@@ -267,7 +207,7 @@ typedef struct gzconn {
     allow_textConnection, allow_rawConnection, allow_sockconn, \
     allow_servsockconn, allow_customConnection,                \
     ignore_blank_string, ignore_clipboard, ignore_stdin,       \
-    ignore_url, ignore_file_uri, source)                       \
+    ignore_url, ignore_file_uri, source, srcfile_original)     \
 do {                                                           \
     int nprotect = 0;                                          \
     PROTECT(documentcontext = DocumentContext()); nprotect++;  \
@@ -285,6 +225,7 @@ do {                                                           \
         }                                                      \
         const char *url;                                       \
         if (conv2utf8) {                                       \
+            /* https://github.com/wch/r-source/blob/trunk/src/main/util.c#L2257 */\
             if (IS_UTF8(file) || IS_ASCII(file) || IS_BYTES(file))\
                 url = CHAR(file);                              \
             else {                                             \
@@ -338,7 +279,20 @@ do {                                                           \
         }                                                      \
         else if (!ignore_file_uri && is_file_uri(url)) {       \
             if (allow_file_uri) {                              \
-                assign_file_uri(ofile, file, documentcontext, normalize_action);\
+                SEXP _srcfile_original = srcfile_original;     \
+                if (_srcfile_original) {                       \
+                    assign_file_uri(_srcfile_original, NULL, ofile, file, documentcontext, normalize_action);\
+                }                                              \
+                else if (maybe_chdir) {                        \
+                    SEXP owd = getowd;                         \
+                    if (hasowd) {                              \
+                        PROTECT(owd);                          \
+                        assign_file_uri(NULL, owd, ofile, file, documentcontext, normalize_action);\
+                        UNPROTECT(1);                          \
+                    }                                          \
+                    else assign_file_uri(NULL, NULL, ofile, file, documentcontext, normalize_action);\
+                }                                              \
+                else assign_file_uri(NULL, NULL, ofile, file, documentcontext, normalize_action);\
                 if (assign_returnvalue) {                      \
                     returnvalue = PROTECT(shallow_duplicate(ofile)); nprotect++;\
                     SET_STRING_ELT(returnvalue, 0, STRING_ELT(getInFrame(fileSymbol, documentcontext, FALSE), 0));\
@@ -352,16 +306,20 @@ do {                                                           \
                 errorcall(call, "invalid '%s', cannot be a file URI", EncodeChar(PRINTNAME(sym)));\
         }                                                      \
         else {                                                 \
-            if (maybe_chdir) {                                 \
+            SEXP _srcfile_original = srcfile_original;         \
+            if (_srcfile_original) {                           \
+                assign_default(_srcfile_original, NULL, ofile, file, documentcontext, normalize_action);\
+            }                                                  \
+            else if (maybe_chdir) {                            \
                 SEXP owd = getowd;                             \
                 if (hasowd) {                                  \
                     PROTECT(owd);                              \
-                    assign_chdir(ofile, owd, documentcontext); \
+                    assign_default(NULL, owd, ofile, file, documentcontext, normalize_action);\
                     UNPROTECT(1);                              \
                 }                                              \
-                else assign_default(ofile, documentcontext, normalize_action);\
+                else assign_default(NULL, NULL, ofile, file, documentcontext, normalize_action);\
             }                                                  \
-            else assign_default(ofile, documentcontext, normalize_action);\
+            else assign_default(NULL, NULL, ofile, file, documentcontext, normalize_action);\
             if (assign_returnvalue) {                          \
                 returnvalue = PROTECT(shallow_duplicate(ofile)); nprotect++;\
                 SET_STRING_ELT(returnvalue, 0, STRING_ELT(getInFrame(fileSymbol, documentcontext, FALSE), 0));\
@@ -391,7 +349,7 @@ do {                                                           \
                 streql(klass, "xzfile") ||                     \
                 streql(klass, "fifo"  ))                       \
             {                                                  \
-                assign_file_uri2(description, documentcontext, normalize_action);\
+                assign_file_uri2(NULL, NULL, description, documentcontext, normalize_action);\
                 if (forcepromise) getInFrame(fileSymbol, documentcontext, FALSE);\
             }                                                  \
             else if (streql(klass, "url-libcurl") ||           \
@@ -411,7 +369,7 @@ do {                                                           \
                  but rather an error that the executing        \
                  document has no path                          \
                                                                \
-                 we also assign for_msg as the object to       \
+                 we also assign for.msg as the object to       \
                  return for this.path(for.msg = TRUE)          \
                                                                \
                  we also assign associated_with_file so that   \
@@ -421,7 +379,7 @@ do {                                                           \
                  represented by a single string)               \
                  */                                            \
                 if (allow_unz) {                               \
-                    INCREMENT_NAMED_defineVar(errcndSymbol              , thisPathInZipFileError(R_NilValue, description), documentcontext);\
+                    INCREMENT_NAMED_defineVar(errcndSymbol              , ThisPathInZipFileError(R_NilValue, description), documentcontext);\
                     INCREMENT_NAMED_defineVar(for_msgSymbol             , ScalarString(description)                      , documentcontext);\
                                     defineVar(associated_with_fileSymbol, R_TrueValue                                    , documentcontext);\
                 }                                              \
@@ -481,7 +439,7 @@ do {                                                           \
                      know if this connection has an            \
                      associated file                           \
                      */                                        \
-                    INCREMENT_NAMED_defineVar(errcndSymbol , thisPathUnrecognizedConnectionClassError(R_NilValue, Rcon_or_summary), documentcontext);\
+                    INCREMENT_NAMED_defineVar(errcndSymbol , ThisPathUnrecognizedConnectionClassError(R_NilValue, Rcon_or_summary), documentcontext);\
                     INCREMENT_NAMED_defineVar(for_msgSymbol, ScalarString(description)                                            , documentcontext);\
                 }                                              \
                 else                                           \
@@ -496,13 +454,14 @@ do {                                                           \
     if (documentcontext != R_EmptyEnv) {                       \
         INCREMENT_NAMED_defineVar(sourceSymbol, (source), documentcontext);\
     }                                                          \
-    if (as_binding) {                                          \
-        INCREMENT_NAMED_defineVar(documentcontextSymbol, documentcontext, frame);\
-        R_LockBinding(documentcontextSymbol, frame);           \
-    } else {                                                   \
-        setAttrib(frame, documentcontextSymbol, documentcontext);\
+    if (assign_here) {                                         \
+        if (assign_as_binding) {                               \
+            INCREMENT_NAMED_defineVar(documentcontextSymbol, documentcontext, assign_here);\
+            R_LockBinding(documentcontextSymbol, assign_here); \
+        } else {                                               \
+            setAttrib(assign_here, documentcontextSymbol, documentcontext);\
+        }                                                      \
     }                                                          \
-    set_R_Visible(TRUE);                                       \
     UNPROTECT(nprotect);                                       \
 } while (0)
 
@@ -511,6 +470,9 @@ do {                                                           \
     (((nargs) == 1) ? "%d argument passed to .External(%s) which requires %s" :\
                       "%d arguments passed to .External(%s) which requires %s"),\
                      (nargs), (name), (expected_nargs)
+
+
+extern SEXP duplicateEnv(SEXP env);
 
 
 #endif /* R_THISPATH_THISPATHDEFN_H */

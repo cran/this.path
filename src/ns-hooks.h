@@ -5,9 +5,16 @@
 #include <Rinternals.h>       /* need definition of SEXP */
 
 
-extern SEXP mynamespace         ,
+extern SEXP mynamespace,
             DocumentContextClass,
-            last_condition      ,
+            ThisPathInAQUAErrorClass                     ,
+            ThisPathInZipFileErrorClass                  ,
+            ThisPathNotExistsErrorClass                  ,
+            ThisPathNotFoundErrorClass                   ,
+            ThisPathNotImplementedErrorClass             ,
+            ThisPathUnrecognizedConnectionClassErrorClass,
+            ThisPathUnrecognizedMannerErrorClass         ,
+            last_condition,
             _custom_gui_path_character_environment,
             _custom_gui_path_function_environment ;
 
@@ -28,7 +35,7 @@ extern SEXP expr_commandArgs                              ,
             expr_knitr_output_dir                         ,
             expr_testthat_source_file_uses_brio_read_lines,
             expr_getOption_topLevelEnvironment            ,
-            expr__toplevel_context_number                 ,
+            expr__toplevel_nframe                         ,
             expr__isMethodsDispatchOn                     ,
             expr_UseMethod_lengths                        ;
 

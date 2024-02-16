@@ -84,13 +84,17 @@ SEXP do_is_unevaluated_promise do_formals
      */
 
 
-    do_start_no_op("is.unevaluated.promise", -1);
+    do_start_no_op("is_unevaluated_promise", -1);
 
 
-    handles_nargs(rho, ".C_is.unevaluated.promise");
+    handles_nargs(rho, ".C_is_unevaluated_promise");
 
 
-    SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
+    SEXP value;
+    if (DDVAL(sym))
+        value = ddfindVar(sym, env);
+    else
+        value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (value == R_UnboundValue)
         errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
 
@@ -105,13 +109,17 @@ SEXP do_promise_is_unevaluated do_formals
     /* similar to do_is_unevaluated_promise, but the binding MUST be a promise */
 
 
-    do_start_no_op("promise.is.unevaluated", -1);
+    do_start_no_op("promise_is_unevaluated", -1);
 
 
-    handles_nargs(ENCLOS(rho), ".C_promise.is.unevaluated");
+    handles_nargs(ENCLOS(rho), ".C_promise_is_unevaluated");
 
 
-    SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
+    SEXP value;
+    if (DDVAL(sym))
+        value = ddfindVar(sym, env);
+    else
+        value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (value == R_UnboundValue)
         errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
 
@@ -133,13 +141,17 @@ SEXP do_forcePromise_no_warn do_formals
      */
 
 
-    do_start_no_op("forcePromise.no.warn", -1);
+    do_start_no_op("forcePromise_no_warn", -1);
 
 
-    handles_nargs(ENCLOS(rho), ".C_forcePromise.no.warn");
+    handles_nargs(ENCLOS(rho), ".C_forcePromise_no_warn");
 
 
-    SEXP value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
+    SEXP value;
+    if (DDVAL(sym))
+        value = ddfindVar(sym, env);
+    else
+        value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (value == R_UnboundValue)
         errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
 
@@ -260,7 +272,11 @@ SEXP do_PRINFO do_formals
         error(_("argument \"%s\" is missing, with no default"), "x");
 
 
-    SEXP e = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
+    SEXP e;
+    if (DDVAL(sym))
+        e = ddfindVar(sym, env);
+    else
+        e = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
     if (e == R_UnboundValue)
         error(_("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
     if (TYPEOF(e) != PROMSXP)
@@ -366,4 +382,28 @@ SEXP do_unlockEnvironment do_formals
     unLockEnvironment(frame, bindings);
     set_R_Visible(FALSE);
     return R_NilValue;
+}
+
+
+
+
+
+SEXP do_is_R_MissingArg do_formals
+{
+    do_start_no_op("is_R_MissingArg", -1);
+
+
+    handles_nargs(rho, ".C_is_R_MissingArg");
+
+
+    SEXP value;
+    if (DDVAL(sym))
+        value = ddfindVar(sym, env);
+    else
+        value = (inherits ? findVar(sym, env) : findVarInFrame(env, sym));
+    if (value == R_UnboundValue)
+        errorcall(call, _("object '%s' not found"), EncodeChar(PRINTNAME(sym)));
+
+
+    return ((value == R_MissingArg) ? R_TrueValue : R_FalseValue);
 }

@@ -1,205 +1,18 @@
-.defunctError <- function (new, package = NULL, msg, old = as.character(sys.call(sys.parent()))[1L])
+## helper functions for this.path()    ----
+
+
+.get_named_element <- function (x, names)
 {
-    msg <- if (missing(msg)) {
-        msg <- gettextf("'%s' is defunct.\n", old, domain = "R-base")
-        if (!missing(new))
-            msg <- c(msg, gettextf("Use '%s' instead.\n", new, domain = "R-base"))
-        c(msg, if (!is.null(package))
-            gettextf("See help(\"Defunct\") and help(\"%s-defunct\").", package, domain = "R-base")
-        else gettext("See help(\"Defunct\")", domain = "R-base"))
+    for (name in names) {
+        if (i <- match(name, names(x), 0L, c("", NA_character_)))
+            x <- x[[i]]
+        else return()
     }
-    else as.character(msg)
-    msg <- paste(msg, collapse = "")
-    if (missing(new))
-        new <- NULL
-    errorCondition(msg, old = old, new = new, package = package,
-        class = "defunctError")
-}
-
-
-
-
-
-.shFILE <- evalq(envir = new.env(), {
-    delayedAssign("ofile", if (.in.shell) .shINFO[["FILE"]] else NA_character_)
-    delayedAssign("file", .normalizePath(ofile))
-function (original = TRUE, for.msg = FALSE)
-.External2(.C_shFILE, original, for.msg)
-})
-
-
-delayedAssign(".has.shFILE", !is.na(.shFILE()))
-
-
-shFILE <- function (original = FALSE, for.msg = FALSE, default, else.)
-{
-    if (missing(default)) {
-        if (missing(else.))
-            .shFILE(original, for.msg)
-        else stop("'shFILE' with 'else.' but not 'default' makes no sense")
-    }
-    else {
-        if (missing(else.)) {
-            if (.has.shFILE)
-                .shFILE(original, for.msg)
-            else if (for.msg)
-                NA_character_
-            else default
-        }
-        else {
-            if (.has.shFILE) {
-                value <- .shFILE(original, for.msg)
-                (else.)(value)
-            }
-            else if (for.msg) {
-                value <- NA_character_
-                (else.)(value)
-            }
-            else default
-        }
-    }
-}
-
-
-
-
-
-.is.abs.path <- function (path)
-.External2(.C_is.abs.path, path)
-
-
-
-
-
-readLines2 <- function (path, default = character(0))
-{
-    conn <- tryCatch({
-        file(path, "rb", encoding = "")
-    }, error = function(e) NULL)
-    if (is.null(conn))
-        ## we do not throw a warning here because one should
-        ## have already been thrown, something like:
-        ##
-        ## Warning message:
-        ## In file(path, "rb", encoding = "") :
-        ## cannot open file '%s': No such file or directory
-        return(default)
-    on.exit(close(conn))
-    x <- readLines(conn)
-    if (!length(x) || length(x) %% 2L)
-        stop(sprintf("invalid '%s' contents", path))
-    encoding <- x[c(FALSE, TRUE)]
-    x        <- x[c(TRUE, FALSE)]
-    Encoding(x) <- encoding
     x
 }
 
 
-.r.editor_msvcrt <- readLines2("./inst/extdata/r-editor_msvcrt.txt", " - R Editor")
-.r.editor_ucrt   <- readLines2("./inst/extdata/r-editor_ucrt.txt"  , " - R Editor")
-
-
-.untitled_msvcrt <- readLines2("./inst/extdata/untitled_msvcrt.txt", "Untitled - R Editor")
-.untitled_ucrt   <- readLines2("./inst/extdata/untitled_ucrt.txt"  , "Untitled - R Editor")
-
-
-rm(readLines2)
-
-
-
-
-
-delayedAssign(".r.editor", {
-    if (.gui.rgui) {
-        if (.ucrt)
-            .r.editor_ucrt
-        else .r.editor_msvcrt
-    }
-})
-delayedAssign(".untitled", {
-    if (.gui.rgui) {
-        if (.ucrt)
-            .untitled_ucrt
-        else .untitled_msvcrt
-    }
-})
-
-
-
-
-
-.getCurrentCall <- function (n = 3L)
-{
-    ## find the call that stop() would have also found
-    ##
-    ## look down the calling stack, picking the
-    ## most recent closure besides `stop`
-    ##
-    ## this is intended to be used as such:
-    ## stop(errorMakingFunction())
-    ##
-    ## where errorMakingFunction calls .getCurrentCall()
-
-
-    n <- sys.nframe() - n
-    if (n <= 0L)
-        return(NULL)
-    n <- sys.parents()[[n]]
-    if (n <= 0L)
-        return(NULL)
-    skip.stop <- TRUE
-    for (n in seq.int(to = 1L, by = -1L, length.out = n)) {
-        if (typeof(fun <- sys.function(n)) == "closure") {
-            if (skip.stop && (.identical)(fun, stop)) {
-                skip.stop <- FALSE
-                next
-            }
-            return(sys.call(n))
-        }
-    }
-    NULL
-}
-
-
-.thisPathUnrecognizedConnectionClassError <- function (con, call = .getCurrentCall(), call. = TRUE)
-.External2(.C_thisPathUnrecognizedConnectionClassError, if (call.) call, con)
-
-
-.thisPathUnrecognizedMannerError <- function (call = .getCurrentCall(), call. = TRUE)
-.External2(.C_thisPathUnrecognizedMannerError, if (call.) call)
-
-
-.thisPathNotImplementedError <- function (..., call. = TRUE, domain = NULL, call = .getCurrentCall())
-.External2(.C_thisPathNotImplementedError, .makeMessage(..., domain = domain), call = if (call.) call)
-
-
-.thisPathNotExistsError <- function (..., call. = TRUE, domain = NULL, call = .getCurrentCall())
-.External2(.C_thisPathNotExistsError, .makeMessage(..., domain = domain), call = if (call.) call)
-
-
-delayedAssign("thisPathNotExistsError", .thisPathNotExistsError)
-
-
-.thisPathInZipFileError <- function (description, call = .getCurrentCall(), call. = TRUE)
-.External2(.C_thisPathInZipFileError, if (call.) call, description)
-
-
-.thisPathInAQUAError <- function (call = .getCurrentCall(), call. = TRUE)
-.External2(.C_thisPathInAQUAError, if (call.) call)
-
-
-.thisPathInEmacsError <- function (call = .getCurrentCall(), call. = TRUE)
-.External2(.C_thisPathInEmacsError, if (call.) call)
-
-
-## helper functions for sys.path()     ----
-
-
-.is.clipboard <- function (file)
-.External2(.C_is.clipboard, file)
-
-
-.getContents <- function (file, encoding = getOption("encoding"))
+.get_contents <- function (file, encoding = getOption("encoding"))
 {
     if (identical(encoding, "unknown")) {
         enc <- utils::localeToCharset()
@@ -232,11 +45,11 @@ delayedAssign("thisPathNotExistsError", .thisPathNotExistsError)
 }
 
 
-.getJupyterNotebookContents <- function (..., do.unlist = FALSE, give.f = TRUE)
+.get_jupyter_notebook_contents <- function (..., do.unlist = FALSE, give.f = TRUE)
 {
-    lines <- .getContents(...)
+    lines <- .get_contents(...)
     source <- jsonlite::parse_json(lines, simplifyVector = TRUE)
-    source <- .getNamedElement(source, c("cells", "source"))
+    source <- .get_named_element(source, c("cells", "source"))
     if (do.unlist) {
         value <- unlist(source)
         if (give.f)
@@ -247,79 +60,20 @@ delayedAssign("thisPathNotExistsError", .thisPathNotExistsError)
 }
 
 
-.removeSource <- function (fn)
+.get_jupyter_R_notebook_contents <- function (path)
 {
-    recurse <- function(part) {
-        if (is.name(part))
-            return(part)
-        attr(part, "srcref") <- NULL
-        attr(part, "wholeSrcref") <- NULL
-        attr(part, "srcfile") <- NULL
-        if (is.language(part) && is.recursive(part)) {
-            for (i in seq_along(part)) part[i] <- list(recurse(part[[i]]))
-        }
-        part
-    }
-    if (is.function(fn)) {
-        if (!is.primitive(fn)) {
-            attr(fn, "srcref") <- NULL
-            at <- attributes(fn)
-            attr(body(fn), "wholeSrcref") <- NULL
-            attr(body(fn), "srcfile") <- NULL
-            body(fn) <- recurse(body(fn))
-            if (!is.null(at))
-                attributes(fn) <- at
-        }
-        fn
-    }
-    else if (is.language(fn)) {
-        recurse(fn)
-    }
-    else stop("argument is not a function or language object:",
-        typeof(fn))
-}
-
-
-.getNamedElement <- function (x, names)
-{
-    for (name in names) {
-        if (i <- match(name, names(x), 0L, c("", NA_character_)))
-            x <- x[[i]]
-        else return()
-    }
-    x
-}
-
-
-## this.path(), this.dir(), and here() ----
-
-
-.fixNewlines <- function (srcfile)
-{
-    srcfile$lines <- .External2(.C_fixNewlines, srcfile$lines)
-    srcfile$fixedNewlines <- TRUE
-    srcfile$lines
-}
-
-
-.isJupyterLoaded <- function ()
-.gui.jupyter && isNamespaceLoaded("IRkernel") && (.identical)(sys.function(1L), IRkernel::main)
-
-
-.getJupyterRNotebookContents <- function (path)
-{
-    ## similar to .getJupyterNotebookContents(), but does some error handling
-    ## and checks that the metadata is valid for a Jupyter R Notebook
+    ## similar to .get_jupyter_notebook_contents(), but does some error
+    ## handling and checks that the metadata is valid for a Jupyter R Notebook
     path
-    contents <- tryCatch(.getContents(path), error = identity)
+    contents <- tryCatch(.get_contents(path), error = identity)
     if (!inherits(contents, "error")) {
         contents <- tryCatch(jsonlite::parse_json(contents, simplifyVector = TRUE),
             error = identity)
         if (!inherits(contents, "error")) {
-            language <- .getNamedElement(contents, c("metadata", "kernelspec", "language"))
-            name     <- .getNamedElement(contents, c("metadata", "language_info", "name"))
-            version  <- .getNamedElement(contents, c("metadata", "language_info", "version"))
-            source   <- .getNamedElement(contents, c("cells", "source"))
+            language <- .get_named_element(contents, c("metadata", "kernelspec", "language"))
+            name     <- .get_named_element(contents, c("metadata", "language_info", "name"))
+            version  <- .get_named_element(contents, c("metadata", "language_info", "version"))
+            source   <- .get_named_element(contents, c("cells", "source"))
             # withAutoprint( { language; name; version; source } , spaced = TRUE, verbose = FALSE, width.cutoff = 60L); cat("\n\n\n\n\n")
             if (.scalar_streql(language, "R") &&
                 .scalar_streql(name    , "R") &&
@@ -334,28 +88,186 @@ delayedAssign("thisPathNotExistsError", .thisPathNotExistsError)
 }
 
 
-.jupyter.path <- evalq(envir = new.env(), {
-    delayedAssign("ofile", NA_character_)
+.fixNewlines <- function (srcfile)
+{
+    srcfile$lines <- .External2(.C_fixNewlines, srcfile$lines)
+    srcfile$fixedNewlines <- TRUE
+    srcfile$lines
+}
+
+
+## path of active file in GUI          ----
+
+
+readLines2 <- function (path, default = character(0))
+{
+    conn <- tryCatch({
+        file(path, "rb", encoding = "")
+    }, error = function(e) NULL)
+    if (is.null(conn))
+        ## we do not throw a warning here because one should
+        ## have already been thrown, something like:
+        ##
+        ## Warning message:
+        ## In file(path, "rb", encoding = "") :
+        ## cannot open file '%s': No such file or directory
+        return(default)
+    on.exit(close(conn))
+    x <- readLines(conn)
+    if (!length(x) || length(x) %% 2L)
+        stop(sprintf("invalid '%s' contents", path))
+    encoding <- x[c(FALSE, TRUE)]
+    x        <- x[c(TRUE, FALSE)]
+    Encoding(x) <- encoding
+    x
+}
+
+
+.r_editor_msvcrt <- readLines2("./inst/extdata/r-editor_msvcrt.txt", " - R Editor")
+.r_editor_ucrt   <- readLines2("./inst/extdata/r-editor_ucrt.txt"  , " - R Editor")
+
+
+.untitled_msvcrt <- readLines2("./inst/extdata/untitled_msvcrt.txt", "Untitled - R Editor")
+.untitled_ucrt   <- readLines2("./inst/extdata/untitled_ucrt.txt"  , "Untitled - R Editor")
+
+
+rm(readLines2)
+
+
+delayedAssign(".r_editor", {
+    if (.GUI_Rgui) {
+        if (.ucrt)
+            .r_editor_ucrt
+        else .r_editor_msvcrt
+    }
+})
+delayedAssign(".untitled", {
+    if (.GUI_Rgui) {
+        if (.ucrt)
+            .untitled_ucrt
+        else .untitled_msvcrt
+    }
+})
+
+
+.Rgui_path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+.External2(.C_Rgui_path, verbose, original, for.msg, contents, .untitled, .r_editor)
+
+
+.vscode_path <- evalq(envir = new.env(), {
+    ## https://github.com/REditorSupport/vscode-R/blob/master/R/session/vsc.R#L1
+    delayedAssign("pid", { Sys.getpid() })
+    delayedAssign("wd", { getwd() })
+    delayedAssign("homedir", { Sys.getenv(if (.Platform$OS.type == "windows") "USERPROFILE" else "HOME") })
+    delayedAssign("dir_watcher", { Sys.getenv("VSCODE_WATCHER_DIR", file.path(homedir, ".vscode-R")) })
+    delayedAssign("request_file", { file.path(dir_watcher, "request.log") })
+    delayedAssign("request_lock_file", { file.path(dir_watcher, "request.lock") })
+    ## https://github.com/REditorSupport/vscode-R/blob/master/R/session/vsc.R#L357
+    delayedAssign("dir_session", {
+        local({
+            dir_session <- tempfile("vscode-R")
+            dir.create(dir_session, showWarnings = FALSE, recursive = TRUE)
+            dir_session
+        })
+    })
+    ## https://github.com/REditorSupport/vscode-R/blob/master/R/session/vsc.R#L812
+    response_timeout <- 5
+    delayedAssign("response_lock_file", {
+        local({
+            ## force the other promise first
+            response_file
+            response_lock_file <- file.path(dir_session, "response.lock")
+            writeLines("", response_lock_file)
+            response_lock_file
+        })
+    })
+    delayedAssign("response_file", {
+        local({
+            response_file <- file.path(dir_session, "response.log")
+            file.create(response_file, showWarnings = FALSE)
+            response_file
+        })
+    })
+                function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+{
+    ## read the previous request time stamp before making a new request
+    response_time_stamp <- readLines(response_lock_file)
+    ## https://github.com/REditorSupport/vscode-R/blob/master/R/session/vsc.R#L204
+    obj <- list(time = Sys.time(), pid = pid, wd = wd, command = "rstudioapi",
+        action = "active_editor_context", args = list(), sd = dir_session)
+    jsonlite::write_json(obj, request_file,
+        auto_unbox = TRUE, null = "null", force = TRUE)
+    cat(sprintf("%.6f", Sys.time()), file = request_lock_file)
+    ## https://github.com/REditorSupport/vscode-R/blob/master/R/session/vsc.R#L838
+    wait_start <- Sys.time()
+    while (isTRUE(response_time_stamp == readLines(response_lock_file))) {
+        if ((Sys.time() - wait_start) > response_timeout) {
+            stop(.ThisPathNotFoundError(
+                "Did not receive a response from VSCode-R API within ",
+                response_timeout, " seconds."
+            ))
+        }
+        Sys.sleep(0.1)
+    }
+    context <- jsonlite::read_json(response_file)
+    if (is.null(context)) {
+        if (for.msg)
+            NA_character_
+        else stop(.ThisPathNotExistsError(
+            "R is running from VSCode with no documents open\n",
+            " (or document has no path)"
+        ))
+    }
+    else if (contents) {
+        if (verbose) cat("Source: document in VSCode\n")
+        list(.External2(.C_splitlines, context[["contents"]]))
+    }
+    else if (context[["id"]][["scheme"]] == "untitled") {
+        if (for.msg)
+            context[["path"]]
+        else stop(.ThisPathNotFoundError("document in VSCode does not exist"))
+    }
+    else if (nzchar(path <- context[["path"]])) {
+        Encoding(path) <- "UTF-8"
+        if (verbose) cat("Source: document in VSCode\n")
+        if (.isfalse(original))
+            .normalizePath(path)
+        else path
+    }
+    else if (for.msg)
+        gettext("Untitled", domain = "RGui", trim = FALSE)
+    else stop(.ThisPathNotFoundError("document in VSCode does not exist"))
+}
+})
+
+
+.is_jupyter_loaded <- function ()
+# .GUI_jupyter && isNamespaceLoaded("IRkernel") && .identical(sys.function(1L), IRkernel::main)
+.GUI_jupyter && !is.null(ns <- .getNamespace("IRkernel")) && .identical(sys.function(1L), getExportedValue(ns, "main"))
+
+
+.jupyter_path <- evalq(envir = new.env(), {
+    delayedAssign("ofile", { NA_character_ })
     ofile
-    delayedAssign("file", .normalizePath(ofile))
-eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)), bquote(
+    delayedAssign("file" , { .normalizePath(ofile) })
+                 function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
 {
     if (!is.na(ofile))
-        return(.External2(.C_jupyter.path, verbose, original, for.msg, contents))
+        return(.External2(.C_jupyter_path, verbose, original, for.msg, contents))
 
 
     if (is.null(initwd)) {
         if (for.msg)
             return(NA_character_)
-        else stop(.thisPathNotExistsError(
+        else stop(.ThisPathNotFoundError(
             "R is running from Jupyter but the initial working directory is unknown"))
     }
 
 
-    if (!.isJupyterLoaded()) {
+    if (!.is_jupyter_loaded()) {
         if (for.msg)
             return(NA_character_)
-        else stop("Jupyter has not finished loading")
+        else stop(.ThisPathNotExistsError("Jupyter has not finished loading"))
     }
 
 
@@ -364,13 +276,7 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
     call <- .removeSource(ocall)
 
 
-    files <- list.files(initwd, all.files = TRUE, full.names = TRUE,
-        ..(
-            if (getRversion() < "3.0.0")
-                expression()
-            else expression(no.. = TRUE)
-        )
-    )
+    files <- list.files(initwd, all.files = TRUE, full.names = TRUE, no.. = TRUE)
     files <- files[!dir.exists(files)]
     i <- grepl("\\.ipynb$", files, useBytes = TRUE)
     ipynb <- files[i]
@@ -381,14 +287,14 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
 
 
     for (file in c(ipynb, IPYNB, files)) {
-        for (lines in .getJupyterRNotebookContents(file)) {
+        for (lines in .get_jupyter_R_notebook_contents(file)) {
             exprs <- tryCatch(parse(text = lines, srcfile = NULL, keep.source = FALSE),
                 error = identity)
             if (!inherits(exprs, "error")) {
                 for (expr in exprs) {
-                    if (identical(expr, call)) {
-                        .External2(.C_set.jupyter.path, file, skipCheck = TRUE)
-                        return(.External2(.C_jupyter.path, verbose, original, for.msg, contents))
+                    if (.identical(expr, call)) {
+                        .External2(.C_set_jupyter_path, file, skipCheck = TRUE)
+                        return(.External2(.C_jupyter_path, verbose, original, for.msg, contents))
                     }
                 }
             }
@@ -398,7 +304,7 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
 
     if (for.msg)
         NA_character_
-    else stop(.thisPathNotExistsError(
+    else stop(.ThisPathNotFoundError(
         sprintf("R is running from Jupyter with initial working directory '%s'\n", encodeString(initwd)),
         " but could not find a file with contents matching:\n",
         {
@@ -406,94 +312,169 @@ eval(call("function", as.pairlist(alist(verbose = FALSE, original = FALSE, for.m
             paste(if (is.integer(t)) as.character(t) else deparse(ocall), collapse = "\n")
         }))
 }
-, splice = TRUE)))
 })
 
 
-.emacs.path <- evalq(envir = new.env(), {
-    delayedAssign("emacsclient", local({
-        ## https://www.gnu.org/software/emacs/manual/html_node/emacs/Misc-Variables.html#index-emacs_005fdir
-        if (.os.windows) {
-            x <- Sys.getenv("emacs_dir")
-            if (!nzchar(x)) stop("environment variable 'emacs_dir' is unset; are you actually in Emacs?")
-            if (requireNamespace("utils"))
-                x <- utils::shortPathName(x)
-            paste0(x, "\\bin\\emacsclient.exe")
-        } else {
-            x <- Sys.which("emacsclient")
-            if (!nzchar(x)) stop("command 'emacsclient' not found; add to PATH and retry")
-            x
-        }
-    }))
+set.jupyter.path <- function (...)
+{
+    if (!.GUI_jupyter)
+        stop(gettextf("'%s' can only be called in Jupyter",
+            "set.jupyter.path"))
+    if (!.is_jupyter_loaded())
+        stop(gettextf("'%s' can only be called after Jupyter has finished loading",
+            "set.jupyter.path"))
+    n <- sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 2L
+    if (sys.nframe() != n)
+        stop(gettextf("'%s' can only be called from a top-level context",
+            "set.jupyter.path"))
+    path <- if (missing(...) || ...length() == 1L && (is.null(..1) || is.atomic(..1) && length(..1) == 1L && is.na(..1)))
+        NA_character_
+    else if (is.null(initwd))
+        path.join(...)
+    else path.join(initwd, ...)
+    .External2(.C_set_jupyter_path, path)
+}
+
+
+.emacs_path <- evalq(envir = new.env(), {
+    .emacsclient <- function ()
+{
+    ## https://www.gnu.org/software/emacs/manual/html_node/emacs/Misc-Variables.html#index-emacs_005fdir
+    if (.OS_unix) {
+        x <- Sys.which("emacsclient")
+        if (!nzchar(x)) stop(simpleError("command 'emacsclient' not found; add to PATH and retry", sys.call(-1L)))
+        return(x)
+    }
+    x <- Sys.getenv("emacs_dir")
+    if (nzchar(x)) {
+        if (requireNamespace("utils", quietly = TRUE))
+            x <- utils::shortPathName(x)
+        else x <- .fixbackslash(x)
+        if (endsWith(x, "\\"))
+            x <- paste0(x, "bin\\emacsclient.exe")
+        else x <- paste0(x, "\\bin\\emacsclient.exe")
+        return(x)
+    }
+    x <- Sys.which("emacsclient")
+    if (nzchar(x)) return(x)
+    msg_start <- "command \"emacsclient.exe\" not found on PATH\n nor in default install location because "
+    msg_end <- "\n add \"emacsclient.exe\" to PATH and retry"
+    path <- Sys.getenv("SystemDrive")
+    if (!nzchar(path))
+        stop(msg_start, "environment variable 'SystemDrive' is not set", msg_end)
+    path <- paste0(path, "/PROGRA~1")
+    if (!dir.exists(path))
+        stop(msg_start, path, " is not an existing directory", msg_end)
+    x <- character(0)
+    v <- character(0)
+    ## check $SystemDrive/PROGRA~1/Emacs for directories matching
+    ## emacs-{version}
+    xx <- list.dirs(paste0(path, "/Emacs"), recursive = FALSE)
+    if (length(xx)) {
+        pattern <- "^emacs-((?:[[:digit:]]+[.-]){1,}[[:digit:]]+)$"
+        y <- basename2(xx)
+        m <- regexec(pattern, y)
+        keep <- which(lengths(m) == 2L)
+        xx <- xx[keep]
+        vv <- regmatches(y[keep], m[keep])
+        vv <- vapply(vv, `[[`, 2L, FUN.VALUE = "", USE.NAMES = FALSE)
+        x <- c(x, xx)
+        v <- c(v, vv)
+    }
+    ## check $SystemDrive/PROGRA~1 for directories matching
+    ## GNU Emacs {version}
+    xx <- list.dirs(path, recursive = FALSE)
+    if (length(xx)) {
+        pattern <- "^GNU Emacs ((?:[[:digit:]]+[.-]){1,}[[:digit:]]+)$"
+        y <- basename2(xx)
+        m <- regexec(pattern, y)
+        keep <- which(lengths(m) == 2L)
+        xx <- xx[keep]
+        vv <- regmatches(y[keep], m[keep])
+        vv <- vapply(vv, `[[`, 2L, FUN.VALUE = "", USE.NAMES = FALSE)
+        x <- c(x, xx)
+        v <- c(v, vv)
+    }
+    ## find the highest version and select it
+    v <- numeric_version(v)
+    x <- x[which.max(xtfrm(v))]
+    if (length(x) != 1L)
+        stop(msg_start, path, " does not contain a directory\n  'Emacs/emacs-{version}' nor 'GNU Emacs {version}'", msg_end)
+    x <- paste0(x, "/bin/emacsclient.exe")
+    if (file.access(x, 1L) != 0L)
+        stop(msg_start, x, " does not exist or is not executable", msg_end)
+    .fixbackslash(x)
+}
+    delayedAssign("emacsclient", { .emacsclient() })
     ## https://www.gnu.org/software/emacs/manual/html_node/elisp/Finding-All-Frames.html
     ## https://www.gnu.org/software/emacs/manual/html_node/elisp/Buffer-File-Name.html
     expr <- "
-(let ((R-pid    %d)
-      (filename %s)
-      (contents %s)
-      (frames (frame-list-z-order))
-      ess-r-mode-buffer
-      found-matching-pid-anywhere
-      active)
-  ;; for testing purposes
-  (setq found-matching-pid-anywhere (= R-pid 0))
-  (while frames
-    (setq ess-r-mode-buffer nil)
-    (setq active t)
-    (let ((buffers (frame-parameter (car frames) 'buffer-list))
-          (found-matching-pid (= R-pid 0)))
-      (while buffers
-        (with-current-buffer (car buffers)
-          (if buffer-file-name
-              (if (and (not ess-r-mode-buffer) (or (string= major-mode \"ess-r-mode\") (string= major-mode \"ess-mode\"))) (progn
-                  (setq ess-r-mode-buffer (current-buffer))
-                  (if found-matching-pid (setq active nil))
-              ))
-          ;; else
-          (if (and (not found-matching-pid) (or (string= major-mode \"inferior-ess-r-mode\") (string= major-mode \"inferior-ess-mode\")))
-              (let ((process (get-buffer-process (current-buffer))))
-                (if (and process (= (process-id process) R-pid)) (progn
-                    (setq found-matching-pid t)
-                    (setq found-matching-pid-anywhere t)
+        (let ((R-pid    %d)
+              (filename %s)
+              (contents %s)
+              (frames (frame-list-z-order))
+              ess-r-mode-buffer
+              found-matching-pid-anywhere
+              active)
+          ;; for testing purposes
+          (setq found-matching-pid-anywhere (= R-pid 0))
+          (while frames
+            (setq ess-r-mode-buffer nil)
+            (setq active t)
+            (let ((buffers (frame-parameter (car frames) 'buffer-list))
+                  (found-matching-pid (= R-pid 0)))
+              (while buffers
+                (with-current-buffer (car buffers)
+                  (if buffer-file-name
+                      (if (and (not ess-r-mode-buffer) (or (string= major-mode \"ess-r-mode\") (string= major-mode \"ess-mode\"))) (progn
+                          (setq ess-r-mode-buffer (current-buffer))
+                          (if found-matching-pid (setq active nil))
+                      ))
+                  ;; else
+                  (if (and (not found-matching-pid) (or (string= major-mode \"inferior-ess-r-mode\") (string= major-mode \"inferior-ess-mode\")))
+                      (let ((process (get-buffer-process (current-buffer))))
+                        (if (and process (= (process-id process) R-pid)) (progn
+                            (setq found-matching-pid t)
+                            (setq found-matching-pid-anywhere t)
+                        ))
+                      )
+                  ))
+                )
+                (if (and ess-r-mode-buffer found-matching-pid) (progn
+                    (setq buffers nil)
+                    (setq frames nil)
                 ))
+                (setq buffers (cdr buffers))
               )
-          ))
-        )
-        (if (and ess-r-mode-buffer found-matching-pid) (progn
-            (setq buffers nil)
-            (setq frames nil)
-        ))
-        (setq buffers (cdr buffers))
-      )
-    )
-    (setq frames (cdr frames))
-  )
-  (if found-matching-pid-anywhere
-      (if ess-r-mode-buffer
-          (with-current-buffer ess-r-mode-buffer
-            (if contents (progn
-                (write-region nil nil filename nil 0)
-                (if active 'success-active 'success-source)
-            ) ;; else
-            (if buffer-file-number (progn
-                (write-region buffer-file-name nil filename nil 0)
-                (if active 'success-active 'success-source)
-            ) ;; else
-                (if active 'untitled-active 'untitled-source)
-            ))
+            )
+            (setq frames (cdr frames))
           )
-      )
-  ;; else
-      'no-matching-pid
-  )
-)
+          (if found-matching-pid-anywhere
+              (if ess-r-mode-buffer
+                  (with-current-buffer ess-r-mode-buffer
+                    (if contents (progn
+                        (write-region nil nil filename nil 0)
+                        (if active 'success-active 'success-source)
+                    ) ;; else
+                    (if buffer-file-number (progn
+                        (write-region buffer-file-name nil filename nil 0)
+                        (if active 'success-active 'success-source)
+                    ) ;; else
+                        (if active 'untitled-active 'untitled-source)
+                    ))
+                  )
+              )
+          ;; else
+              'no-matching-pid
+          )
+        )
     "
     expr <- gsub("^[ \t\n]+|[ \t\n]+$", "", expr)
     expr <- gsub(";.*?\n", "\n", expr)
     expr <- gsub("[ \t\n]+", " ", expr)
     expr <- gsub("( ", "(", expr, fixed = TRUE)
     expr <- gsub(" )", ")", expr, fixed = TRUE)
-function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+               function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
 {
     # exe <- Sys.which("emacsclient"); contents <- TRUE; Sys.getpid <- function() 0L; stop("comment this out later")
 
@@ -503,7 +484,7 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
     ## create right now so no other program
     ## may claim this filename in the meantime
     file.create(file)
-    exe <- .External2(.C_forcePromise.no.warn, "emacsclient")
+    exe <- .External2(.C_forcePromise_no_warn, "emacsclient")
     EXPR <- sprintf(expr,
         Sys.getpid(),
         encodeString(file, quote = "\""),
@@ -518,8 +499,8 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
             stop(gettextf("'%s' could not be run", "emacsclient", domain = "R-base"), domain = NA)
         else stop(sprintf("'%s' execution failed with error code %d and message:\n\n", "emacsclient", status),
             paste(rval, collapse = "\n"),
-            "\n\nperhaps add (server-start) to your ~/.emacs file and restart the session\n",
-            "or type M-x server-start in your current session?", domain = NA)
+            "\n\n perhaps add (server-start) to your ~/.emacs file and restart the session\n",
+            " or type M-x server-start in your current session?", domain = NA)
     }
 
 
@@ -531,8 +512,7 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
         x <- readChar(file, nchars = file.size(file), useBytes = TRUE)
         if (verbose) cat("Source: active document in Emacs\n")
         if (contents)
-            # list(.External2(.C_splitlines, x))
-            strsplit(x, "\r\n|[\r\n]", useBytes = TRUE)
+            list(.External2(.C_splitlines, x))
         else if (.isfalse(original))
             .normalizePath(x)
         else x
@@ -541,8 +521,7 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
         x <- readChar(file, nchars = file.size(file), useBytes = TRUE)
         if (verbose) cat("Source: source document in Emacs\n")
         if (contents)
-            # list(.External2(.C_splitlines, x))
-            strsplit(x, "\r\n|[\r\n]", useBytes = TRUE)
+            list(.External2(.C_splitlines, x))
         else if (.isfalse(original))
             .normalizePath(x)
         else x
@@ -550,57 +529,81 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
     else if (.scalar_streql(rval, "untitled-active")) {
         if (for.msg)
             gettext("Untitled", domain = "RGui", trim = FALSE)
-        else stop("active document in Emacs does not exist")
+        else stop(.ThisPathNotFoundError("active document in Emacs does not exist"))
     }
     else if (.scalar_streql(rval, "untitled-source")) {
         if (for.msg)
             gettext("Untitled", domain = "RGui", trim = FALSE)
-        else stop("source document in Emacs does not exist")
+        else stop(.ThisPathNotFoundError("source document in Emacs does not exist"))
     }
     else if (.scalar_streql(rval, "nil")) {
         if (for.msg)
             NA_character_
-        else stop("R is running from Emacs with no documents open")
+        else stop(.ThisPathNotFoundError("R is running from Emacs with no documents open"))
     }
     else if (.scalar_streql(rval, "no-matching-pid")) {
         if (for.msg)
             NA_character_
-        else stop(sprintf("R process %d not found in primary Emacs sesion\n this.path() only works in primary Emacs session\n\n if you want to run multiple R sessions in Emacs, do not run multiple\n Emacs sessions, one R session each. instead run one Emacs session with\n multiple frames, one R session each. this gives the same appearance\n while allowing this.path() to work across all R sessions.",
-            Sys.getpid()), domain = NA)
+        else stop(.ThisPathNotFoundError(sprintf(
+            "R process %d not found in primary Emacs sesion\n this.path() only works in primary Emacs session\n\n if you want to run multiple R sessions in Emacs, do not run multiple\n Emacs sessions, one R session each. instead run one Emacs session with\n multiple frames, one R session each. this gives the same appearance\n while allowing this.path() to work across all R sessions.",
+            Sys.getpid()), domain = NA))
     }
     else stop("invalid 'emacsclient' return value")
 }
 })
 
 
-.rgui.path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
-.External2(.C_rgui.path, verbose, original, for.msg, contents, .untitled, .r.editor)
-
-
-.gui.path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+.site_file_path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
 {
-    if (.in.shell) {
-        if (contents && .has.shFILE)
+    if (contents && .startup_info[["has_site_file"]])
+        for.msg <- FALSE
+    value <- site.file(original, for.msg, default = {
+        stop(.ThisPathNotExistsError(
+            "site-wide startup profile file was not found",
+            call = sys.call()))
+    })
+    if (verbose) cat("Source: site-wide startup profile file\n")
+    value
+}
+
+
+.init_file_path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+{
+    if (contents && .startup_info[["has_init_file"]])
+        for.msg <- FALSE
+    value <- init.file(original, for.msg, default = {
+        stop(.ThisPathNotExistsError(
+            "user profile was not found",
+            call = sys.call()))
+    })
+    if (verbose) cat("Source: user profile\n")
+    value
+}
+
+
+.gui_path <- function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
+{
+    if (.in_shell) {
+        if (contents && .has_shFILE)
             for.msg <- FALSE
         value <- shFILE(original, for.msg, default = {
-            stop(.thisPathNotExistsError(
+            stop(.ThisPathNotExistsError(
                 "R is running from a shell and argument 'FILE' is missing",
                 call = sys.call()))
         })
         if (verbose) cat("Source: shell argument 'FILE'\n")
         value
     }
+    else if (.GUI_RStudio) {
 
 
-    ## running from 'RStudio'
-    else if (.gui.rstudio) {
-
-
-        if (!`.init.tools:rstudio`()) {
-            if (for.msg) {
+        indx <- match("tools:rstudio", search(), 0L)
+        if (!indx) {
+            if (for.msg)
                 return(NA_character_)
-            }
+            else stop(.ThisPathNotExistsError("RStudio has not finished loading"))
         }
+        tools_rstudio <- as.environment(indx)
 
 
         ## ".rs.api.getActiveDocumentContext" from "tools:rstudio" returns a
@@ -614,17 +617,17 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
 
 
         if (verbose) {
-            context <- .rs.api.getActiveDocumentContext()
+            context <- get(".rs.api.getActiveDocumentContext", envir = tools_rstudio, inherits = FALSE)()
             active <- context[["id"]] != "#console"
             if (!active)
-                context <- .rs.api.getSourceEditorContext()
-        } else context <- .rs.api.getSourceEditorContext()
+                context <- get(".rs.api.getSourceEditorContext", envir = tools_rstudio, inherits = FALSE)()
+        } else context <- get(".rs.api.getSourceEditorContext", envir = tools_rstudio, inherits = FALSE)()
 
 
         if (is.null(context)) {
             if (for.msg)
                 NA_character_
-            else stop(.thisPathNotExistsError(
+            else stop(.ThisPathNotExistsError(
                 "R is running from RStudio with no documents open\n",
                 " (or source document has no path)"))
         }
@@ -657,98 +660,60 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
         }
         else if (for.msg)
             gettext("Untitled", domain = "RGui", trim = FALSE)
-        else stop(
+        else stop(.ThisPathNotFoundError(
             if (verbose) {
                 if (active)
                     "active document in RStudio does not exist"
                 else "source document in RStudio does not exist"
-            } else "document in RStudio does not exist")
+            } else "document in RStudio does not exist"
+        ))
     }
-
-
-    else if (.gui.vscode) {
-
-
-        ## evaluate this BEFORE the tryCatch in case the package
-        ## is not installed or the object is not exported
-        rstudioapi::getSourceEditorContext
-        ## now do the tryCatch
-        tryCatch3({
-            context <- rstudioapi::getSourceEditorContext()
-        }, error = {
-            stop(simpleError("package:rstudioapi is not set up to work with VSCode; try adding:\n\n```R\noptions(vsc.rstudioapi = TRUE)\n```\n\n  to the site-wide startup profile file or your user profile (see ?Startup),\n  then restart the R session and try again", sys.call()))
-        })
-
-
-        if (is.null(context)) {
-            if (for.msg)
-                NA_character_
-            else stop(.thisPathNotExistsError(
-                "R is running from VSCode with no documents open\n",
-                " (or document has no path)"
-            ))
-        }
-        else if (contents) {
-            if (verbose) cat("Source: document in VSCode\n")
-            x <- context[["contents"]]
-            x <- .External2(.C_remove_trailing_blank_string, x)
-            list(x)
-        }
-        else if (startsWith(context[["id"]], "untitled:")) {
-            if (for.msg)
-                context[["path"]]
-            else stop("document in VSCode does not exist")
-        }
-        else if (nzchar(path <- context[["path"]])) {
-            Encoding(path) <- "UTF-8"
-            if (verbose) cat("Source: document in VSCode\n")
-            if (.isfalse(original))
-                .normalizePath(path)
-            else path
-        }
-        else if (for.msg)
-            gettext("Untitled", domain = "RGui", trim = FALSE)
-        else stop("document in VSCode does not exist")
+    else if (.GUI_vscode) {
+        .vscode_path(verbose, original, for.msg, contents)
     }
-
-
-    ## running from 'jupyter'
-    else if (.gui.jupyter) {
-        .jupyter.path(verbose, original, for.msg, contents)
+    else if (.GUI_jupyter) {
+        .jupyter_path(verbose, original, for.msg, contents)
+    }
+    else if (.GUI_emacs) {
+        .emacs_path(verbose, original, for.msg, contents)
+    }
+    else if (.GUI_powerbi) {
+        if (for.msg)
+            NA_character_
+        else stop(.ThisPathNotFoundError(
+            "R is running from Power BI for which 'this.path' is unimplemented\n",
+            " you should not need to use this.path() in Power BI since you can import data directly"))
+    }
+    else if (.in_callr) {
+        if (for.msg)
+            NA_character_
+        else stop(.ThisPathNotFoundError(
+            "R is running from 'package:callr' for which 'this.path' is unimplemented\n",
+            " 'package:callr' calls a function in a separate session,\n",
+            " you should not need the path of the script where it was written"))
     }
 
 
     ## running from 'Rgui' on Windows
-    else if (.gui.rgui) {
-
-
-        .External2(.C_rgui.path, verbose, original, for.msg, contents, .untitled, .r.editor)
+    else if (.GUI_Rgui) {
+        .External2(.C_Rgui_path, verbose, original, for.msg, contents, .untitled, .r_editor)
     }
-
-
-    else if (.gui.aqua) {
+    else if (.GUI_AQUA) {
 
 
         if (for.msg)
             NA_character_
-        else stop(.thisPathInAQUAError())
-    }
-
-
-    else if (.gui.emacs) {
-
-
-        .emacs.path(verbose, original, for.msg, contents)
+        else stop(.ThisPathInAQUAError())
     }
 
 
     ## running from a shell under Unix-alikes with GUI 'Tk'
-    else if (.gui.tk) {
+    else if (.GUI_Tk) {
 
 
         if (for.msg)
             NA_character_
-        else stop(.thisPathNotExistsError(
+        else stop(.ThisPathNotExistsError(
             "R is running from Tk which does not make use of its -f FILE, --file=FILE arguments"))
     }
 
@@ -759,199 +724,217 @@ function (verbose = FALSE, original = FALSE, for.msg = FALSE, contents = FALSE)
 
         if (for.msg)
             NA_character_
-        else stop(.thisPathUnrecognizedMannerError())
+        else stop(.ThisPathUnrecognizedMannerError())
     }
 }
-
-
-set.jupyter.path <- function (...)
-{
-    if (!.gui.jupyter)
-        stop(gettextf("'%s' can only be called in Jupyter",
-            "set.jupyter.path"))
-    if (!.isJupyterLoaded())
-        stop(gettextf("'%s' can only be called after Jupyter has finished loading",
-            "set.jupyter.path"))
-    n <- sys.frame(1L)[["kernel"]][["executor"]][["nframe"]] + 2L
-    if (sys.nframe() != n)
-        stop(gettextf("'%s' can only be called from a top-level context",
-            "set.jupyter.path"))
-    path <- if (missing(...) || ...length() == 1L && (is.null(..1) || is.atomic(..1) && length(..1) == 1L && is.na(..1)))
-        NA_character_
-    else if (is.null(initwd))
-        path.join(...)
-    else path.join(initwd, ...)
-    .External2(.C_set.jupyter.path, path)
-}
-
-
-delayedAssign("set.sys.path.jupyter", set.jupyter.path)
-
-
-set.this.path.jupyter <- eval(call("function", as.pairlist(alist(... = )), bquote(
-stop(.defunctError("set.jupyter.path", .(.pkgname), old = "set.this.path.jupyter"))
-)))
 
 
 set.gui.path <- function (...)
-.External2(.C_set.gui.path)
+.External2(.C_set_gui_path)
 
 
-delayedAssign(".identical", {
-    if (getRversion() >= "4.2.0") {
+## this.path(), this.dir(), and here() ----
 
 
-function (x, y)
-identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
-    ignore.bytecode = FALSE, ignore.environment = FALSE, ignore.srcref = FALSE,
-    extptr.as.ref = TRUE)
-
-
-    } else if (getRversion() >= "3.4.0") {
-
-
-function (x, y)
-identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
-    ignore.bytecode = FALSE, ignore.environment = FALSE, ignore.srcref = FALSE)
-
-
-    } else if (getRversion() >= "3.0.0") {
-
-
-function (x, y)
-identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
-    ignore.bytecode = FALSE, ignore.environment = FALSE)
-
-
-    } else if (getRversion() >= "2.14.0") {
-
-
-function (x, y)
-identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE,
-    ignore.bytecode = FALSE)
-
-
-    } else if (getRversion() >= "2.10.0") {
-
-
-function (x, y)
-identical(x, y, num.eq = FALSE, single.NA = FALSE, attrib.as.set = FALSE)
-
-
-    } else {
-
-
-function (x, y)
-identical(x, y)
-
-
-    }
+## check that class name is C files matches class name in R files
+local({
+    tmp <- readLines("./src/ns-hooks.c")
+    tmp <- tmp[[grep("^[ \t]*#[ \t]*define[ \t]+ThisPathNotExistsErrorClass_string[ \t]*\\\\[ \t]*$", tmp) + 1L]]
+    tmp <- str2lang(tmp)
+    if (!is.character(tmp) || length(tmp) != 1L || is.na(tmp))
+        stop("could not determine class name")
+    expected <- "ThisPathNotExistsError"
+    if (tmp != expected)
+        stop(sprintf("ThisPathNotExistsErrorClass found in ./src/ns-hooks.c (%s)\n does not match expected value in ./R/thispath.R (%s)",
+            tmp, expected))
 })
-
-
-
-
-
-.normalizePath <- function (path, winslash = "/", mustWork = TRUE)
-normalizePath(path, winslash, mustWork)
-
-
-.normalizeNotDirectory <- function (path, winslash = "/", mustWork = TRUE)
-{
-    x <- normalizePath(path, winslash, mustWork)
-    if (.isfalse(.isdir(x)))
-        x
-    else stop(sprintf("'%s' is not a regular file", path), domain = NA)
-}
-
-
-.normalizeFixDirectory <- function (path, winslash = "/", mustWork = TRUE)
-{
-    x <- normalizePath(path, winslash, mustWork)
-    if (.istrue(.isdir(x)))
-        path.join(x, ".")
-    else x
-}
-
-
-.normalizeAgainst <- function (wd, path)
-{
-    owd <- getwd()
-    if (is.null(owd))
-        stop("cannot '.normalizeAgainst' as current directory is unknown")
-    on.exit(setwd(owd))
-    setwd(wd)
-    .normalizePath(path)
-}
-
-
-.dir <- function (path)
-{
-    if (grepl("^(https|http|ftp|ftps)://", path)) {
-        # path <- "https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R"
-        p <- path.split.1(path)
-        path.unsplit(if (length(p) >= 2L) p[-length(p)] else p)
-    }
-    else dirname2(path)
-}
-
-
-
-
-
-.faster.subsequent.times.test <- function ()
-{
-    first.time <- microbenchmark::microbenchmark(
-        `first time` = .External2(.C_sys.path),
-        times = 1
-    )
-    subsequent <- microbenchmark::microbenchmark(
-        subsequent = .External2(.C_sys.path),
-        times = 100
-    )
-    rbind(first.time, subsequent)
-}
-
-
-
 
 
 sys.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg = FALSE,
     contents = FALSE, local = FALSE, default, else.)
-.External2(.C_sys.path, verbose, original, for.msg, contents, local)
+{
+    if (missing(default)) {
+        if (missing(else.))
+            .External2(.C_sys_path, verbose, original, for.msg, contents, local)
+        else stop("'sys.path' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        original
+        for.msg
+        contents
+        local
+        if (missing(else.))
+            tryCatch({
+                .External2(.C_sys_path, verbose, original, for.msg, contents, local)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_sys_path, verbose, original, for.msg, contents, local)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
+}
+
+
+## part of _sys_path in ./src/thispath.c
+.getframenumber <- function ()
+.External2(.C_getframenumber)
 
 
 sys.dir <- function (verbose = getOption("verbose"), local = FALSE, default, else.)
 {
-    value <- .External2(.C_sys.path, verbose, local)
-    .dir(value)
+    if (missing(default)) {
+        if (missing(else.)) {
+            value <- .External2(.C_sys_path, verbose, local)
+            .dir(value)
+        }
+        else stop("'sys.dir' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        local
+        if (missing(else.))
+            tryCatch({
+                value <- .External2(.C_sys_path, verbose, local)
+                .dir(value)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_sys_path, verbose, local)
+                value <- .dir(value)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
 }
 
 
 env.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg = FALSE,
     contents = FALSE, n = 0L, envir = parent.frame(n + 1L), matchThisEnv = getOption("topLevelEnvironment"),
     default, else.)
-.External2(.C_env.path, verbose, original, for.msg, contents, envir, matchThisEnv)
+{
+    n <- .External2(.C_asIntegerGE0, n)
+    if (missing(default)) {
+        if (missing(else.))
+            .External2(.C_env_path, verbose, original, for.msg,contents, envir, matchThisEnv)
+        else stop("'env.path' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        original
+        for.msg
+        contents
+        envir
+        matchThisEnv
+        if (missing(else.))
+            tryCatch({
+                .External2(.C_env_path, verbose, original, for.msg, contents, envir, matchThisEnv)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_env_path, verbose, original, for.msg, contents, envir, matchThisEnv)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
+}
 
 
 env.dir <- function (verbose = getOption("verbose"), n = 0L, envir = parent.frame(n + 1L),
     matchThisEnv = getOption("topLevelEnvironment"), default, else.)
 {
-    value <- .External2(.C_env.path, verbose, envir, matchThisEnv)
-    .dir(value)
+    n <- .External2(.C_asIntegerGE0, n)
+    if (missing(default)) {
+        if (missing(else.)) {
+            value <- .External2(.C_env_path, verbose, envir, matchThisEnv)
+            .dir(value)
+        }
+        else stop("'env.dir' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        envir
+        matchThisEnv
+        if (missing(else.))
+            tryCatch({
+                value <- .External2(.C_env_path, verbose, envir, matchThisEnv)
+                .dir(value)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_env_path, verbose, envir, matchThisEnv)
+                value <- .dir(value)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
 }
 
 
 src.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg = FALSE,
     contents = FALSE, n = 0L, srcfile = if (n) sys.parent(n) else 0L, default, else.)
-.External2(.C_src.path, verbose, original, for.msg, contents, srcfile)
+{
+    n <- .External2(.C_asIntegerGE0, n)
+    if (missing(default)) {
+        if (missing(else.))
+            .External2(.C_src_path, verbose, original, for.msg, contents, srcfile)
+        else stop("'src.path' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        original
+        for.msg
+        contents
+        srcfile
+        if (missing(else.))
+            tryCatch({
+                .External2(.C_src_path, verbose, original, for.msg, contents, srcfile)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_src_path, verbose, original, for.msg, contents, srcfile)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
+}
 
 
 src.dir <- function (verbose = getOption("verbose"), n = 0L, srcfile = if (n) sys.parent(n) else 0L,
     default, else.)
 {
-    value <- .External2(.C_src.path, verbose, srcfile)
-    .dir(value)
+    n <- .External2(.C_asIntegerGE0, n)
+    if (missing(default)) {
+        if (missing(else.)) {
+            value <- .External2(.C_src_path, verbose, srcfile)
+            .dir(value)
+        }
+        else stop("'src.dir' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        srcfile
+        if (missing(else.))
+            tryCatch({
+                value <- .External2(.C_src_path, verbose, srcfile)
+                .dir(value)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_src_path, verbose, srcfile)
+                value <- .dir(value)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
 }
 
 
@@ -959,100 +942,75 @@ this.path <- function (verbose = getOption("verbose"), original = FALSE, for.msg
     contents = FALSE, local = FALSE, n = 0L, envir = parent.frame(n + 1L),
     matchThisEnv = getOption("topLevelEnvironment"), srcfile = if (n) sys.parent(n) else 0L,
     default, else.)
-.External2(.C_this.path, verbose, original, for.msg, contents, local, envir, matchThisEnv, srcfile)
+{
+    n <- .External2(.C_asIntegerGE0, n)
+    if (missing(default)) {
+        if (missing(else.))
+            .External2(.C_this_path, verbose, original, for.msg, contents, local, envir, matchThisEnv, srcfile)
+        else stop("'this.path' with 'else.' but not 'default' makes no sense")
+    }
+    else {
+        ## force the promises
+        verbose
+        original
+        for.msg
+        contents
+        local
+        envir
+        matchThisEnv
+        srcfile
+        if (missing(else.))
+            tryCatch({
+                .External2(.C_this_path, verbose, original, for.msg, contents, local, envir, matchThisEnv, srcfile)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2({
+                value <- .External2(.C_this_path, verbose, original, for.msg, contents, local, envir, matchThisEnv, srcfile)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
+}
 
 
 this.dir <- function (verbose = getOption("verbose"), local = FALSE, n = 0L, envir = parent.frame(n + 1L),
     matchThisEnv = getOption("topLevelEnvironment"), srcfile = if (n) sys.parent(n) else 0L,
     default, else.)
 {
-    value <- .External2(.C_this.path, verbose, local, envir, matchThisEnv, srcfile)
-    .dir(value)
-}
-
-
-tmp <- readLines("./src/thispathdefn.h")
-tmp <- tmp[[grep("^[ \t]*#[ \t]*define[ \t]+thisPathNotExistsErrorCls[ \t]*\\\\[ \t]*$", tmp) + 1L]]
-tmp <- str2lang(tmp)
-if (!is.character(tmp) || length(tmp) != 1L || is.na(tmp))
-    stop("could not determine class name")
-tmpfun <- function (fun)
-{
-    R_BraceSymbol <- as.symbol("{")
-    e <- body(fun)
-    e2 <- e
-    if (e2[[1L]] != R_BraceSymbol)
-        e2 <- call("{", e2)
-    e2 <- bquote(tryCatch(.(e2), function(e) default))
-    names(e2)[3L] <- tmp
-    e3 <- e
-    if (e3[[1L]] != R_BraceSymbol)
-        e3 <- call("{", e3)
-    e3 <- bquote(tryCatch2(value <- .(e3), function(e) default, else. = (else.)(value)))
-    names(e3)[3L] <- tmp
-    body(fun) <- bquote({
-        ..(if ("n" %in% names(formals(fun))) expression(n <- .External2(.C_asIntegerGE0, n)) else list())
-        if (missing(default)) {
-            if (missing(else.))
-                .(e)
-            else stop(.(sprintf("'%s' with 'else.' but not 'default' makes no sense", as.character(substitute(fun)))))
-        }
-        else {
-            ## force the promises
-            ..(lapply(setdiff(names(formals(fun)), c("n", "default", "else.")), as.symbol))
-            if (missing(else.))
-                .(e2)
-            else {
-                .(e3)
-            }
-        }
-    }, splice = TRUE)
-    fun
-}
-sys.path  <- tmpfun(sys.path )
-sys.dir   <- tmpfun(sys.dir  )
-env.path  <- tmpfun(env.path )
-env.dir   <- tmpfun(env.dir  )
-src.path  <- tmpfun(src.path )
-src.dir   <- tmpfun(src.dir  )
-this.path <- tmpfun(this.path)
-this.dir  <- tmpfun(this.dir )
-rm(tmpfun, tmp)
-
-
-sys.srcref <- function (n = 1L, which = if (n) sys.parent(n) else 0L)
-{
     n <- .External2(.C_asIntegerGE0, n)
-    .External2(.C_sys.srcref, which)
-}
-
-
-
-
-
-.here <- function (path, .. = 0L)
-{
-    if (grepl("^(https|http|ftp|ftps)://", path)) {
-        # path <- "https://raw.githubusercontent.com/ArcadeAntics/this.path/main/tests/this.path_w_URLs.R"
-        # .. <- "2"
-
-
-        p <- path.split.1(path)
-        n <- length(p) - length(seq_len(..)) - 1L
-        path.unsplit(if (n < 1L) p[1L] else p[seq_len(n)])
+    if (missing(default)) {
+        if (missing(else.)) {
+            value <- .External2(.C_this_path, verbose, local, envir, matchThisEnv, srcfile)
+            .dir(value)
+        }
+        else stop("'this.dir' with 'else.' but not 'default' makes no sense")
     }
-
-
-    # path <- "//host/share/path/to/file"
-    # path <- "C:/Users/iris/Documents/this.path/man/this.path.Rd"
-    # .. <- "10"
-    else .External2(.C_dirname2, path, ..)
+    else {
+        ## force the promises
+        verbose
+        local
+        envir
+        matchThisEnv
+        srcfile
+        if (missing(else.))
+            tryCatch({
+                value <- .External2(.C_this_path, verbose, local, envir, matchThisEnv, srcfile)
+                .dir(value)
+            }, ThisPathNotExistsError = function(e) default)
+        else {
+            tryCatch2(value <- {
+                value <- .External2(.C_this_path, verbose, local, envir, matchThisEnv, srcfile)
+                .dir(value)
+            }, ThisPathNotExistsError = function(e) default,
+                else. = (else.)(value))
+        }
+    }
 }
 
 
 sys.here <- function (..., local = FALSE, .. = 0L)
 {
-    base <- .External2(.C_sys.path, local)
+    base <- .External2(.C_sys_path, local)
     base <- .here(base, ..)
     path.join(base, ...)
 }
@@ -1062,7 +1020,7 @@ env.here <- function (..., n = 0L, envir = parent.frame(n + 1L), matchThisEnv = 
     .. = 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
-    base <- .External2(.C_env.path, envir, matchThisEnv)
+    base <- .External2(.C_env_path, envir, matchThisEnv)
     base <- .here(base, ..)
     path.join(base, ...)
 }
@@ -1072,7 +1030,7 @@ src.here <- function (..., n = 0L, srcfile = if (n) sys.parent(n) else 0L,
     .. = 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
-    base <- .External2(.C_src.path, srcfile)
+    base <- .External2(.C_src_path, srcfile)
     base <- .here(base, ..)
     path.join(base, ...)
 }
@@ -1083,31 +1041,14 @@ here <- function (..., local = FALSE, n = 0L, envir = parent.frame(n + 1L),
     .. = 0L)
 {
     n <- .External2(.C_asIntegerGE0, n)
-    base <- .External2(.C_this.path, local, envir, matchThisEnv, srcfile)
+    base <- .External2(.C_this_path, local, envir, matchThisEnv, srcfile)
     base <- .here(base, ..)
     path.join(base, ...)
 }
-delayedAssign("ici", here)
+delayedAssign("ici", { here })
 
 
 
-
-
-Sys.path <- eval(call("function", NULL, bquote(
-stop(.defunctError("sys.path(verbose = FALSE)", .(.pkgname), old = "Sys.path()"))
-)))
-
-
-Sys.dir <- eval(call("function", NULL, bquote(
-stop(.defunctError("sys.dir(verbose = FALSE)", .(.pkgname), old = "Sys.dir()"))
-)))
-
-
-
-
-
-try.shFILE <- function ()
-tryCatch(.shFILE(FALSE), error = function(e) .shFILE())
 
 
 try.sys.path <- function (contents = FALSE, local = FALSE)
@@ -1116,13 +1057,13 @@ try.sys.path <- function (contents = FALSE, local = FALSE)
     contents
     local
     success <- tryCatch({
-        value <- .External2(.C_sys.path, FALSE, FALSE, FALSE, contents, local)
+        value <- .External2(.C_sys_path, FALSE, FALSE, FALSE, contents, local)
         TRUE
     }, error = function(e) FALSE)
     if (success)
         value
     else {
-        .External2(.C_sys.path, FALSE, FALSE, TRUE, contents, local)
+        .External2(.C_sys_path, FALSE, FALSE, TRUE, contents, local)
     }
 }
 
@@ -1135,13 +1076,13 @@ try.env.path <- function (contents = FALSE, n = 0L, envir = parent.frame(n + 1L)
     envir
     matchThisEnv
     success <- tryCatch({
-        value <- .External2(.C_env.path, FALSE, FALSE, FALSE, contents, envir, matchThisEnv)
+        value <- .External2(.C_env_path, FALSE, FALSE, FALSE, contents, envir, matchThisEnv)
         TRUE
     }, error = function(e) FALSE)
     if (success)
         value
     else {
-        .External2(.C_env.path, FALSE, FALSE, TRUE, contents, envir, matchThisEnv)
+        .External2(.C_env_path, FALSE, FALSE, TRUE, contents, envir, matchThisEnv)
     }
 }
 
@@ -1152,13 +1093,13 @@ try.src.path <- function (contents = FALSE, n = 0L, srcfile = if (n) sys.parent(
     contents
     srcfile
     success <- tryCatch({
-        value <- .External2(.C_src.path, FALSE, FALSE, FALSE, contents, srcfile)
+        value <- .External2(.C_src_path, FALSE, FALSE, FALSE, contents, srcfile)
         TRUE
     }, error = function(e) FALSE)
     if (success)
         value
     else {
-        .External2(.C_src.path, FALSE, FALSE, TRUE, contents, srcfile)
+        .External2(.C_src_path, FALSE, FALSE, TRUE, contents, srcfile)
     }
 }
 
@@ -1174,37 +1115,33 @@ try.this.path <- function (contents = FALSE, local = FALSE, n = 0L, envir = pare
     matchThisEnv
     srcfile
     success <- tryCatch({
-        value <- .External2(.C_this.path, FALSE, FALSE, FALSE,
+        value <- .External2(.C_this_path, FALSE, FALSE, FALSE,
             contents, local, envir, matchThisEnv, srcfile)
         TRUE
     }, error = function(e) FALSE)
     if (success)
         value
     else {
-        .External2(.C_this.path, FALSE, FALSE, TRUE, contents,
+        .External2(.C_this_path, FALSE, FALSE, TRUE, contents,
             local, envir, matchThisEnv, srcfile)
     }
 }
 
 
-FILE <- local({
-    tmp <- try.this.path
-    f <- formals(tmp)
-    formals(tmp) <- NULL
-    body(tmp) <- as.call(c(as.list(quote({
-        contents <- FALSE
-        local <- FALSE
-        envir <- parent.frame()
-        matchThisEnv <- getOption("topLevelEnvironment")
-        srcfile <- 0L
-    })), as.list(body(tmp)[-seq_len(length(f) + 1L)])))
-    tmp
-})
-
-
-
-
-
-local.path <- eval(call("function", as.pairlist(alist(verbose = getOption("verbose"), original = FALSE, for.msg = FALSE, contents = FALSE, default = , else. = )), bquote(
-stop(.defunctError("sys.path(..., local = TRUE)", .(.pkgname), old = "local.path(...)"))
-)))
+FILE <- function ()
+{
+    contents <- FALSE
+    local <- FALSE
+    envir <- parent.frame()
+    matchThisEnv <- getOption("topLevelEnvironment")
+    srcfile <- 0L
+    success <- tryCatch({
+        value <- .External2(.C_this_path, FALSE, FALSE, FALSE, contents, local, envir, matchThisEnv, srcfile)
+        TRUE
+    }, error = function(e) FALSE)
+    if (success)
+        value
+    else {
+        .External2(.C_this_path, FALSE, FALSE, TRUE, contents, local, envir, matchThisEnv, srcfile)
+    }
+}
