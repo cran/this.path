@@ -115,10 +115,10 @@ ext(x) <- val
 stopifnot(identical(x, c(Z = NA_character_, Y = NA_character_, X = "", W = "C:", V = "//host/share", U = "C:/", T = "/path/to/fi.png", S = "/path/to/.", R = "/path/to/..", Q = "/")))
 
 
-x <- paste0("this.path_2.4.0.tar", c(".gz", ".bz2", ".xz"))
+x <- paste0("this.path_2.5.0.tar", c(".gz", ".bz2", ".xz"))
 names(x) <- x
 ext(x, compression = TRUE) <- ".png"
-stopifnot(identical(x, c(this.path_2.4.0.tar.gz = "this.path_2.4.0.png", this.path_2.4.0.tar.bz2 = "this.path_2.4.0.png", this.path_2.4.0.tar.xz = "this.path_2.4.0.png")))
+stopifnot(identical(x, c(this.path_2.5.0.tar.gz = "this.path_2.5.0.png", this.path_2.5.0.tar.bz2 = "this.path_2.5.0.png", this.path_2.5.0.tar.xz = "this.path_2.5.0.png")))
 
 
 x   <- c("C:/path/to/file", "C:/path/to/.file", "C:/path/to/file.", "C:/path/to/.....", "C:/path/to/file.jpg", "C:/path/to/file.jpg")
@@ -152,10 +152,10 @@ ext(x) <- val
 stopifnot(identical(x, c(Z = NA_character_, Y = NA_character_, X = "", W = "C:.png", V = "//host/share", U = "C:.png", T = "/path/to/fi.png", S = "/path/to/.", R = "/path/to/..", Q = "/")))
 
 
-x <- paste0("this.path_2.4.0.tar", c(".gz", ".bz2", ".xz"))
+x <- paste0("this.path_2.5.0.tar", c(".gz", ".bz2", ".xz"))
 names(x) <- x
 ext(x, compression = TRUE) <- ".png"
-stopifnot(identical(x, c(this.path_2.4.0.tar.gz = "this.path_2.4.0.png", this.path_2.4.0.tar.bz2 = "this.path_2.4.0.png", this.path_2.4.0.tar.xz = "this.path_2.4.0.png")))
+stopifnot(identical(x, c(this.path_2.5.0.tar.gz = "this.path_2.5.0.png", this.path_2.5.0.tar.bz2 = "this.path_2.5.0.png", this.path_2.5.0.tar.xz = "this.path_2.5.0.png")))
 
 
 x   <- c("/path/to/file", "/path/to/.file", "/path/to/file.", "/path/to/.....", "/path/to/file.jpg", "/path/to/file.jpg")

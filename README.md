@@ -93,6 +93,9 @@ to retrieve the path of the current **R** script:
 *   [`package:funr`](https://CRAN.R-project.org/package=funr)
     specifically `funr::get_script_path()` and `funr::sys.script()`
 
+*   [`package:gtools`](https://CRAN.R-project.org/package=gtools)
+    specifically `gtools::script_file()`
+
 *   [`package:scriptName`](https://CRAN.R-project.org/package=scriptName)
     specifically `scriptName::current_filename()`
 
@@ -181,14 +184,17 @@ as:
 
 *   searching for a path in the wrong order
 
-*   searching for a source call by name instead of by value
-
-*   returning a non-normalzied path
-
-*   changing global options without explicit user permission
+*   searching for a source call by frame variables instead of function
+    value
 
 *   loading unnecessary additional packages without explicit user
     permission
+
+*   searching for a source call by name instead of value
+
+*   returning a non-normalized path
+
+*   changing global options without explicit user permission
 
 ### Alternative 2: Packages That Determine Project Root
 
@@ -210,9 +216,9 @@ but it lacks functionality:
 
 *   `here::here()` does not work when multiple projects are in use nor
     for projects containing sub-projects. In my scenario, I had a
-    project "A" and a project "B". I would run a script in "B" which
-    runs a script in "A", but the project root is already set to the
-    root of "B", so the script in "A" fails.
+    project `A` and a project `B`. I would run a script in `B` which
+    runs a script in `A`, but the project root is already set to the
+    root of `B`, so the script in `A` fails.
 
 [`package:rprojroot`](https://CRAN.R-project.org/package=rprojroot) is
 the **R** package upon which `package:here` is built. It provides a
@@ -290,11 +296,9 @@ or:
 source("/path/to/file.R", chdir = TRUE)
 ```
 
-This fails when moving throughout files in different directories. It
-also fails for executable **R** scripts. Additionally, it is sometimes
-convenient to have the working directory set elsewhere.  If a script
-needs to call other scripts in the same directory, it could not do so
-without the its own path.
+This fails when moving throughout files in different directories, it
+fails for executable **R** scripts, and it ignores the simple fact that
+it is sometimes convenient to have the working directory set elsewhere.
 
 ### Alternative 5: Source References
 

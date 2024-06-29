@@ -304,6 +304,8 @@ if (getRversion() < "3.0.0") {
     fix_External2(.mbcslocale)
     fix_External2(.R_MB_CUR_MAX)
 
+    if (!isTRUE(getOption("R_THIS_PATH_DEVEL")))
+        fix_External2(.get_ptrs)
 
     fix_External2(.onLoad)
     fix_External2(.onUnload)
@@ -336,10 +338,6 @@ if (getRversion() < "3.0.0") {
     fix_External2(.OS_windows_maybe_unembedded_shell)
     fix_External2(.shINFO)
     fix_External2(.GUI_Rgui)
-    fix_External2(.PRINFO)
-    fix_External2(.mkPROMISE)
-    fix_External2(.mkEVPROMISE)
-    fix_External2(.unlockEnvironment)
 
 
     ## relpath.R    ----

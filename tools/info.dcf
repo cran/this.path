@@ -2,3 +2,4 @@ devel: FALSE
 renamed_files: TRUE
 substituted_file_contents: TRUE
 dedented_NEWS_subsections: TRUE
+replaced_CRLF_with_LF: TRUE

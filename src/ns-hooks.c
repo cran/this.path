@@ -19,29 +19,45 @@ SEXP mynamespace = NULL,
      _custom_gui_path_function_environment  = NULL;
 
 
-#ifdef R_THIS_PATH_NEED_BLANKSCALARSTRING
+#if defined(R_THIS_PATH_NEED_BLANKSCALARSTRING)
 SEXP R_BlankScalarString = NULL;
 #endif
 
-
+     /* commandArgs() */
 SEXP expr_commandArgs                               = NULL,
+     /* invisible() */
      expr_invisible                                 = NULL,
+     /* parent.frame() */
      expr_parent_frame                              = NULL,
+     /* sys.call() */
      expr_sys_call                                  = NULL,
+     /* sys.call(which) */
      expr_sys_call_which                            = NULL,
+     /* sys.function(which) */
      expr_sys_function_which                        = NULL,
+     /* evalq(sys.function()) */
      eval_op                                        = NULL,
+     /* sys.nframe() */
      expr_sys_nframe                                = NULL,
+     /* sys.parents() */
      expr_sys_parents                               = NULL,
+     /* missing(file) */
      expr_missing_file                              = NULL,
+     /* missing(input) */
      expr_missing_input                             = NULL,
+     /* missing(ofile) */
      expr_missing_ofile                             = NULL,
+     /* info$source_path */
      expr_info_dollar_source_path                   = NULL,
+     /* knitr::opts_knit[["get"]]("output.dir") */
      expr_knitr_output_dir                          = NULL,
+     /* as.numeric_version(getNamespaceVersion("testthat")) >= "3.1.2" */
      expr_testthat_source_file_uses_brio_read_lines = NULL,
-     expr_getOption_topLevelEnvironment             = NULL,
+     /* .toplevel.nframe() */
      expr__toplevel_nframe                          = NULL,
+     /* .isMethodsDispatchOn() */
      expr__isMethodsDispatchOn                      = NULL,
+     /* UseMethod("lengths") */
      expr_UseMethod_lengths                         = NULL;
 
 
@@ -53,36 +69,133 @@ LibExtern Rboolean mbcslocale;
 SEXP do_mbcslocale do_formals
 {
     do_start_no_call_op_rho("mbcslocale", 0);
-    return ScalarLogical(mbcslocale);
+    return Rf_ScalarLogical(mbcslocale);
 }
 
 
 // SEXP do_utf8locale do_formals
 // {
 //     do_start("utf8locale", 0);
-//     return ScalarLogical(utf8locale);
+//     return Rf_ScalarLogical(utf8locale);
 // }
 
 
 // SEXP do_latin1locale do_formals
 // {
 //     do_start("latin1locale", 0);
-//     return ScalarLogical(latin1locale);
+//     return Rf_ScalarLogical(latin1locale);
 // }
 
 
-#if R_version_at_least(4, 2, 0)
+#if R_version_at_least(4,2,0)
 LibExtern int R_MB_CUR_MAX;
 #endif
 SEXP do_R_MB_CUR_MAX do_formals
 {
     do_start_no_call_op_rho("R_MB_CUR_MAX", 0);
-#if R_version_at_least(4, 2, 0)
-    return ScalarInteger(R_MB_CUR_MAX);
+#if R_version_at_least(4,2,0)
+    return Rf_ScalarInteger(R_MB_CUR_MAX);
 #else
-    return ScalarInteger(MB_CUR_MAX);
+    return Rf_ScalarInteger(MB_CUR_MAX);
 #endif
 }
+
+
+#if defined(R_CONNECTIONS_VERSION_1)
+Rconnection (*ptr_R_GetConnection)(SEXP sConn);
+#endif
+#if defined(HAVE_SET_R_VISIBLE)
+void (*ptr_set_R_Visible)(Rboolean x);
+#endif
+#if defined(NEED_R_4_5_0_FUNCTIONS)
+SEXP (*ptr_PRCODE)(SEXP x);
+SEXP (*ptr_PRENV)(SEXP x);
+SEXP (*ptr_R_PromiseExpr)(SEXP x);
+SEXP (*ptr_PRVALUE)(SEXP x);
+void (*ptr_SET_PRCODE)(SEXP x, SEXP v);
+void (*ptr_SET_PRENV)(SEXP x, SEXP v);
+void (*ptr_SET_PRVALUE)(SEXP x, SEXP v);
+#endif
+
+
+#if defined(R_CONNECTIONS_VERSION_1)
+    #if defined(R_THIS_PATH_DEVEL)
+        #if R_version_less_than(3,3,0)
+Rconnection R_GetConnection(SEXP sConn)
+{
+    if (!Rf_inherits(sConn, "connection")) Rf_error(_("invalid connection"));
+    return getConnection(Rf_asInteger(sConn));
+}
+        #endif
+    #endif
+#endif
+
+
+#if defined(NEED_R_4_5_0_FUNCTIONS)
+/* create default values for the function pointers */
+SEXP ptr_PRCODE_default(SEXP x)
+{
+    Rf_error("'%s' is not available", "PRCODE");
+}
+SEXP ptr_PRENV_default(SEXP x)
+{
+    Rf_error("'%s' is not available", "PRENV");
+}
+SEXP ptr_R_PromiseExpr_default(SEXP x)
+{
+    Rf_error("'%s' is not available", "R_PromiseExpr");
+}
+SEXP ptr_PRVALUE_default(SEXP x)
+{
+    Rf_error("'%s' is not available", "PRVALUE");
+}
+void ptr_SET_PRCODE_default(SEXP x, SEXP v)
+{
+    Rf_error("'%s' is not available", "SET_PRCODE");
+}
+void ptr_SET_PRENV_default(SEXP x, SEXP v)
+{
+    Rf_error("'%s' is not available", "SET_PRENV");
+}
+void ptr_SET_PRVALUE_default(SEXP x, SEXP v)
+{
+    Rf_error("'%s' is not available", "SET_PRVALUE");
+}
+#endif
+
+
+#if !defined(R_THIS_PATH_DEVEL)
+#include <R_ext/Rdynload.h>
+SEXP do_get_ptrs do_formals
+{
+    do_start_no_call_op_rho("get_ptrs", 0);
+#if defined(R_CONNECTIONS_VERSION_1)
+    ptr_R_GetConnection = (Rconnection(*)(SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "R_GetConnection");
+#endif
+#if defined(HAVE_SET_R_VISIBLE)
+    ptr_set_R_Visible = (void(*)(Rboolean))
+        R_GetCCallable("this_path_reg_ptrs", "set_R_Visible");
+#endif
+#if defined(NEED_R_4_5_0_FUNCTIONS)
+    ptr_PRCODE = (SEXP(*)(SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "PRCODE");
+    ptr_PRENV = (SEXP(*)(SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "PRENV");
+    ptr_R_PromiseExpr = (SEXP(*)(SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "R_PromiseExpr");
+    ptr_PRVALUE = (SEXP(*)(SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "PRVALUE");
+    ptr_SET_PRCODE = (void(*)(SEXP,SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "SET_PRCODE");
+    ptr_SET_PRENV = (void(*)(SEXP,SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "SET_PRENV");
+    ptr_SET_PRVALUE = (void(*)(SEXP,SEXP))
+        R_GetCCallable("this_path_reg_ptrs", "SET_PRVALUE");
+#endif
+    return R_NilValue;
+}
+#endif
 
 
 SEXP do_onLoad do_formals
@@ -90,51 +203,89 @@ SEXP do_onLoad do_formals
     do_start_no_call_op_rho("onLoad", 2);
 
 
+    /* these arguments are passed from .onLoad() */
+    // SEXP libname = CAR(args);   // warning: unused variable 'libname'
+    // SEXP pkgname = CADR(args);  // warning: unused variable 'pkgname'
+
+
     static int been_here_before = 0;
     if (been_here_before)
-        error("cannot call 'onLoad' more than once (wtf are you doing\?\?\?)");
+        Rf_error("cannot call 'onLoad' more than once (wtf are you doing\?\?\?)");
     been_here_before = 1;
+
+
+#if defined(R_VERSION)
+    {
+        SEXP expr = Rf_lcons(Rf_install("getRversion"), R_NilValue);
+        Rf_protect(expr);
+        SEXP v = Rf_eval(expr, R_BaseEnv);
+        Rf_protect(v);
+        if (TYPEOF(v) == VECSXP && XLENGTH(v) == 1) {
+            v = VECTOR_ELT(v, 0);
+            if (TYPEOF(v) == INTSXP && XLENGTH(v) == 3) {
+                int *iv = INTEGER(v);
+                if (iv[0] == atoi(R_MAJOR) &&
+                    iv[1] == atoi(R_MINOR));
+                else Rf_warningcall_immediate(R_NilValue,
+                    "package 'this.path' was built under R version %s.%s\n but is being loaded in R %d.%d.%d",
+                                                                          R_MAJOR, R_MINOR,                iv[0], iv[1], iv[2]);
+            }
+        }
+        Rf_unprotect(2);
+    }
+#endif
 
 
 #define R_THIS_PATH_DEFINE_SYMBOLS
 #include "symbols.h"
 
 
-    /* these arguments are passed from .onLoad() */
-    // SEXP libname = CAR(args);   // warning: unused variable 'libname'
-    // SEXP pkgname = CADR(args);  // warning: unused variable 'pkgname'
-
-
-#ifdef R_VERSION
-    {
-        SEXP expr = LCONS(install("getRversion"), R_NilValue);
-        PROTECT(expr);
-        SEXP v = eval(expr, R_BaseEnv);
-        PROTECT(v);
-        if (IS_SCALAR(v, VECSXP)) {
-            v = VECTOR_ELT(v, 0);
-            if (TYPEOF(v) == INTSXP && LENGTH(v) == 3) {
-                int *iv = INTEGER(v);
-                if (iv[0] == atoi(R_MAJOR) &&
-                    iv[1] == atoi(R_MINOR));
-                else warningcall_immediate(R_NilValue,
-                    "package 'this.path' was built under R version %s.%s\n but is being loaded in R %d.%d.%d",
-                                                                          R_MAJOR, R_MINOR,                iv[0], iv[1], iv[2]);
-            }
-        }
-        UNPROTECT(2);
-    }
-#endif
-
-
     /* get my namespace from the namespace registry */
-    mynamespace = findVarInFrame(R_NamespaceRegistry, install("this.path"));
+    mynamespace = Rf_findVarInFrame(R_NamespaceRegistry, Rf_install("this.path"));
     if (TYPEOF(mynamespace) != ENVSXP)
-        error(_("not an environment"));
+        Rf_error(_("not an environment"));
     R_PreserveObject(mynamespace);
 
 
-    INCREMENT_NAMED_defineVar(install(".mynamespace"), mynamespace, mynamespace);
+    INCREMENT_NAMED_defineVar(Rf_install(".mynamespace"), mynamespace, mynamespace);
+
+
+#define LockCLOENV(symbol, bindings)                           \
+    do {                                                       \
+        SEXP sym = (symbol);                                   \
+        SEXP tmp = getFromMyNS(sym);                           \
+        if (TYPEOF(tmp) != CLOSXP)                             \
+            Rf_error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "function");\
+        R_LockEnvironment(CLOENV(tmp), (bindings));            \
+    } while (0)
+
+
+#if defined(NEED_R_4_5_0_FUNCTIONS)
+    ptr_PRCODE = ptr_PRCODE_default;
+    ptr_PRENV = ptr_PRENV_default;
+    ptr_R_PromiseExpr = ptr_R_PromiseExpr_default;
+    ptr_PRVALUE = ptr_PRVALUE_default;
+    ptr_SET_PRCODE = ptr_SET_PRCODE_default;
+    ptr_SET_PRENV = ptr_SET_PRENV_default;
+    ptr_SET_PRVALUE = ptr_SET_PRVALUE_default;
+#endif
+
+
+#if defined(R_THIS_PATH_DEVEL)
+    #if defined(R_CONNECTIONS_VERSION_1)
+    ptr_R_GetConnection = R_GetConnection;
+    #endif
+#else
+    {
+        SEXP expr = Rf_lcons(Rf_install(".get_ptrs"), R_NilValue);
+        Rf_protect(expr);
+        Rf_eval(expr, mynamespace);
+        Rf_unprotect(1);
+        R_removeVarFromFrame(Rf_install(".get_ptrs"), mynamespace);
+        R_removeVarFromFrame(Rf_install(".C_get_ptrs"), mynamespace);
+        LockCLOENV(Rf_install(".maybe_dyn_unload"), TRUE);
+    }
+#endif
 
 
 #define make_STRSXP_from_char_array(var, ...)                  \
@@ -142,10 +293,10 @@ SEXP do_onLoad do_formals
         const char *Class[] = __VA_ARGS__;                     \
         int nClass = 0;                                        \
         while (Class[nClass]) ++nClass;                        \
-        var = allocVector(STRSXP, nClass);                     \
+        var = Rf_allocVector(STRSXP, nClass);                  \
         R_PreserveObject(var);                                 \
         for (int i = 0; i < nClass; i++)                       \
-            SET_STRING_ELT(var, i, mkChar(Class[i]));          \
+            SET_STRING_ELT(var, i, Rf_mkChar(Class[i]));       \
         MARK_NOT_MUTABLE(var);                                 \
     } while (0)
 
@@ -278,102 +429,109 @@ SEXP do_onLoad do_formals
      *
      * this is preferable because we only preserve and release one object
      */
-    last_condition = CONS(R_NilValue, R_NilValue);
+    last_condition = Rf_cons(R_NilValue, R_NilValue);
     R_PreserveObject(last_condition);
 
 
     _custom_gui_path_character_environment =
         R_NewEnv(/* enclos */ mynamespace, /* hash */ TRUE, /* size */ 10);
     R_PreserveObject(_custom_gui_path_character_environment);
-    defineVar(guinameSymbol, R_MissingArg, _custom_gui_path_character_environment);
+    Rf_defineVar(guinameSymbol, R_MissingArg, _custom_gui_path_character_environment);
+#if defined(NEED_R_4_5_0_FUNCTIONS)
     {
-        SEXP na = ScalarString(NA_STRING);
-        PROTECT(na);
-        ENSURE_NAMEDMAX(na);
-        defineVar(ofileSymbol, makeEVPROMISE(na, na), _custom_gui_path_character_environment);
+        Rf_defineVar(ofileSymbol, R_NilValue, _custom_gui_path_character_environment);
         R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
-        UNPROTECT(1);
     }
-    defineVar(fileSymbol, makePROMISE(
-        LCONS(_normalizePath_not_dirSymbol, CONS(ofileSymbol, R_NilValue)),
-        _custom_gui_path_character_environment
-    ), _custom_gui_path_character_environment);
-    R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
-    defineVar(_get_contentsSymbol, R_NilValue, _custom_gui_path_character_environment);
+    {
+        Rf_defineVar(fileSymbol, R_NilValue, _custom_gui_path_character_environment);
+        R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
+    }
+#else
+    {
+        SEXP na = Rf_ScalarString(NA_STRING);
+        Rf_protect(na);
+        ENSURE_NAMEDMAX(na);
+        Rf_defineVar(ofileSymbol, makeEVPROMISE(na, na), _custom_gui_path_character_environment);
+        R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
+        Rf_unprotect(1);
+    }
+    {
+        SEXP expr = Rf_lcons(_normalizePath_not_dirSymbol, Rf_cons(ofileSymbol, R_NilValue));
+        Rf_protect(expr);
+        Rf_defineVar(
+            fileSymbol,
+            makePROMISE(expr, _custom_gui_path_character_environment),
+            _custom_gui_path_character_environment
+        );
+        R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
+        Rf_unprotect(1);
+    }
+#endif
+    Rf_defineVar(_get_contentsSymbol, R_NilValue, _custom_gui_path_character_environment);
     R_LockEnvironment(_custom_gui_path_character_environment, FALSE);
 
 
     _custom_gui_path_function_environment =
         R_NewEnv(/* enclos */ R_EmptyEnv, /* hash */ TRUE, /* size */ 2);
     R_PreserveObject(_custom_gui_path_function_environment);
-    defineVar(_custom_gui_path_functionSymbol, R_NilValue, _custom_gui_path_function_environment);
+    Rf_defineVar(_custom_gui_path_functionSymbol, R_NilValue, _custom_gui_path_function_environment);
     R_LockEnvironment(_custom_gui_path_function_environment, FALSE);
 
 
-#ifdef R_THIS_PATH_NEED_BLANKSCALARSTRING
-    R_BlankScalarString = ScalarString(R_BlankString);
+#if defined(R_THIS_PATH_NEED_BLANKSCALARSTRING)
+    R_BlankScalarString = Rf_ScalarString(R_BlankString);
     R_PreserveObject(R_BlankScalarString);
 #endif
 
 
-#define LockCLOENV(symbol, bindings)                           \
-    do {                                                       \
-        SEXP sym = (symbol);                                   \
-        SEXP tmp = getFromMyNS(sym);                           \
-        if (TYPEOF(tmp) != CLOSXP)                             \
-            error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "function");\
-        R_LockEnvironment(CLOENV(tmp), (bindings));            \
-    } while (0)
-
-
     /* rprojroot.R */
-    LockCLOENV(install(".find_root"), TRUE);
-    LockCLOENV(install(".proj"), FALSE);
+    LockCLOENV(Rf_install(".find_root"), TRUE);
+    LockCLOENV(Rf_install(".proj"), FALSE);
     /* startup.R */
     LockCLOENV(_site_fileSymbol, TRUE);
-    LockCLOENV(install(".in_site_file"), FALSE);
+    LockCLOENV(Rf_install(".in_site_file"), FALSE);
     LockCLOENV(_init_fileSymbol, TRUE);
     /* thispath.R */
     LockCLOENV(_shFILESymbol, TRUE);
-    LockCLOENV(install(".vscode_path"), TRUE);
+    LockCLOENV(Rf_install(".vscode_path"), TRUE);
     LockCLOENV(_jupyter_pathSymbol, TRUE);
-    LockCLOENV(install(".emacs_path"), TRUE);
+    LockCLOENV(Rf_install(".emacs_path"), TRUE);
     /* zzz.R */
-    // LockCLOENV(install(".eval_with_message"), FALSE);
+    // LockCLOENV(Rf_install(".eval_with_message"), FALSE);
 
 
     {
-        SEXP sym = install(".startup_info");
+        SEXP sym = Rf_install(".startup_info");
         Rboolean bindings = TRUE;
         SEXP tmp = getFromMyNS(sym);
         if (TYPEOF(tmp) != ENVSXP)
-            error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "environment");
+            Rf_error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "environment");
         R_LockEnvironment(tmp, bindings);
     }
 
 
     /* force the promise 'initwd' */
-    getFromMyNS(install("initwd"));
+    getFromMyNS(Rf_install("initwd"));
 
 
     /* save HAVE_AQUA, PATH_MAX, and NAMEDMAX in my namespace */
 #if defined(HAVE_AQUA)
-    INCREMENT_NAMED_defineVar(install(".HAVE_AQUA"), R_TrueValue, mynamespace);
+    INCREMENT_NAMED_defineVar(Rf_install(".HAVE_AQUA"), R_TrueValue, mynamespace);
 #else
-    INCREMENT_NAMED_defineVar(install(".HAVE_AQUA"), R_FalseValue, mynamespace);
+    INCREMENT_NAMED_defineVar(Rf_install(".HAVE_AQUA"), R_FalseValue, mynamespace);
 #endif
 
 
-    INCREMENT_NAMED_defineVar(install(".PATH_MAX"), PROTECT(ScalarInteger(PATH_MAX)), mynamespace);
-    UNPROTECT(1);
+    INCREMENT_NAMED_defineVar(Rf_install(".PATH_MAX"), Rf_protect(Rf_ScalarInteger(PATH_MAX)), mynamespace);
+    Rf_unprotect(1);
 
 
-#if R_version_less_than(3, 0, 0)
-    INCREMENT_NAMED_defineVar(install(".NAMEDMAX"), PROTECT(ScalarInteger(NA_INTEGER)), mynamespace);
-    UNPROTECT(1);
+#if R_version_less_than(3,0,0)
+    INCREMENT_NAMED_defineVar(Rf_install(".NAMEDMAX"), Rf_protect(Rf_ScalarInteger(NA_INTEGER)), mynamespace);
+    Rf_unprotect(1);
 #else
-    INCREMENT_NAMED_defineVar(install(".NAMEDMAX"), PROTECT(ScalarInteger(NAMEDMAX)), mynamespace);
-    UNPROTECT(1);
+    INCREMENT_NAMED_defineVar(Rf_install(".NAMEDMAX"), Rf_protect(Rf_ScalarInteger(NAMEDMAX)), mynamespace);
+    Rf_unprotect(1);
 #endif
 
 
@@ -381,34 +539,37 @@ SEXP do_onLoad do_formals
     do {                                                       \
         SEXP sym = (symbol);                                   \
         SEXP fun = getFromMyNS(sym);                           \
+        Rf_protect(fun);                                       \
         if (TYPEOF(fun) != CLOSXP)                             \
-            error(_("object '%s' of mode '%s' was not found"), EncodeChar(sym), "function");\
+            Rf_error(_("object '%s' of mode '%s' was not found"), EncodeChar(sym), "function");\
         R_removeVarFromFrame(sym, mynamespace);                \
         R_MakeActiveBinding(sym, fun, mynamespace);            \
+        Rf_unprotect(1);                                       \
     } while (0)
 
 
     /* ./R/ns-hooks.R */
-    convertclosure2activebinding(install(".mbcslocale"));
-    convertclosure2activebinding(install(".utf8locale"));
-    convertclosure2activebinding(install(".latin1locale"));
-    convertclosure2activebinding(install(".R_MB_CUR_MAX"));
+    convertclosure2activebinding(Rf_install(".mbcslocale"));
+    convertclosure2activebinding(Rf_install(".utf8locale"));
+    convertclosure2activebinding(Rf_install(".latin1locale"));
+    convertclosure2activebinding(Rf_install(".R_MB_CUR_MAX"));
     /* ./R/startup.R */
-    convertclosure2activebinding(install(".in_site_file"));
+    convertclosure2activebinding(Rf_install(".in_site_file"));
     /* ./R/trycatch.R */
-    convertclosure2activebinding(install("last.condition"));
+    convertclosure2activebinding(Rf_install("last.condition"));
 
 
-    SEXP value = allocVector(VECSXP, 13);
-    MARK_NOT_MUTABLE_defineVar(install("OS.type"), value, mynamespace);
-    SEXP names = allocVector(STRSXP, 13);
-    setAttrib(value, R_NamesSymbol, names);
+    SEXP value = Rf_allocVector(VECSXP, 13);
+    Rf_protect(value);
+    MARK_NOT_MUTABLE_defineVar(Rf_install("OS.type"), value, mynamespace);
+    SEXP names = Rf_allocVector(STRSXP, 13);
+    Rf_setAttrib(value, R_NamesSymbol, names);
 
 
     int i = -1;
 
 
-    SET_STRING_ELT(names, ++i, mkChar("AIX"));
+    SET_STRING_ELT(names, ++i, Rf_mkChar("AIX"));
 #if defined(_AIX)
     /* IBM AIX. ------------------------------------------------- */
     SET_VECTOR_ELT(value, i, R_TrueValue);
@@ -417,7 +578,7 @@ SEXP do_onLoad do_formals
 #endif
 
 
-//     SET_STRING_ELT(names, ++i, mkChar("BSD"));
+//     SET_STRING_ELT(names, ++i, Rf_mkChar("BSD"));
 // #if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
 // #include <sys/param.h>
 // #if defined(BSD)
@@ -431,7 +592,7 @@ SEXP do_onLoad do_formals
 // #endif
 
 
-    SET_STRING_ELT(names, ++i, mkChar("HPUX"));
+    SET_STRING_ELT(names, ++i, Rf_mkChar("HPUX"));
 #if defined(__hpux)
     /* Hewlett-Packard HP-UX. ----------------------------------- */
     SET_VECTOR_ELT(value, i, R_TrueValue);
@@ -440,7 +601,7 @@ SEXP do_onLoad do_formals
 #endif
 
 
-    SET_STRING_ELT(names, ++i, mkChar("linux"));
+    SET_STRING_ELT(names, ++i, Rf_mkChar("linux"));
 #if defined(__linux__)
     /* Linux. --------------------------------------------------- */
     SET_VECTOR_ELT(value, i, R_TrueValue);
@@ -449,10 +610,10 @@ SEXP do_onLoad do_formals
 #endif
 
 
-    SET_STRING_ELT(names, i + 1, mkChar("darwin"));
-    SET_STRING_ELT(names, i + 2, mkChar("iOS.simulator"));
-    SET_STRING_ELT(names, i + 3, mkChar("iOS"));
-    SET_STRING_ELT(names, i + 4, mkChar("macOS"));
+    SET_STRING_ELT(names, i + 1, Rf_mkChar("darwin"));
+    SET_STRING_ELT(names, i + 2, Rf_mkChar("iOS.simulator"));
+    SET_STRING_ELT(names, i + 3, Rf_mkChar("iOS"));
+    SET_STRING_ELT(names, i + 4, Rf_mkChar("macOS"));
 #if defined(__APPLE__) && defined(__MACH__)
     /* Apple OSX and iOS (Darwin). ------------------------------ */
     SET_VECTOR_ELT(value, ++i, R_TrueValue);
@@ -485,7 +646,7 @@ SEXP do_onLoad do_formals
 #endif
 
 
-    SET_STRING_ELT(names, ++i, mkChar("solaris"));
+    SET_STRING_ELT(names, ++i, Rf_mkChar("solaris"));
 #if defined(__sun) && defined(__SVR4)
     /* Solaris. ------------------------------------------------- */
     SET_VECTOR_ELT(value, i, R_TrueValue);
@@ -494,7 +655,7 @@ SEXP do_onLoad do_formals
 #endif
 
 
-    SET_STRING_ELT(names, ++i, mkChar("cygwin"));
+    SET_STRING_ELT(names, ++i, Rf_mkChar("cygwin"));
 #if defined(__CYGWIN__) && !defined(_WIN32)
     /* Cygwin POSIX under Microsoft Windows. -------------------- */
     SET_VECTOR_ELT(value, i, R_TrueValue);
@@ -503,9 +664,9 @@ SEXP do_onLoad do_formals
 #endif
 
 
-    SET_STRING_ELT(names, i + 1, mkChar("windows"));
-    SET_STRING_ELT(names, i + 2, mkChar("win64"));
-    SET_STRING_ELT(names, i + 3, mkChar("win32"));
+    SET_STRING_ELT(names, i + 1, Rf_mkChar("windows"));
+    SET_STRING_ELT(names, i + 2, Rf_mkChar("win64"));
+    SET_STRING_ELT(names, i + 3, Rf_mkChar("win32"));
 #if defined(_WIN64)
     /* Microsoft Windows (64-bit). ------------------------------ */
     SET_VECTOR_ELT(value, ++i, R_TrueValue);
@@ -523,8 +684,8 @@ SEXP do_onLoad do_formals
 #endif
 
 
-//     SET_STRING_ELT(names, i + 1, mkChar("UNIX"));
-//     SET_STRING_ELT(names, i + 2, mkChar("POSIX"));
+//     SET_STRING_ELT(names, i + 1, Rf_mkChar("UNIX"));
+//     SET_STRING_ELT(names, i + 2, Rf_mkChar("POSIX"));
 // #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
 //     /* UNIX-style OS. ------------------------------------------- */
 //     SET_VECTOR_ELT(value, ++i, R_TrueValue);
@@ -541,7 +702,7 @@ SEXP do_onLoad do_formals
 // #endif
 
 
-    SET_STRING_ELT(names, ++i, mkChar("UNIX"));
+    SET_STRING_ELT(names, ++i, Rf_mkChar("UNIX"));
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)))
     /* UNIX-style OS. ------------------------------------------- */
     SET_VECTOR_ELT(value, i, R_TrueValue);
@@ -550,219 +711,233 @@ SEXP do_onLoad do_formals
 #endif
 
 
-    expr_commandArgs = LCONS(getFromBase(commandArgsSymbol), R_NilValue);
+    Rf_unprotect(1);
+
+
+    expr_commandArgs = Rf_lcons(getFromBase(commandArgsSymbol), R_NilValue);
     R_PreserveObject(expr_commandArgs);
-    if (!isFunction(CAR(expr_commandArgs)))
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(commandArgsSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr_commandArgs)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(commandArgsSymbol)), "function");
 
 
-    expr_invisible = LCONS(getFromBase(invisibleSymbol), R_NilValue);
+    expr_invisible = Rf_lcons(getFromBase(invisibleSymbol), R_NilValue);
     R_PreserveObject(expr_invisible);
-    if (!isFunction(CAR(expr_invisible)))
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(invisibleSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr_invisible)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(invisibleSymbol)), "function");
 
 
-    expr_parent_frame = LCONS(getFromBase(parent_frameSymbol), R_NilValue);
+    expr_parent_frame = Rf_lcons(getFromBase(parent_frameSymbol), R_NilValue);
     R_PreserveObject(expr_parent_frame);
-    if (!isFunction(CAR(expr_parent_frame)))
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(parent_frameSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr_parent_frame)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(parent_frameSymbol)), "function");
 
 
-    expr_sys_call = LCONS(getFromBase(sys_callSymbol), R_NilValue);
+    expr_sys_call = Rf_lcons(getFromBase(sys_callSymbol), R_NilValue);
     R_PreserveObject(expr_sys_call);
-    if (!isFunction(CAR(expr_sys_call)))
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(sys_callSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr_sys_call)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(sys_callSymbol)), "function");
 
 
-    expr_sys_call_which = LCONS(CAR(expr_sys_call), CONS(ScalarInteger(0), R_NilValue));
+    expr_sys_call_which = Rf_lcons(CAR(expr_sys_call), Rf_cons(Rf_ScalarInteger(0), R_NilValue));
     R_PreserveObject(expr_sys_call_which);
 
 
     {
-        expr_sys_function_which = LCONS(getFromBase(sys_functionSymbol), CDR(expr_sys_call_which));
+        expr_sys_function_which = Rf_lcons(getFromBase(sys_functionSymbol), CDR(expr_sys_call_which));
         R_PreserveObject(expr_sys_function_which);
     }
 
 
+#if defined(R_THIS_PATH_DEVEL) || R_version_less_than(4,5,0)
     eval_op = INTERNAL(R_EvalSymbol);
+#else
+    {
+        SEXP evalqSymbol = Rf_install("evalq");
+        SEXP expr = Rf_lcons(evalqSymbol, Rf_cons(Rf_lcons(sys_functionSymbol, R_NilValue), R_NilValue));
+        Rf_protect(expr);
+        eval_op = Rf_eval(expr, R_BaseEnv);
+        Rf_unprotect(1);
+    }
+#endif
     if (TYPEOF(eval_op) != BUILTINSXP)
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(R_EvalSymbol)), "builtin");
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(R_EvalSymbol)), "builtin");
 
 
-    expr_sys_nframe = LCONS(getFromBase(sys_nframeSymbol), R_NilValue);
+    expr_sys_nframe = Rf_lcons(getFromBase(sys_nframeSymbol), R_NilValue);
     R_PreserveObject(expr_sys_nframe);
-    if (!isFunction(CAR(expr_sys_nframe)))
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(sys_nframeSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr_sys_nframe)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(sys_nframeSymbol)), "function");
 
 
-    expr_sys_parents = LCONS(getFromBase(sys_parentsSymbol), R_NilValue);
+    expr_sys_parents = Rf_lcons(getFromBase(sys_parentsSymbol), R_NilValue);
     R_PreserveObject(expr_sys_parents);
-    if (!isFunction(CAR(expr_sys_parents)))
-        error(_("object '%s' of mode '%s' was not found"),
-              CHAR(PRINTNAME(sys_parentsSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr_sys_parents)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+              R_CHAR(PRINTNAME(sys_parentsSymbol)), "function");
 
 
     {
         SEXP tmp;
-        PROTECT(tmp = getFromBase(missingSymbol));
-        expr_missing_file = LCONS(tmp, CONS(fileSymbol, R_NilValue));
+        Rf_protect(tmp = getFromBase(missingSymbol));
+        expr_missing_file = Rf_lcons(tmp, Rf_cons(fileSymbol, R_NilValue));
         R_PreserveObject(expr_missing_file);
-        UNPROTECT(1);
-        if (!isFunction(CAR(expr_missing_file)))
-            error(_("object '%s' of mode '%s' was not found"),
-                  CHAR(PRINTNAME(missingSymbol)), "function");
+        Rf_unprotect(1);
+        if (!Rf_isFunction(CAR(expr_missing_file)))
+            Rf_error(_("object '%s' of mode '%s' was not found"),
+                  R_CHAR(PRINTNAME(missingSymbol)), "function");
     }
 
 
     {
         SEXP tmp;
-        PROTECT(tmp = getFromBase(missingSymbol));
-        expr_missing_input = LCONS(tmp, CONS(inputSymbol, R_NilValue));
+        Rf_protect(tmp = getFromBase(missingSymbol));
+        expr_missing_input = Rf_lcons(tmp, Rf_cons(inputSymbol, R_NilValue));
         R_PreserveObject(expr_missing_input);
-        UNPROTECT(1);
-        if (!isFunction(CAR(expr_missing_input)))
-            error(_("object '%s' of mode '%s' was not found"),
-                  CHAR(PRINTNAME(missingSymbol)), "function");
+        Rf_unprotect(1);
+        if (!Rf_isFunction(CAR(expr_missing_input)))
+            Rf_error(_("object '%s' of mode '%s' was not found"),
+                  R_CHAR(PRINTNAME(missingSymbol)), "function");
     }
 
 
     {
         SEXP tmp;
-        PROTECT(tmp = getFromBase(missingSymbol));
-        expr_missing_ofile = LCONS(tmp, CONS(ofileSymbol, R_NilValue));
+        Rf_protect(tmp = getFromBase(missingSymbol));
+        expr_missing_ofile = Rf_lcons(tmp, Rf_cons(ofileSymbol, R_NilValue));
         R_PreserveObject(expr_missing_ofile);
-        UNPROTECT(1);
-        if (!isFunction(CAR(expr_missing_ofile)))
-            error(_("object '%s' of mode '%s' was not found"),
-                  CHAR(PRINTNAME(missingSymbol)), "function");
+        Rf_unprotect(1);
+        if (!Rf_isFunction(CAR(expr_missing_ofile)))
+            Rf_error(_("object '%s' of mode '%s' was not found"),
+                  R_CHAR(PRINTNAME(missingSymbol)), "function");
     }
 
 
     {
         SEXP tmp;
-        PROTECT(tmp = getFromBase(R_DollarSymbol));
-        expr_info_dollar_source_path = LCONS(tmp,
-                                             CONS(infoSymbol,
-                                                  CONS(source_pathSymbol, R_NilValue)));
+        Rf_protect(tmp = getFromBase(R_DollarSymbol));
+        expr_info_dollar_source_path = Rf_lcons(
+            tmp,
+            Rf_cons(
+                infoSymbol,
+                Rf_cons(source_pathSymbol, R_NilValue)
+            )
+        );
         R_PreserveObject(expr_info_dollar_source_path);
-        UNPROTECT(1);
-        if (!isFunction(CAR(expr_info_dollar_source_path)))
-            error(_("object '%s' of mode '%s' was not found"),
-                  CHAR(PRINTNAME(R_DollarSymbol)), "function");
+        Rf_unprotect(1);
+        if (!Rf_isFunction(CAR(expr_info_dollar_source_path)))
+            Rf_error(_("object '%s' of mode '%s' was not found"),
+                  R_CHAR(PRINTNAME(R_DollarSymbol)), "function");
     }
 
 
-    expr_knitr_output_dir = allocList(2);
+    expr_knitr_output_dir = Rf_allocLang(2);
     R_PreserveObject(expr_knitr_output_dir);
-    SET_TYPEOF(expr_knitr_output_dir, LANGSXP);
     {
-        SEXP tmp;
-        SETCAR (expr_knitr_output_dir, tmp = allocList(3)); SET_TYPEOF(tmp, LANGSXP);
-        SETCADR(expr_knitr_output_dir, mkString("output.dir"));
+        SEXP tmp = SETCAR(expr_knitr_output_dir, Rf_allocLang(3));
+        SETCADR(expr_knitr_output_dir, Rf_mkString("output.dir"));
         {
-            SEXP tmp2;
-            SETCAR  (tmp, getFromBase(R_Bracket2Symbol));
-            SETCADR (tmp, tmp2 = allocList(3)); SET_TYPEOF(tmp2, LANGSXP);
-            SETCADDR(tmp, mkString("get"));
+            SETCAR(tmp, getFromBase(R_Bracket2Symbol));
+            SEXP tmp2 = SETCADR(tmp, Rf_allocLang(3));
+            SETCADDR(tmp, Rf_mkString("get"));
             {
                 SETCAR  (tmp2, getFromBase(R_DoubleColonSymbol));
                 SETCADR (tmp2, knitrSymbol);
-                SETCADDR(tmp2, install("opts_knit"));
+                SETCADDR(tmp2, Rf_install("opts_knit"));
             }
         }
     }
 
 
-    expr_testthat_source_file_uses_brio_read_lines = allocList(3);
+    expr_testthat_source_file_uses_brio_read_lines = Rf_allocLang(3);
     R_PreserveObject(expr_testthat_source_file_uses_brio_read_lines);
-    SET_TYPEOF(expr_testthat_source_file_uses_brio_read_lines, LANGSXP);
     {
-        SEXP tmp;
-        SETCAR  (expr_testthat_source_file_uses_brio_read_lines, getFromBase(install(">=")));
-        SETCADR (expr_testthat_source_file_uses_brio_read_lines, tmp = allocList(2)); SET_TYPEOF(tmp, LANGSXP);
-        SETCADDR(expr_testthat_source_file_uses_brio_read_lines, mkString("3.1.2"));
+        SETCAR(expr_testthat_source_file_uses_brio_read_lines, getFromBase(Rf_install(">=")));
+        SEXP tmp = SETCADR(expr_testthat_source_file_uses_brio_read_lines, Rf_allocLang(2));
+        SETCADDR(expr_testthat_source_file_uses_brio_read_lines, Rf_mkString("3.1.2"));
         {
-            SEXP tmp2;
-            SETCAR (tmp, getFromBase(install("as.numeric_version")));
-            SETCADR(tmp, tmp2 = allocList(2)); SET_TYPEOF(tmp2, LANGSXP);
+            SETCAR(tmp, getFromBase(Rf_install("as.numeric_version")));
+            SEXP tmp2 = SETCADR(tmp, Rf_allocLang(2));
+
             {
-                SETCAR (tmp2, getFromBase(install("getNamespaceVersion")));
-                SETCADR(tmp2, ScalarString(PRINTNAME(testthatSymbol)));
+                SETCAR (tmp2, getFromBase(Rf_install("getNamespaceVersion")));
+                SETCADR(tmp2, Rf_ScalarString(PRINTNAME(testthatSymbol)));
             }
         }
     }
 
 
-    {
-        SEXP tmp;
-        PROTECT(tmp = getFromBase(install("getOption")));
-        expr_getOption_topLevelEnvironment = LCONS(tmp, CONS(mkString("topLevelEnvironment"), R_NilValue));
-        R_PreserveObject(expr_getOption_topLevelEnvironment);
-        UNPROTECT(1);
-        if (!isFunction(CAR(expr_getOption_topLevelEnvironment)))
-            error(_("object '%s' of mode '%s' was not found"), "getOption", "function");
-    }
-
-
-    expr__toplevel_nframe = LCONS(getFromMyNS(install(".toplevel.nframe")), R_NilValue);
+    expr__toplevel_nframe = Rf_lcons(getFromMyNS(Rf_install(".toplevel.nframe")), R_NilValue);
     R_PreserveObject(expr__toplevel_nframe);
-    if (!isFunction(CAR(expr__toplevel_nframe)))
-        error(_("object '%s' of mode '%s' was not found"), ".toplevel.nframe", "function");
+    if (!Rf_isFunction(CAR(expr__toplevel_nframe)))
+        Rf_error(_("object '%s' of mode '%s' was not found"), ".toplevel.nframe", "function");
 
 
-    expr__isMethodsDispatchOn = LCONS(getFromBase(_isMethodsDispatchOnSymbol), R_NilValue);
+    expr__isMethodsDispatchOn = Rf_lcons(getFromBase(_isMethodsDispatchOnSymbol), R_NilValue);
     R_PreserveObject(expr__isMethodsDispatchOn);
-    if (!isFunction(CAR(expr__isMethodsDispatchOn)))
-        error(_("object '%s' of mode '%s' was not found"),
-            CHAR(PRINTNAME(_isMethodsDispatchOnSymbol)), "function");
+    if (!Rf_isFunction(CAR(expr__isMethodsDispatchOn)))
+        Rf_error(_("object '%s' of mode '%s' was not found"),
+            R_CHAR(PRINTNAME(_isMethodsDispatchOnSymbol)), "function");
 
 
-#if R_version_less_than(3, 2, 0)
-    expr_UseMethod_lengths = LCONS(UseMethodSymbol, CONS(mkString("lengths"), R_NilValue));
+#if R_version_less_than(3,2,0)
+    expr_UseMethod_lengths = Rf_lcons(UseMethodSymbol, Rf_cons(Rf_mkString("lengths"), R_NilValue));
     R_PreserveObject(expr_UseMethod_lengths);
 #endif
 
 
     {
         /* if package:utils is loaded, call '.fix_utils' */
-        if (!ISUNBOUND(findVarInFrame(R_NamespaceRegistry, utilsSymbol))) {
-            SEXP expr = LCONS(install(".fix_utils"), R_NilValue);
-            PROTECT(expr);
-            eval(expr, mynamespace);
-            UNPROTECT(1);
+        if (!ISUNBOUND(Rf_findVarInFrame(R_NamespaceRegistry, utilsSymbol))) {
+            SEXP expr = Rf_lcons(Rf_install(".fix_utils"), R_NilValue);
+            Rf_protect(expr);
+            Rf_eval(expr, mynamespace);
+            Rf_unprotect(1);
         }
 
 
         /* for when package:utils is loaded (or possibly unloaded then reloaded), set as a hook */
-        SEXP expr = LCONS(install(".maybe_setHook_packageEvent_utils_fix_utils"), R_NilValue);
-        PROTECT(expr);
-        eval(expr, mynamespace);
-        UNPROTECT(1);
+        SEXP expr = Rf_lcons(Rf_install(".maybe_setHook_packageEvent_utils_fix_utils"), R_NilValue);
+        Rf_protect(expr);
+        Rf_eval(expr, mynamespace);
+        Rf_unprotect(1);
     }
 
 
     {
         /* if package:plumber is loaded, call '.fix_plumber_parseUTF8' */
-        if (!ISUNBOUND(findVarInFrame(R_NamespaceRegistry, plumberSymbol))) {
-            SEXP expr = LCONS(install(".fix_plumber_parseUTF8"), R_NilValue);
-            PROTECT(expr);
-            eval(expr, mynamespace);
-            UNPROTECT(1);
+        if (!ISUNBOUND(Rf_findVarInFrame(R_NamespaceRegistry, plumberSymbol))) {
+            SEXP expr = Rf_lcons(Rf_install(".fix_plumber_parseUTF8"), R_NilValue);
+            Rf_protect(expr);
+            Rf_eval(expr, mynamespace);
+            Rf_unprotect(1);
         }
 
 
         /* for when package:plumber is loaded (or possibly unloaded then reloaded), set as a hook */
-        SEXP expr = LCONS(install(".maybe_setHook_packageEvent_plumber_fix_plumber_parseUTF8"), R_NilValue);
-        PROTECT(expr);
-        eval(expr, mynamespace);
-        UNPROTECT(1);
+        SEXP expr = Rf_lcons(Rf_install(".maybe_setHook_packageEvent_plumber_fix_plumber_parseUTF8"), R_NilValue);
+        Rf_protect(expr);
+        Rf_eval(expr, mynamespace);
+        Rf_unprotect(1);
     }
+
+
+#if R_version_less_than(3,4,0)
+    {
+        SEXP sym = Rf_install("print.connection");
+        SEXP val = Rf_findVarInFrame(mynamespace, sym);
+        if (val != R_UnboundValue) {
+            R_unLockBinding(sym, R_BaseEnv);
+            Rf_defineVar(sym, val, R_BaseEnv);
+            R_LockBinding(sym, R_BaseEnv);
+        }
+    }
+#endif
 
 
     return R_NilValue;
@@ -775,6 +950,30 @@ SEXP do_onUnload do_formals
 
 
     SEXP libpath = CAR(args);
+
+
+    {
+        /* on.exit(library.dynam.unload("this.path", libpath)) */
+        SEXP expr;
+        PROTECT_INDEX indx;
+        R_ProtectWithIndex(expr = Rf_cons(libpath, R_NilValue), &indx);
+        R_Reprotect(expr = Rf_cons(Rf_mkString("this.path"), expr), indx);
+        R_Reprotect(expr = Rf_lcons(getFromBase(Rf_install("library.dynam.unload")), expr), indx);
+        R_Reprotect(expr = Rf_cons(expr, R_NilValue), indx);
+        R_Reprotect(expr = Rf_lcons(getFromBase(on_exitSymbol), expr), indx);
+        Rf_eval(expr, rho);
+        Rf_unprotect(1);
+    }
+
+
+#if !defined(R_THIS_PATH_DEVEL)
+    {
+        SEXP expr = Rf_lcons(Rf_install(".maybe_dyn_unload"), R_NilValue);
+        Rf_protect(expr);
+        Rf_eval(expr, mynamespace);
+        Rf_unprotect(1);
+    }
+#endif
 
 
 #define maybe_release(var) if ((var)) R_ReleaseObject((var))
@@ -794,7 +993,7 @@ SEXP do_onUnload do_formals
     maybe_release(_custom_gui_path_function_environment);
 
 
-#ifdef R_THIS_PATH_NEED_BLANKSCALARSTRING
+#if defined(R_THIS_PATH_NEED_BLANKSCALARSTRING)
     maybe_release(R_BlankScalarString);
 #endif
 
@@ -813,23 +1012,9 @@ SEXP do_onUnload do_formals
     maybe_release(expr_info_dollar_source_path);
     maybe_release(expr_knitr_output_dir);
     maybe_release(expr_testthat_source_file_uses_brio_read_lines);
-    maybe_release(expr_getOption_topLevelEnvironment);
     maybe_release(expr__toplevel_nframe);
     maybe_release(expr__isMethodsDispatchOn);
     maybe_release(expr_UseMethod_lengths);
-
-
-    {
-        SEXP expr;
-        PROTECT_INDEX indx;
-        PROTECT_WITH_INDEX(expr = CONS(libpath, R_NilValue), &indx);
-        REPROTECT(expr = CONS(mkString("this.path"), expr), indx);
-        REPROTECT(expr = LCONS(getFromBase(install("library.dynam.unload")), expr), indx);
-        REPROTECT(expr = CONS(expr, R_NilValue), indx);
-        REPROTECT(expr = LCONS(getFromBase(on_exitSymbol), expr), indx);
-        eval(expr, rho);
-        UNPROTECT(1);
-    }
 
 
     return R_NilValue;

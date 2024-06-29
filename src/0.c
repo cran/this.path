@@ -1,5 +1,7 @@
+#define R_NO_REMAP
 #include <R_ext/Rdynload.h>    /* need definition of 'R_ExternalMethodDef' */
 #include <R_ext/Visibility.h>  /* need definition of 'attribute_visible' */
+#include "devel.h"
 #include "this.path.h"  /* need declarations of C functions */
 
 
@@ -15,7 +17,7 @@ static const R_ExternalMethodDef externalRoutines[] = {
 /* backports.c */
 
 
-#if R_version_less_than(3, 1, 0)
+#if R_version_less_than(3,1,0)
 {"anyNA"                , (DL_FUNC) &do_anyNA                , 2},
 {"anyNA.data.frame"     , (DL_FUNC) &do_anyNA_data_frame     , 2},
 {"anyNA.numeric_version", (DL_FUNC) &do_anyNA_numeric_version, 1},
@@ -23,7 +25,7 @@ static const R_ExternalMethodDef externalRoutines[] = {
 #endif
 
 
-#if R_version_less_than(3, 2, 0)
+#if R_version_less_than(3,2,0)
 {"dir.exists"           , (DL_FUNC) &do_dir_exists           , 1},
 {"lengths"              , (DL_FUNC) &do_lengths              , 2},
 {"lengths.default"      , (DL_FUNC) &do_lengths_default      , 2},
@@ -31,19 +33,19 @@ static const R_ExternalMethodDef externalRoutines[] = {
 #endif
 
 
-#if R_version_less_than(3, 3, 0)
+#if R_version_less_than(3,3,0)
 {"strrep"    , (DL_FUNC) &do_strrep    , 2},
 {"startsWith", (DL_FUNC) &do_startsWith, 2},
 {"endsWith"  , (DL_FUNC) &do_endsWith  , 2},
 #endif
 
 
-#if R_version_less_than(3, 5, 0)
+#if R_version_less_than(3,5,0)
 {"...length", (DL_FUNC) &do_dotslength, 0},
 #endif
 
 
-#if R_version_less_than(4, 1, 0)
+#if R_version_less_than(4,1,0)
 {"...elt", (DL_FUNC) &do_dotselt, 1}, // R_Visible updatable
 #endif
 
@@ -113,6 +115,10 @@ static const R_ExternalMethodDef externalRoutines[] = {
 // {"latin1locale", (DL_FUNC) &do_latin1locale, 0},
 {"R_MB_CUR_MAX", (DL_FUNC) &do_R_MB_CUR_MAX, 0},
 
+#if !defined(R_THIS_PATH_DEVEL)
+{"get_ptrs", (DL_FUNC) &do_get_ptrs, 0},
+#endif
+
 {"onLoad"  , (DL_FUNC) &do_onLoad  , 2},
 {"onUnload", (DL_FUNC) &do_onUnload, 1},
 
@@ -160,10 +166,6 @@ static const R_ExternalMethodDef externalRoutines[] = {
 {"is_unevaluated_promise", (DL_FUNC) &do_is_unevaluated_promise, -1},
 {"promise_is_unevaluated", (DL_FUNC) &do_promise_is_unevaluated, -1},
 {"forcePromise_no_warn"  , (DL_FUNC) &do_forcePromise_no_warn  , -1},
-{"PRINFO"                , (DL_FUNC) &do_PRINFO                , -1},
-{"mkPROMISE"             , (DL_FUNC) &do_mkPROMISE             ,  2},
-{"mkEVPROMISE"           , (DL_FUNC) &do_mkEVPROMISE           ,  2},
-{"unlockEnvironment"     , (DL_FUNC) &do_unlockEnvironment     , -1}, // R_Visible off
 {"is_R_MissingArg"       , (DL_FUNC) &do_is_R_MissingArg       , -1},
 
 
@@ -183,7 +185,6 @@ static const R_ExternalMethodDef externalRoutines[] = {
 /* setsyspath.c */
 
 
-{"SET_PRSEEN_2"         , (DL_FUNC) &do_SET_PRSEEN_2         ,  1},
 {"wrap_source"          , (DL_FUNC) &do_wrap_source          , 20}, // R_Visible updatable
 {"set_sys_path"         , (DL_FUNC) &do_set_sys_path         , 21},
 {"unset_sys_path"       , (DL_FUNC) &do_unset_sys_path       ,  0}, // R_Visible off
@@ -257,7 +258,13 @@ void R_init_this_path(DllInfo *dll)
 {
     R_registerRoutines(dll, NULL, NULL, NULL, externalRoutines);
     R_useDynamicSymbols(dll, FALSE);
-#if R_version_at_least(3, 0, 0)
+#if R_version_at_least(3,0,0)
     R_forceSymbols(dll, TRUE);
 #endif
+
+
+    extern SEXP makePROMISE(SEXP expr, SEXP env);
+    extern SEXP makeEVPROMISE(SEXP expr, SEXP value);
+    R_RegisterCCallable("this.path", "makePROMISE", (DL_FUNC) makePROMISE);
+    R_RegisterCCallable("this.path", "makeEVPROMISE", (DL_FUNC) makeEVPROMISE);
 }

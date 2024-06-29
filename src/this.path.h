@@ -49,7 +49,9 @@ becomes:
 #define R_THISPATH_THISPATH_H
 
 
+#define R_NO_REMAP
 #include <Rinternals.h>         /* need definition of SEXP */
+#include "devel.h"
 #include "backports.h"          /* need definition of do_formals */
 #include "rversiondefines.h"    /* need definition of R_version_less_than */
 
@@ -63,7 +65,7 @@ extern SEXP do_aquarootscript do_formals;
 /* backports.c */
 
 
-#if R_version_less_than(3, 1, 0)
+#if R_version_less_than(3,1,0)
 extern SEXP do_anyNA                 do_formals;
 extern SEXP do_anyNA_data_frame      do_formals;
 extern SEXP do_anyNA_numeric_version do_formals;
@@ -71,7 +73,7 @@ extern SEXP do_anyNA_default         do_formals;
 #endif
 
 
-#if R_version_less_than(3, 2, 0)
+#if R_version_less_than(3,2,0)
 extern SEXP do_dir_exists            do_formals;
 extern SEXP do_lengths               do_formals;
 extern SEXP do_lengths_default       do_formals;
@@ -79,19 +81,19 @@ extern SEXP do_isRegisteredNamespace do_formals;
 #endif
 
 
-#if R_version_less_than(3, 3, 0)
+#if R_version_less_than(3,3,0)
 extern SEXP do_strrep     do_formals;
 extern SEXP do_startsWith do_formals;
 extern SEXP do_endsWith   do_formals;
 #endif
 
 
-#if R_version_less_than(3, 5, 0)
+#if R_version_less_than(3,5,0)
 extern SEXP do_dotslength do_formals;
 #endif
 
 
-#if R_version_less_than(4, 1, 0)
+#if R_version_less_than(4,1,0)
 extern SEXP do_dotselt do_formals;
 #endif
 
@@ -161,6 +163,10 @@ extern SEXP do_mbcslocale   do_formals;
 // extern SEXP do_latin1locale do_formals;
 extern SEXP do_R_MB_CUR_MAX do_formals;
 
+#if !defined(R_THIS_PATH_DEVEL)
+extern SEXP do_get_ptrs do_formals;
+#endif
+
 extern SEXP do_onLoad         do_formals;
 extern SEXP do_onUnload       do_formals;
 
@@ -208,10 +214,6 @@ extern SEXP do_asArgs do_formals;
 extern SEXP do_is_unevaluated_promise do_formals;
 extern SEXP do_promise_is_unevaluated do_formals;
 extern SEXP do_forcePromise_no_warn   do_formals;
-extern SEXP do_PRINFO                 do_formals;
-extern SEXP do_mkPROMISE              do_formals;
-extern SEXP do_mkEVPROMISE            do_formals;
-extern SEXP do_unlockEnvironment      do_formals;
 extern SEXP do_is_R_MissingArg        do_formals;
 
 
@@ -231,7 +233,6 @@ extern SEXP do_reset_proj do_formals;
 /* setsyspath.c */
 
 
-extern SEXP do_SET_PRSEEN_2          do_formals;
 extern SEXP do_wrap_source           do_formals;
 extern SEXP do_set_sys_path          do_formals;
 extern SEXP do_unset_sys_path        do_formals;

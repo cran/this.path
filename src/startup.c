@@ -7,76 +7,67 @@ Rboolean already_set_init_file = FALSE;
 
 SEXP startup_file(Rboolean check_is_valid_init_file_expr, SEXP rho)
 {
-    SEXP promise = findVarInFrame(rho, exprSymbol);
+    SEXP promise = Rf_findVarInFrame(rho, exprSymbol);
     if (promise == R_UnboundValue)
-        error(_("object '%s' not found"), CHAR(PRINTNAME(exprSymbol)));
+        Rf_error(_("object '%s' not found"), R_CHAR(PRINTNAME(exprSymbol)));
     if (promise == R_MissingArg)
-        error(_("argument \"%s\" is missing, with no default"), CHAR(PRINTNAME(exprSymbol)));
+        Rf_error(_("argument \"%s\" is missing, with no default"), R_CHAR(PRINTNAME(exprSymbol)));
     if (TYPEOF(promise) != PROMSXP)
-        error("invalid '%s', is not a promise", CHAR(PRINTNAME(exprSymbol)));
+        Rf_error("invalid '%s', is not a promise", R_CHAR(PRINTNAME(exprSymbol)));
 
 
-    SEXP code = PRCODE(promise);
+    SEXP code = ptr_PRCODE(promise);
     if (TYPEOF(code) != LANGSXP || CAR(code) != R_BraceSymbol)
-        error("invalid '%s', expected a braced expression", CHAR(PRINTNAME(exprSymbol)));
-    if (PRVALUE(promise) != R_UnboundValue)
-        error("invalid '%s', must be an unevaluated call", CHAR(PRINTNAME(exprSymbol)));
+        Rf_error("invalid '%s', expected a braced expression", R_CHAR(PRINTNAME(exprSymbol)));
+    if (ptr_PRVALUE(promise) != R_UnboundValue)
+        Rf_error("invalid '%s', must be an unevaluated call", R_CHAR(PRINTNAME(exprSymbol)));
 
 
     if (check_is_valid_init_file_expr) {
         if (already_set_init_file) return R_FalseValue;
-        return ScalarLogical(ATTRIB(code) == R_NilValue &&
-                             PRENV(promise) == R_GlobalEnv &&
-                             PRSEEN(promise) == 0);
+        return Rf_ScalarLogical(ATTRIB(code) == R_NilValue &&
+                                ptr_PRENV(promise) == R_GlobalEnv
+#if defined(R_THIS_PATH_HAS_PRSEEN)
+                                && PRSEEN(promise) == 0
+#endif
+                                );
     }
 
 
     int nprotect = 0;
 
 
+    Rf_protect(promise); nprotect++;
+
+
     code = CDR(code);
-    SEXP env = PRENV(promise);
+    SEXP env = ptr_PRENV(promise);
     SEXP withVisible = getFromBase(withVisibleSymbol);
-    PROTECT(withVisible); nprotect++;
+    Rf_protect(withVisible); nprotect++;
 
 
     SEXP expr, value;
     PROTECT_INDEX expr_indx, value_indx;
-    PROTECT_WITH_INDEX(expr = R_NilValue, &expr_indx); nprotect++;
-    PROTECT_WITH_INDEX(value = R_NilValue, &value_indx); nprotect++;
-
-
-    extern SEXP on_exit_SET_PRSEEN_2(SEXP promises, SEXP rho);
-
-
-    SEXP ptr = on_exit_SET_PRSEEN_2(R_NilValue, rho);
-    R_SetExternalPtrProtected(ptr, CONS(promise, R_NilValue));
-    if (PRSEEN(promise)) {
-        if (PRSEEN(promise) == 1)
-            error(_("promise already under evaluation: recursive default argument reference or earlier problems?"));
-        else {
-            SET_PRSEEN(promise, 1);
-            warning(_("restarting interrupted promise evaluation"));
-        }
-    }
-    else SET_PRSEEN(promise, 1);
+    R_ProtectWithIndex(expr = R_NilValue, &expr_indx); nprotect++;
+    R_ProtectWithIndex(value = R_NilValue, &value_indx); nprotect++;
 
 
     for (; code != R_NilValue; code = CDR(code)) {
-        REPROTECT(expr = LCONS(withVisible, CONS(CAR(code), R_NilValue)), expr_indx);
-        REPROTECT(value = eval(expr, env), value_indx);
-        if (asLogical(VECTOR_ELT(value, 1)))
+        R_Reprotect(expr = Rf_lcons(withVisible, Rf_cons(CAR(code), R_NilValue)), expr_indx);
+        R_Reprotect(value = Rf_eval(expr, env), value_indx);
+        if (Rf_asLogical(VECTOR_ELT(value, 1)))
             my_PrintValueEnv(VECTOR_ELT(value, 0), env);
     }
 
 
-    SET_PRSEEN (promise, 0);
-    SET_PRVALUE(promise, value);
-    SET_PRENV  (promise, R_NilValue);
-    R_SetExternalPtrProtected(ptr, R_NilValue);
+#if defined(R_THIS_PATH_HAS_PRSEEN)
+        SET_PRSEEN (promise, 0);
+#endif
+    ptr_SET_PRVALUE(promise, value);
+    ptr_SET_PRENV  (promise, R_NilValue);
 
 
-    UNPROTECT(nprotect);
+    Rf_unprotect(nprotect);
 
 
     return R_NilValue;
@@ -100,7 +91,7 @@ SEXP do_is_valid_init_file_expr do_formals
 SEXP do_set_init_file do_formals
 {
     do_start_no_call_op_rho("set_init_file", 0);
-    if (already_set_init_file) error("should be false");
+    if (already_set_init_file) Rf_error("should be false");
     _in_init_file = TRUE;
     already_set_init_file = TRUE;
     return R_NilValue;
@@ -110,7 +101,7 @@ SEXP do_set_init_file do_formals
 SEXP do_unset_init_file do_formals
 {
     do_start_no_call_op_rho("unset_init_file", 0);
-    if (!_in_init_file) error("should be true");
+    if (!_in_init_file) Rf_error("should be true");
     _in_init_file = FALSE;
     return R_NilValue;
 }

@@ -1,5 +1,23 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.5.0 (2024-06-29)}{
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item{\code{progArgs()} now accepts argument \codeorsQuote{ifnotfound}
+        specifying what to do when no program arguments are found.}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item{\code{this.path(original = TRUE)} used inside a \string{gzfile},
+        \string{bzfile}, \string{xzfile}, or \string{fifo} connection will no
+        longer return a \samp{file://} URL.}
+
+      \item{\code{this.path()} once again works in \sQuote{Rgui} running in a
+        Japanese or Turkish locale.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.4.0 (2024-02-16)}{
   \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
     \itemize{
