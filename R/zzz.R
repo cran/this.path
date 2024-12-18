@@ -42,12 +42,14 @@ tmp(
 
     .OS_unix, .OS_windows,
     .GUI_RStudio,
+    .GUI_Positron,
     .OS_unix_maybe_unembedded_shell, .OS_windows_maybe_unembedded_shell, .maybe_unembedded_shell,
     .shINFO,
-    .OS_unix_console_radian, .OS_windows_console_radian, .console_radian,
+    .console_radian,
     .GUI_vscode,
     .GUI_jupyter,
     .GUI_emacs,
+    .GUI_rkward,
     .GUI_powerbi,
     .in_callr,
     .GUI_AQUA, .GUI_Rgui, .GUI_Tk,
@@ -145,11 +147,15 @@ if (getRversion() < "3.0.0") {
                 if (identical(e[[1L]], quote(.External2))) {
                     # e <- body(this.path:::print.ThisPathDocumentContext)
                     e[[1L]] <- quote(.External)
-                    e <- append(as.list(e), after = 2L, list(
-                        call("quote", e),
-                        quote(.External),
-                        call("environment")
-                    ))
+                    e <- append(
+                        as.list(e),
+                        after = 2L,
+                        list(
+                            call("quote", e),
+                            quote(.External),
+                            call("environment")
+                        )
+                    )
                     e <- as.call(e)
                     m <- match(as.character(e[[2L]]), names(R_Visible), 0L)
                     if (m) {
@@ -186,8 +192,6 @@ if (getRversion() < "3.0.0") {
 
     ## backports.R  ----
 
-
-    fix_External2(.SET_PRSEEN_2)
 
     fix_External2(anyNA)
     fix_External2(anyNA.data.frame)
@@ -226,6 +230,7 @@ if (getRversion() < "3.0.0") {
     ## error.R      ----
 
 
+    fix_External2(.getCurrentCall)
     fix_External2(.ThisPathInAQUAError)
     fix_External2(.ThisPathInZipFileError)
     fix_External2(.ThisPathNotExistsError)
@@ -276,6 +281,9 @@ if (getRversion() < "3.0.0") {
     fix_External2(path.unsplit)
     fix_External2(.is_abs_path)
     fix_External2(.is_clipboard)
+    fix_External2(.fixslash)
+    fix_External2(.fixbackslash)
+    fix_External2(.file_URL_path)
     fix_External2(.normalizePath_srcfilealias)
     fix_External2(.here)
 
@@ -298,6 +306,12 @@ if (getRversion() < "3.0.0") {
     fix_External2(LINE)
 
 
+    ## make_fix_funs.R ----
+
+
+    fix_External2(path.functions)
+
+
     ## ns-hooks.R   ----
 
 
@@ -309,12 +323,6 @@ if (getRversion() < "3.0.0") {
 
     fix_External2(.onLoad)
     fix_External2(.onUnload)
-
-
-    ## pathfuns.R   ----
-
-
-    fix_External2(path.functions)
 
 
     ## print.R      ----
@@ -343,6 +351,9 @@ if (getRversion() < "3.0.0") {
     ## relpath.R    ----
 
 
+    fix_External2(.tolower_ASCII)
+    fix_External2(.toupper_ASCII)
+    fix_External2(.str_equal_useBytes)
     fix_External2(rel2sys.dir)
     fix_External2(rel2sys.proj)
     fix_External2(rel2env.dir)
@@ -406,12 +417,14 @@ if (getRversion() < "3.0.0") {
 
 
     fix_External2(.fixNewlines)
-    fix_External2(.Rgui_path)
+    fix_External2(.RStudio_path)
+    fix_External2(.Positron_path)
     fix_External2(.vscode_path)
     fix_External2(.jupyter_path)
-    fix_External2(.emacs_path)
-    fix_External2(.gui_path)
     fix_External2(set.jupyter.path)
+    fix_External2(.emacs_path)
+    fix_External2(.Rgui_path)
+    fix_External2(.gui_path)
     fix_External2(set.gui.path)
     fix_External2(sys.path)
     fix_External2(.getframenumber)

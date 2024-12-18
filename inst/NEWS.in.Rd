@@ -1,5 +1,38 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.6.0 (2024-12-18)}{
+  \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
+    \itemize{
+      \item{Previously defunct functions \code{reset.this.proj()},
+        \code{set.this.path.jupyter()}, \code{inside.source()},
+        \code{set.this.path()}, and \code{unset.this.path()} were removed
+        entirely.}
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item{\code{this.path()} is now compatible with GUI \sQuote{\Positron}.}
+
+      \item{\code{with_script_path()} now accepts argument \codeorsQuote{file}
+        specifying the pathname of the file.}
+
+      \item{Added \code{make_fix_funs()}, an alias of \code{path.functions()}.}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item{\code{this.path(contents = TRUE)} in \sQuote{Rgui} in which the
+        source document contains no text now returns \code{character(0)}
+        instead of the previously incorrect \blankstring.}
+
+      \item{\code{this.path()} in \sQuote{\RStudio} and \sQuote{\VSCode} will
+        now declare a \string{UTF-8} file path encoding only on Windows.}
+
+      \item{Improved detection of \sQuote{\RStudio}, no longer relying on
+        environment variable \string{RSTUDIO_SESSION_PID} which may be unset.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.5.0 (2024-06-29)}{
   \subsection{NEW FEATURES}{
     \itemize{
@@ -103,7 +136,8 @@
   }
   \subsection{NEW FEATURES}{
     \itemize{
-      \item{\code{this.path()} is now compatible with GUI \sQuote{\Emacs}.}
+      \item{\code{this.path()} is now compatible with GUI \sQuote{\Emacs} +
+        package \sQuote{\ESS}.}
     }
   }
 }

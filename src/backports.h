@@ -163,7 +163,16 @@ extern SEXP R_BlankScalarString;
 
 
 #if R_version_less_than(3,4,0)
-#define R_CurrentExpression R_NilValue
+#define R_CurrentExpression NULL
+#define my_errorcall(call, ...) do {                           \
+        SEXP call2 = (call);                                   \
+        if (call2 == R_CurrentExpression)                      \
+            Rf_error(__VA_ARGS__);                             \
+        else                                                   \
+            Rf_errorcall(call2, __VA_ARGS__);                  \
+    } while (0)
+#else
+#define my_errorcall Rf_errorcall
 #endif
 
 
@@ -178,8 +187,10 @@ extern void (ENSURE_NAMEDMAX)(SEXP x);
 
 #if R_version_less_than(4,1,0) || (!defined(R_THIS_PATH_DEVEL) && R_version_at_least(4,5,0))
 #define IS_UTF8(x) (Rf_getCharCE((x)) == CE_UTF8)
+#define IS_LATIN1(x) (Rf_getCharCE((x)) == CE_LATIN1)
 #else
 extern int IS_UTF8(SEXP x);
+extern int IS_LATIN1(SEXP x);
 #endif
 
 

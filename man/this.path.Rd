@@ -155,7 +155,15 @@ this.dir(verbose = getOption("verbose"), local = FALSE,
       evaluated in the run selection. If no documents are open or the source
       document does not exist (not saved anywhere), an error is thrown.}
 
-    \item{\sQuote{\VSCode}}{
+    \item{\sQuote{\Positron}}{
+
+      then the source document's filename is returned (at the time of
+      evaluation). It is important to not leave the current tab (either by
+      closing or switching tabs) while any calls to \code{this.path()} have yet
+      to be evaluated in the run selection. If no documents are open or the
+      source document does not exist (not saved anywhere), an error is thrown.}
+
+    \item{\sQuote{\VSCode} + \sQuote{\REditorSupport}}{
 
       then the source document's filename is returned (at the time of
       evaluation). It is important to not leave the current tab (either by
@@ -171,7 +179,7 @@ this.dir(verbose = getOption("verbose"), local = FALSE,
       Please be sure to save your notebook before using \code{this.path()}, or
       explicitly use \code{\link{set.jupyter.path}()}.}
 
-    \item{\sQuote{\Emacs}}{
+    \item{\sQuote{\Emacs} + \sQuote{\ESS}}{
 
       then the source document's filename is returned (at the time of
       evaluation). \sQuote{Emacs} must be running as a server, either by
@@ -203,11 +211,10 @@ this.dir(verbose = getOption("verbose"), local = FALSE,
 
     \item{\sQuote{AQUA}}{
 
-      then the executing script's path cannot be determined. Unlike
-      \sQuote{Rgui}, \sQuote{RStudio}, \sQuote{VSCode}, \sQuote{Jupyter}, and
-      \sQuote{Emacs}, there is currently no way to request the path of an open
-      document. Until such a time that there is a method for requesting the
-      path of an open document, consider using another GUI.}
+      then the executing script's path cannot be determined. Until such a time
+      that there is a method for requesting the path of an open document,
+      consider using \sQuote{RStudio}, \sQuote{Positron}, \sQuote{VSCode}, or
+      \sQuote{Emacs}.}
   }
 
   If \R is running in another manner, an error is thrown.
@@ -216,7 +223,15 @@ this.dir(verbose = getOption("verbose"), local = FALSE,
   contact the package maintainer so that it can be implemented.
 }
 \value{
-  character string.
+  \code{default} if there is no executing script.
+
+  If \code{contents} is \code{TRUE}, there are a variety of return values. If a
+  custom GUI is implemented with \code{\link{set.gui.path}()}, any \R object.
+  If the executing script cannot be determined and \code{for.msg} is
+  \code{TRUE}, then \code{NULL}. In \Jupyter, a list of character vectors, the
+  contents separated into cells. Otherwise, a character vector.
+
+  Otherwise, a character string.
 }
 \section{Argument 'n'}{
   By default, \code{this.path()} will look for a path based on the

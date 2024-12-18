@@ -61,11 +61,10 @@ static void HWND_lines(HWND handle, const char *title)
     else return;
 
 
-    R_Reprotect(EnumResult = Rf_allocVector(VECSXP, 1), EnumIndex);
     LRESULT len = SendMessage(EnumHandle, WM_GETTEXTLENGTH, 0, (LPARAM) 0);
-    /* if there is no text to get, then return list("") */
+    /* if there is no text to get, then return character(0) */
     if (!len) {
-        SET_VECTOR_ELT(EnumResult, 0, R_BlankScalarString);
+        R_Reprotect(EnumResult = Rf_allocVector(STRSXP, 0), EnumIndex);
         return;
     }
     char buf[len + 1];
@@ -76,7 +75,7 @@ static void HWND_lines(HWND handle, const char *title)
     const char *p = strstr(str, "\r\n");
     /* if there are no newlines in the text, just return as is */
     if (!p) {
-        SET_VECTOR_ELT(EnumResult, 0, Rf_mkString(buf));
+        R_Reprotect(EnumResult = Rf_mkString(buf), EnumIndex);
         return;
     }
     /* count how many strings need to be allocated, then allocate them */
@@ -90,7 +89,7 @@ static void HWND_lines(HWND handle, const char *title)
         else break;
     } while (p);
     SEXP x = Rf_allocVector(STRSXP, n_strings);
-    SET_VECTOR_ELT(EnumResult, 0, x);
+    R_Reprotect(EnumResult = x, EnumIndex);
     /* set the strings in the string vector */
     R_xlen_t i = 0;
     str = buf;
@@ -163,7 +162,7 @@ static BOOL CALLBACK EnumRGuiPathProc(HWND handle, LPARAM param)
             }
             if (EnumForMsg) {
                 if (EnumContents)
-                    EnumResult = Rf_ScalarString(NA_STRING);
+                    EnumResult = R_NilValue;
                 else
                     EnumResult = Rf_mkString(dgettext_RGui("Untitled"));
                 R_Reprotect(EnumResult, EnumIndex);
@@ -265,11 +264,10 @@ SEXP Rgui_path(Rboolean verbose, Rboolean original, Rboolean for_msg,
     if (EnumActive) Rf_error("no windows in Rgui; should never happen, please report!");
 
 
-    const char *msg = "R is running from Rgui with no documents open";
-    SEXP cond = ThisPathNotExistsError(msg, Rf_protect(getCurrentCall(rho)));
-    Rf_protect(cond);
-    stop(cond);
-    Rf_unprotect(2);
+    stop(ThisPathNotExistsError(
+        R_CurrentExpression, rho,
+        "R is running from Rgui with no documents open"
+    ));
     return R_NilValue;  /* should not be reached */
 }
 

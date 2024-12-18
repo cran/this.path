@@ -105,6 +105,9 @@ static const R_ExternalMethodDef externalRoutines[] = {
 {"windows_is_abs_path", (DL_FUNC) &do_windows_is_abs_path, 1},
 {"unix_is_abs_path"   , (DL_FUNC) &do_unix_is_abs_path   , 1},
 {"is_abs_path"        , (DL_FUNC) &do_is_abs_path        , 1},
+{"fixslash"           , (DL_FUNC) &do_fixslash           , 1},
+{"fixbackslash"       , (DL_FUNC) &do_fixbackslash       , 1},
+{"file_URL_path"      , (DL_FUNC) &do_file_URL_path      , 1},
 
 
 /* ns-hooks.c */
@@ -225,7 +228,7 @@ static const R_ExternalMethodDef externalRoutines[] = {
 {"splitlines"        , (DL_FUNC) &do_splitlines        ,  1},
 {"remove_trailing_blank_string", (DL_FUNC) &do_remove_trailing_blank_string, 1},
 {"Rgui_path"         , (DL_FUNC) &do_Rgui_path         ,  6},
-{"jupyter_path"      , (DL_FUNC) &do_jupyter_path      , -1},
+{"jupyter_path"      , (DL_FUNC) &do_jupyter_path      ,  4},
 {"set_jupyter_path"  , (DL_FUNC) &do_set_jupyter_path  , -1}, // R_Visible off
 {"set_gui_path"      , (DL_FUNC) &do_set_gui_path      ,  0}, // R_Visible off
 {"sys_path"          , (DL_FUNC) &do_sys_path          , -1},
@@ -247,6 +250,9 @@ static const R_ExternalMethodDef externalRoutines[] = {
 {"IS_SCALAR_STR", (DL_FUNC) &do_IS_SCALAR_STR, 1},
 {"AS_SCALAR_STR", (DL_FUNC) &do_AS_SCALAR_STR, 1},
 {"scalar_streql", (DL_FUNC) &do_scalar_streql, 2},
+{"tolower_ASCII", (DL_FUNC) &do_tolower_ASCII, 1},
+{"toupper_ASCII", (DL_FUNC) &do_toupper_ASCII, 1},
+{"str_equal_useBytes", (DL_FUNC) &do_str_equal_useBytes, 2},
 
 
 {NULL, NULL, 0}

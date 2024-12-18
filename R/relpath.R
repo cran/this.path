@@ -1,9 +1,13 @@
 .tolower_ASCII <- function (x)
-chartr("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz", x)
+.External2(.C_tolower_ASCII, x)
 
 
 .toupper_ASCII <- function (x)
-chartr("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", x)
+.External2(.C_toupper_ASCII, x)
+
+
+.str_equal_useBytes <- function (e1, e2)
+.External2(.C_str_equal_useBytes, e1, e2)
 
 
 .casefold_ASCII <- function (x, upper = FALSE)
@@ -42,14 +46,16 @@ delayedAssign(".net_USE_command", {
                 ## replace //LOCALHOST/C$/
                 ## or      //127.0.0.1/C$/
                 ## with    C:/
+                enc <- Encoding(path)
                 path <- sub("(?i)^[/\\\\][/\\\\](?:LOCALHOST|127\\.0\\.0\\.1)[/\\\\]([ABCDEFGHIJKLMNOPQRSTUVWXYZ])\\$([/\\\\]|$)",
-                            "\\1:/", path)
+                            "\\1:/", path, useBytes = TRUE)
+                Encoding(path) <- enc
                 p <- path.split(path)
 
 
                 ## get the first element of each path, the drive,
                 ## and then keep all the unique ones
-                u <- unique(vapply(p, `[[`, 1L, FUN.VALUE = ""))
+                u <- unique(vapply(p, `[[`, "", 1L))
                 no_convert_local <- if (length(u) == 1L) {
                     TRUE
                 } else if (!any(j <- u %in% .all_drives)) {
@@ -64,19 +70,23 @@ delayedAssign(".net_USE_command", {
                     fix_local <- identity
                 } else {
                     x <- system(.net_USE_command, intern = TRUE)
-                    m <- regexec(" ([ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]:) +(.*?) *(?:Web Client Network|Microsoft Windows Network)?$", x)
+                    m <- regexec(" ([ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz]:) +(.*?) *(?:Web Client Network|Microsoft Windows Network)?$",
+                        x, useBytes = TRUE)
                     ## one for the whole match, another two for the parenthesized sub-expressions
                     if (any(keep <- lengths(m) == 3L)) {
+                        enc <- Encoding(x)[keep]
                         x <- regmatches(x[keep], m[keep])
-                        local <- vapply(x, `[[`, 2L, FUN.VALUE = "")
+                        local <- vapply(x, `[[`, "", 2L)
                         local <- .tolower_ASCII(local)
                         local <- paste0(local, "/")
-                        remote <- vapply(x, `[[`, 3L, FUN.VALUE = "")
-                        if (any(j <- grepl("^[/\\\\]{2}", remote)))
-                            remote[j] <- chartr("\\", "/", remote[j])
+                        remote <- vapply(x, `[[`, "", 3L)
+                        if (any(j <- grepl("^[/\\\\]{2}", remote, useBytes = TRUE)))
+                            remote[j] <- gsub("\\", "/", remote[j], fixed = TRUE, useBytes = TRUE)
                         remote <- paste0(remote, "/")
                         remote <- sub("(?i)^//(?:LOCALHOST|127\\.0\\.0\\.1)/([ABCDEFGHIJKLMNOPQRSTUVWXYZ])\\$/",
-                            "\\1:/", remote)
+                            "\\1:/", remote, useBytes = TRUE)
+                        Encoding(local) <- enc
+                        Encoding(remote) <- enc
                         fix_local <- function(p) {
                             if (indx <- match(.tolower_ASCII(p[[1L]]), local, 0L)) {
                                 c(remote[[indx]], p[-1L])
@@ -89,14 +99,14 @@ delayedAssign(".net_USE_command", {
                 r <- p[[1L]]
                 p <- p[-1L]
                 r <- fix_local(r)
-                ignore_case <- !grepl("^(http|https)://", r[[1L]])
+                ignore_case <- !grepl("^(http|https)://", r[[1L]], useBytes = TRUE)
                 fix_case <- if (ignore_case) .tolower_ASCII else identity
                 r <- fix_case(r)
                 len <- length(r)
                 path.unsplit(lapply(p, function(p) {
                     n <- min(len, length(p))
                     q <- fix_case(fix_local(p))
-                    n <- match(FALSE, q[seq_len(n)] == r[seq_len(n)], n + 1L) - 1L
+                    n <- match(FALSE, .str_equal_useBytes(q[seq_len(n)], r[seq_len(n)]), n + 1L) - 1L
                     if (n == 0L) {
                         p
                     } else {

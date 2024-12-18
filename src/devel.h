@@ -37,7 +37,7 @@
     #include <Rinternals.h> /* need definition of Rf_defineVar, Rf_ScalarLogical */
     #include "symbols.h"    /* need definition of _this_path_valueSymbol, _this_path_visibleSymbol */
     #define set_this_path_value(v) { Rf_defineVar(_this_path_valueSymbol, (v), rho); }
-    #define set_this_path_visible(v) { (v) ? TRUE : (Rf_defineVar(_this_path_visibleSymbol, Rf_ScalarLogical(0), rho), FALSE); }
+    #define set_this_path_visible(v) { (v) ? 0xDEADBEEF : Rf_defineVar(_this_path_visibleSymbol, Rf_ScalarLogical(0), rho); }
 #elif defined(R_THIS_PATH_DEVEL)
     #include <R_ext/Boolean.h> /* need definition of Rboolean, TRUE, FALSE */
     extern Rboolean R_Visible;
@@ -76,6 +76,19 @@
     extern void (*ptr_SET_PRENV)(SEXP x, SEXP v);
     extern void (*ptr_SET_PRVALUE)(SEXP x, SEXP v);
 #endif
+
+
+#if defined(R_THIS_PATH_DEVEL)
+    #include <R_ext/Boolean.h>
+    LibExtern Rboolean utf8locale;
+    #define my_utf8locale utf8locale
+#else
+    #define HAVE_GET_UTF8LOCALE
+    extern Rboolean (*ptr_get_utf8locale)(void);
+    #define my_utf8locale ( ptr_get_utf8locale() )
+#endif
+extern Rboolean (*ptr_get_latin1locale)(void);
+#define my_latin1locale ( ptr_get_latin1locale() )
 
 
 #endif

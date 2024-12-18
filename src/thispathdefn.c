@@ -180,12 +180,15 @@ SEXP findFunction3(SEXP symbol, SEXP rho, SEXP call)
                 return vl;
             }
             if (vl == R_MissingArg)
-                Rf_errorcall(call,
-                    _("argument \"%s\" is missing, with no default"),
-                    EncodeChar(PRINTNAME(symbol)));
+                // my_errorcall(call,
+                //     _("argument \"%s\" is missing, with no default"),
+                //     EncodeChar(PRINTNAME(symbol)));
+                MissingArgError_c(EncodeChar(PRINTNAME(symbol)),
+                                  call, rho, "getMissingError");
+
         }
     }
-    Rf_errorcall(call,
+    my_errorcall(call,
         _("could not find function \"%s\""),
         EncodeChar(PRINTNAME(symbol)));
     return R_UnboundValue;
@@ -323,6 +326,16 @@ void assign_default(SEXP srcfile_original, SEXP owd, SEXP ofile, SEXP file, SEXP
 #endif
 
 
+    if ((srcfile_original || owd) && is_abs_path(url)) {
+        if (!srcfile_original && owd) {
+            /* assign 'wd' but do not use it programmatically */
+            INCREMENT_NAMED_defineVar(wdSymbol, owd, documentcontext);
+        }
+        srcfile_original = NULL;
+        owd = NULL;
+    }
+
+
     _assign_default(srcfile_original, owd, Rf_ScalarString(Rf_mkCharCE(url, ienc)), documentcontext, na);
     Rf_unprotect(1);
 }
@@ -358,6 +371,16 @@ void assign_file_uri(SEXP srcfile_original, SEXP owd, SEXP ofile, SEXP file, SEX
 #endif
 
 
+    if ((srcfile_original || owd) && is_abs_path(url + nh)) {
+        if (!srcfile_original && owd) {
+            /* assign 'wd' but do not use it programmatically */
+            INCREMENT_NAMED_defineVar(wdSymbol, owd, documentcontext);
+        }
+        srcfile_original = NULL;
+        owd = NULL;
+    }
+
+
     _assign_default(srcfile_original, owd, Rf_ScalarString(Rf_mkCharCE(url + nh, ienc)), documentcontext, na);
     Rf_unprotect(1);
 }
@@ -382,9 +405,20 @@ void assign_file_uri2(SEXP srcfile_original, SEXP owd, SEXP description, SEXP do
 #endif
 
 
-
     SEXP ofile = Rf_ScalarString(Rf_mkCharCE(_buf, Rf_getCharCE(description)));
     _assign(ofile, documentcontext);
+
+
+    if ((srcfile_original || owd) && is_abs_path(url)) {
+        if (!srcfile_original && owd) {
+            /* assign 'wd' but do not use it programmatically */
+            INCREMENT_NAMED_defineVar(wdSymbol, owd, documentcontext);
+        }
+        srcfile_original = NULL;
+        owd = NULL;
+    }
+
+
     _assign_default(srcfile_original, owd, Rf_ScalarString(description), documentcontext, na);
     Rf_unprotect(1);
 }

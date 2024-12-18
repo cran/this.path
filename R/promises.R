@@ -238,9 +238,20 @@ delayedAssign(".OS_windows", { .Platform$OS.type == "windows" })
 ## have been run (see ?Startup).
 ##
 ## as such, I've made my own ways of determining the type of GUI in use
-delayedAssign(".GUI_RStudio", {
-    commandArgs()[[1L]] == "RStudio" &&
-    isTRUE(Sys.getpid() == Sys.getenv("RSTUDIO_SESSION_PID"))
+
+
+delayedAssign(".GUI_RStudio", { commandArgs()[[1L]] == "RStudio" })
+
+
+delayedAssign(".GUI_Positron", {
+    interactive() &&
+    .scalar_streql(Sys.getenv("POSITRON"), "1") &&
+    Sys.getenv("POSITRON_VERSION") != "" &&
+
+    (
+        ( .OS_unix    && .Platform$GUI %in% c("X11", "unknown", "none") ) ||
+        ( .OS_windows && .Platform$GUI == "Rgui"                        )
+    )
 })
 
 
@@ -253,9 +264,7 @@ delayedAssign(".maybe_unembedded_shell", { .OS_unix_maybe_unembedded_shell || .O
 delayedAssign(".shINFO", { .External2(.C_shINFO) })
 
 
-delayedAssign(".OS_unix_console_radian"   , { .OS_unix    && .Platform$GUI %in% c("X11"  , "unknown", "none") && commandArgs()[[1L]] == "radian" })
-delayedAssign(".OS_windows_console_radian", { .OS_windows && .Platform$GUI %in% c("RTerm", "unknown"        ) && commandArgs()[[1L]] == "radian" })
-delayedAssign(".console_radian", { .OS_unix_console_radian || .OS_windows_console_radian })
+delayedAssign(".console_radian", { commandArgs()[[1L]] == "radian" })
 
 
 delayedAssign(".GUI_vscode", {
@@ -306,6 +315,9 @@ delayedAssign(".GUI_emacs", {
 })
 
 
+delayedAssign(".GUI_rkward", { commandArgs()[[1L]] == "rkward" })
+
+
 delayedAssign(".GUI_powerbi", {
     !interactive() &&
 
@@ -336,22 +348,24 @@ delayedAssign(".in_callr", {
 })
 
 
-delayedAssign(".GUI_AQUA", { .OS_unix    && .Platform$GUI == "AQUA" && !.GUI_RStudio && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr                            })
-delayedAssign(".GUI_Rgui", { .OS_windows && .Platform$GUI == "Rgui" && !.GUI_RStudio && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr && .External2(.C_RConsole) })
-delayedAssign(".GUI_Tk"  , { .OS_unix    && .Platform$GUI == "Tk"   && !.GUI_RStudio && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr                            })
+delayedAssign(".GUI_AQUA", { .OS_unix    && .Platform$GUI == "AQUA" && !.GUI_RStudio && !.GUI_Positron && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_rkward && !.GUI_powerbi && !.in_callr                            })
+delayedAssign(".GUI_Rgui", { .OS_windows && .Platform$GUI == "Rgui" && !.GUI_RStudio && !.GUI_Positron && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_rkward && !.GUI_powerbi && !.in_callr && .External2(.C_RConsole) })
+delayedAssign(".GUI_Tk"  , { .OS_unix    && .Platform$GUI == "Tk"   && !.GUI_RStudio && !.GUI_Positron && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_rkward && !.GUI_powerbi && !.in_callr                            })
 
 
-delayedAssign(".OS_unix_in_shell"   , { .OS_unix_maybe_unembedded_shell    && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr })
-delayedAssign(".OS_windows_in_shell", { .OS_windows_maybe_unembedded_shell && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr })
+delayedAssign(".OS_unix_in_shell"   , { .OS_unix_maybe_unembedded_shell    && !.GUI_Positron && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr })
+delayedAssign(".OS_windows_in_shell", { .OS_windows_maybe_unembedded_shell && !.GUI_Positron && !.GUI_vscode && !.GUI_jupyter && !.GUI_emacs && !.GUI_powerbi && !.in_callr })
 delayedAssign(".in_shell", { .OS_unix_in_shell || .OS_windows_in_shell })
 
 
 delayedAssign(".unrecognized_manner", {
     !.in_shell &&
     !.GUI_RStudio &&
+    !.GUI_Positron &&
     !.GUI_vscode &&
     !.GUI_jupyter &&
     !.GUI_emacs &&
+    !.GUI_rkward &&
     !.GUI_powerbi &&
     !.in_callr &&
     !.GUI_Rgui &&
@@ -364,9 +378,11 @@ delayedAssign(".ucrt", { identical(R.version[["crt"]], "ucrt") })
 delayedAssign(".GUI", {
     if (.in_shell) .Platform$GUI
     else if (.GUI_RStudio) "RStudio"
+    else if (.GUI_Positron) "Positron"
     else if (.GUI_vscode) "vscode"
     else if (.GUI_jupyter) "jupyter"
     else if (.GUI_emacs) "emacs"
+    else if (.GUI_rkward) "rkward"
     else if (.GUI_powerbi) "powerbi"
     # else if (.GUI_Rgui) "Rgui"
     # else if (.GUI_AQUA) "AQUA"
@@ -383,5 +399,5 @@ initwd
 .unset_these_envvars <- c(
     "TERM_PROGRAM", "JPY_API_TOKEN", "JPY_PARENT_PID", "STATATERM",
     "RPackagesLibrariesDirectory", "RScriptWrapperWorkingDirectory",
-    "CALLR_IS_RUNNING"
+    "CALLR_IS_RUNNING", "POSITRON", "POSITRON_VERSION"
 )

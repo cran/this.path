@@ -1,5 +1,34 @@
 this.path News
 
+CHANGES IN this.path 2.6.0 (2024-12-18):
+
+SIGNIFICANT USER-VISIBLE CHANGES:
+
+    * Previously defunct functions reset.this.proj(),
+      set.this.path.jupyter(), inside.source(), set.this.path(), and
+      unset.this.path() were removed entirely.
+
+NEW FEATURES:
+
+    * this.path() is now compatible with GUI 'Positron'.
+
+    * with_script_path() now accepts argument 'file' specifying the
+      pathname of the file.
+
+    * Added make_fix_funs(), an alias of path.functions().
+
+BUG FIXES:
+
+    * this.path(contents = TRUE) in 'Rgui' in which the source document
+      contains no text now returns character(0) instead of the
+      previously incorrect "".
+
+    * this.path() in 'RStudio' and 'VSCode' will now declare a "UTF-8"
+      file path encoding only on Windows.
+
+    * Improved detection of 'RStudio', no longer relying on environment
+      variable "RSTUDIO_SESSION_PID" which may be unset.
+
 CHANGES IN this.path 2.5.0 (2024-06-29):
 
 NEW FEATURES:

@@ -157,15 +157,12 @@ extern SEXP get_debugSource(void);
             description = STRING_ELT(VECTOR_ELT(summary, 0), 0);\
             klass = R_CHAR(STRING_ELT(VECTOR_ELT(summary, 1), 0));\
             if (streql(klass, "gzcon")) {                      \
-                const char *msg = "'this.path' cannot be used within a 'gzcon()'";\
-                SEXP call = getCurrentCall(rho);               \
-                Rf_protect(call);                              \
-                SEXP cond = ThisPathNotFoundError(msg, call);  \
-                Rf_protect(cond);                              \
-                stop(cond);                                    \
-                Rf_unprotect(2);                               \
+                stop(ThisPathNotFoundError(                    \
+                    R_CurrentExpression, rho,                  \
+                    "'this.path' cannot be used within a 'gzcon()'"\
+                ));                                            \
             }
-#define UnrecognizedConnectionClassError_SEXP ThisPathUnrecognizedConnectionClassError(R_NilValue, summary)
+#define UnrecognizedConnectionClassError_SEXP ThisPathUnrecognizedConnectionClassError(R_NilValue, R_EmptyEnv, summary)
 #if defined(R_CONNECTIONS_VERSION_1)
 #define get_description_and_class                              \
             Rconnection Rcon = NULL;                           \
@@ -182,7 +179,7 @@ extern SEXP get_debugSource(void);
             } else {                                           \
                 get_description_and_class_SEXP;                \
             }
-#define UnrecognizedConnectionClassError (Rcon ? ThisPathUnrecognizedConnectionClassError_Rcon_V1(R_NilValue, Rcon) : UnrecognizedConnectionClassError_SEXP)
+#define UnrecognizedConnectionClassError (Rcon ? ThisPathUnrecognizedConnectionClassError_Rcon_V1(R_NilValue, R_EmptyEnv, Rcon) : UnrecognizedConnectionClassError_SEXP)
 #else
 #define get_description_and_class                              \
             get_description_and_class_declarations;            \
@@ -220,15 +217,15 @@ do {                                                           \
     Rf_protect(documentcontext = DocumentContext()); nprotect++;\
     if (TYPEOF(ofile) == STRSXP) {                             \
         if (XLENGTH(ofile) != 1)                               \
-            Rf_errorcall(call, "'%s' must be a character string", EncodeChar(PRINTNAME(sym)));\
+            my_errorcall(call, "'%s' must be a character string", EncodeChar(PRINTNAME(sym)));\
         SEXP file = STRING_ELT(ofile, 0);                      \
         if (file == NA_STRING)                                 \
-            Rf_errorcall(call, "invalid '%s', must not be NA", EncodeChar(PRINTNAME(sym)));\
+            my_errorcall(call, "invalid '%s', must not be NA", EncodeChar(PRINTNAME(sym)));\
         if (ofilearg != NULL) {                                \
             if (!IS_SCALAR(ofilearg, STRSXP))                  \
-                Rf_errorcall(call, "'%s' must be a character string", "ofile");\
+                my_errorcall(call, "'%s' must be a character string", "ofile");\
             if (STRING_ELT(ofilearg, 0) == NA_STRING)          \
-                Rf_errorcall(call, "invalid '%s', must not be NA", "ofile");\
+                my_errorcall(call, "invalid '%s', must not be NA", "ofile");\
         }                                                      \
         const char *url;                                       \
         if (conv2utf8) {                                       \
@@ -250,7 +247,7 @@ do {                                                           \
                 }                                              \
             }                                                  \
             else                                               \
-                Rf_errorcall(call, "invalid '%s', must not be \"\"", EncodeChar(PRINTNAME(sym)));\
+                my_errorcall(call, "invalid '%s', must not be \"\"", EncodeChar(PRINTNAME(sym)));\
         }                                                      \
         else if (!ignore_clipboard && is_clipboard(url)) {     \
             if (allow_clipboard) {                             \
@@ -260,7 +257,7 @@ do {                                                           \
                 }                                              \
             }                                                  \
             else                                               \
-                Rf_errorcall(call, "invalid '%s', %s", EncodeChar(PRINTNAME(sym)), must_not_be_clipboard_message);\
+                my_errorcall(call, "invalid '%s', %s", EncodeChar(PRINTNAME(sym)), must_not_be_clipboard_message);\
         }                                                      \
         else if (!ignore_stdin && streql(url, "stdin")) {      \
             if (allow_stdin) {                                 \
@@ -270,7 +267,7 @@ do {                                                           \
                 }                                              \
             }                                                  \
             else                                               \
-                Rf_errorcall(call, "invalid '%s', must not be \"stdin\"", EncodeChar(PRINTNAME(sym)));\
+                my_errorcall(call, "invalid '%s', must not be \"stdin\"", EncodeChar(PRINTNAME(sym)));\
         }                                                      \
         else if (!ignore_url && is_url(url)) {                 \
             if (allow_url) {                                   \
@@ -282,7 +279,7 @@ do {                                                           \
                     overwrite_ofile(ofilearg, documentcontext);\
             }                                                  \
             else                                               \
-                Rf_errorcall(call, "invalid '%s', cannot be a URL", EncodeChar(PRINTNAME(sym)));\
+                my_errorcall(call, "invalid '%s', cannot be a URL", EncodeChar(PRINTNAME(sym)));\
         }                                                      \
         else if (!ignore_file_uri && is_file_uri(url)) {       \
             if (allow_file_uri) {                              \
@@ -310,7 +307,7 @@ do {                                                           \
                     overwrite_ofile(ofilearg, documentcontext);\
             }                                                  \
             else                                               \
-                Rf_errorcall(call, "invalid '%s', cannot be a file URI", EncodeChar(PRINTNAME(sym)));\
+                my_errorcall(call, "invalid '%s', cannot be a file URI", EncodeChar(PRINTNAME(sym)));\
         }                                                      \
         else {                                                 \
             SEXP _srcfile_original = srcfile_original;         \
@@ -339,13 +336,13 @@ do {                                                           \
     }                                                          \
     else {                                                     \
         if (character_only)                                    \
-            Rf_errorcall(call, "'%s' must be a character string", EncodeChar(PRINTNAME(sym)));\
+            my_errorcall(call, "'%s' must be a character string", EncodeChar(PRINTNAME(sym)));\
         else if (!(IS_SCALAR(ofile, INTSXP) && Rf_inherits(ofile, "connection")))\
-            Rf_errorcall(call, "invalid '%s', must be a character string or connection", EncodeChar(PRINTNAME(sym)));\
+            my_errorcall(call, "invalid '%s', must be a character string or connection", EncodeChar(PRINTNAME(sym)));\
         else {                                                 \
             if (ofilearg != NULL) {                            \
                 if (!identical(ofile, ofilearg)) {             \
-                    Rf_errorcall(call, "invalid '%s', must be identical to '%s'",\
+                    my_errorcall(call, "invalid '%s', must be identical to '%s'",\
                         "ofile", EncodeChar(PRINTNAME(sym)));  \
                 }                                              \
             }                                                  \
@@ -370,7 +367,7 @@ do {                                                           \
                     if (forcepromise) getInFrame(fileSymbol, documentcontext, FALSE);\
                 }                                              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a URL connection", EncodeChar(PRINTNAME(sym)));\
+                    my_errorcall(call, "invalid '%s', cannot be a URL connection", EncodeChar(PRINTNAME(sym)));\
             }                                                  \
             else if (streql(klass, "unz")) {                   \
                 /* we save this error to throw later because   \
@@ -389,54 +386,54 @@ do {                                                           \
                  represented by a single string)               \
                  */                                            \
                 if (allow_unz) {                               \
-                    INCREMENT_NAMED_defineVar(errcndSymbol              , ThisPathInZipFileError(R_NilValue, description), documentcontext);\
-                    INCREMENT_NAMED_defineVar(for_msgSymbol             , Rf_ScalarString(description)                   , documentcontext);\
-                                 Rf_defineVar(associated_with_fileSymbol, R_TrueValue                                    , documentcontext);\
+                    INCREMENT_NAMED_defineVar(errcndSymbol              , ThisPathInZipFileError(R_NilValue, R_EmptyEnv, description), documentcontext);\
+                    INCREMENT_NAMED_defineVar(for_msgSymbol             , Rf_ScalarString(description)                               , documentcontext);\
+                                 Rf_defineVar(associated_with_fileSymbol, R_TrueValue                                                , documentcontext);\
                 }                                              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s connection", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s connection", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else if (is_clipboard(klass)) {                    \
                 if (allow_clipboard)                           \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a clipboard connection", EncodeChar(PRINTNAME(sym)));\
+                    my_errorcall(call, "invalid '%s', cannot be a clipboard connection", EncodeChar(PRINTNAME(sym)));\
             }                                                  \
             else if (streql(klass, "pipe")) {                  \
                 if (allow_pipe)                                \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s connection", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s connection", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else if (streql(klass, "terminal")) {              \
                 if (allow_terminal)                            \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s connection", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s connection", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else if (streql(klass, "textConnection")) {        \
                 if (allow_textConnection)                      \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else if (streql(klass, "rawConnection")) {         \
                 if (allow_rawConnection)                       \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else if (streql(klass, "sockconn")) {              \
                 if (allow_sockconn)                            \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else if (streql(klass, "servsockconn")) {          \
                 if (allow_servsockconn)                        \
                     documentcontext = R_EmptyEnv;              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
+                    my_errorcall(call, "invalid '%s', cannot be a %s", EncodeChar(PRINTNAME(sym)), klass);\
             }                                                  \
             else {                                             \
                 if (allow_customConnection) {                  \
@@ -453,7 +450,7 @@ do {                                                           \
                     INCREMENT_NAMED_defineVar(for_msgSymbol, Rf_ScalarString(description)    , documentcontext);\
                 }                                              \
                 else                                           \
-                    Rf_errorcall(call, "invalid '%s', cannot be a connection of class '%s'",\
+                    my_errorcall(call, "invalid '%s', cannot be a connection of class '%s'",\
                         EncodeChar(PRINTNAME(sym)), EncodeChar(Rf_mkChar(klass)));\
             }                                                  \
         }                                                      \

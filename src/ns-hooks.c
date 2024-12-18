@@ -16,7 +16,8 @@ SEXP mynamespace = NULL,
      ThisPathUnrecognizedMannerErrorClass          = NULL,
      last_condition = NULL,
      _custom_gui_path_character_environment = NULL,
-     _custom_gui_path_function_environment  = NULL;
+     _custom_gui_path_function_environment  = NULL,
+     makePROMISE_environment = NULL;
 
 
 #if defined(R_THIS_PATH_NEED_BLANKSCALARSTRING)
@@ -58,7 +59,9 @@ SEXP expr_commandArgs                               = NULL,
      /* .isMethodsDispatchOn() */
      expr__isMethodsDispatchOn                      = NULL,
      /* UseMethod("lengths") */
-     expr_UseMethod_lengths                         = NULL;
+     expr_UseMethod_lengths                         = NULL,
+     /* delayedAssign("x", NULL, R_EmptyEnv, makePROMISE_environment) */
+     expr_makePROMISE                               = NULL;
 
 
 LibExtern Rboolean mbcslocale;
@@ -107,6 +110,10 @@ Rconnection (*ptr_R_GetConnection)(SEXP sConn);
 #if defined(HAVE_SET_R_VISIBLE)
 void (*ptr_set_R_Visible)(Rboolean x);
 #endif
+#if defined(HAVE_GET_UTF8LOCALE)
+Rboolean (*ptr_get_utf8locale)(void);
+#endif
+Rboolean (*ptr_get_latin1locale)(void);
 #if defined(NEED_R_4_5_0_FUNCTIONS)
 SEXP (*ptr_PRCODE)(SEXP x);
 SEXP (*ptr_PRENV)(SEXP x);
@@ -131,35 +138,77 @@ Rconnection R_GetConnection(SEXP sConn)
 #endif
 
 
+#if defined(HAVE_GET_UTF8LOCALE)
+Rboolean ptr_get_utf8locale_default(void)
+{
+    int value = Rf_asLogical(getFromMyNS(_utf8localeSymbol));
+    if (value == NA_INTEGER)
+        Rf_error(_("missing value where TRUE/FALSE needed"));
+    return value ? TRUE : FALSE;
+}
+Rboolean ptr_get_latin1locale_default(void)
+{
+    int value = Rf_asLogical(getFromMyNS(_latin1localeSymbol));
+    if (value == NA_INTEGER)
+        Rf_error(_("missing value where TRUE/FALSE needed"));
+    return value ? TRUE : FALSE;
+}
+#endif
+
+
 #if defined(NEED_R_4_5_0_FUNCTIONS)
-/* create default values for the function pointers */
+/* create default values for the function pointers
+ *
+ * this works exclusively because listsxp_struct and promsxp_struct have the
+ * same structure and so the promise members can be get/set using the list
+ * member getters/setters
+ *
+ * struct listsxp_struct {
+ *     struct SEXPREC *carval;
+ *     struct SEXPREC *cdrval;
+ *     struct SEXPREC *tagval;
+ * };
+ *
+ * struct promsxp_struct {
+ *     struct SEXPREC *value;
+ *     struct SEXPREC *expr;
+ *     struct SEXPREC *env;
+ * };
+ *
+ * carval (CAR/SETCAR ) <--> value (PRVALUE/SET_PRVALUE)
+ * cdrval (CDR/SETCDR ) <--> expr  (PRCODE /SET_PRCODE )
+ * tagval (TAG/SET_TAG) <--> env   (PRENV  /SET_PRENV  )
+ */
 SEXP ptr_PRCODE_default(SEXP x)
 {
-    Rf_error("'%s' is not available", "PRCODE");
+    return CDR(x);
 }
 SEXP ptr_PRENV_default(SEXP x)
 {
-    Rf_error("'%s' is not available", "PRENV");
+    return TAG(x);
 }
 SEXP ptr_R_PromiseExpr_default(SEXP x)
 {
-    Rf_error("'%s' is not available", "R_PromiseExpr");
+    return R_BytecodeExpr(CDR(x));
 }
 SEXP ptr_PRVALUE_default(SEXP x)
 {
-    Rf_error("'%s' is not available", "PRVALUE");
+    return CAR(x);
 }
 void ptr_SET_PRCODE_default(SEXP x, SEXP v)
 {
-    Rf_error("'%s' is not available", "SET_PRCODE");
+    SETCDR(x, v);
+    return;
 }
 void ptr_SET_PRENV_default(SEXP x, SEXP v)
 {
-    Rf_error("'%s' is not available", "SET_PRENV");
+    SET_TAG(x, v);
+    return;
 }
 void ptr_SET_PRVALUE_default(SEXP x, SEXP v)
 {
-    Rf_error("'%s' is not available", "SET_PRVALUE");
+    SETCAR(x, v);
+    return;
 }
 #endif
 
@@ -176,6 +225,10 @@ SEXP do_get_ptrs do_formals
 #if defined(HAVE_SET_R_VISIBLE)
     ptr_set_R_Visible = (void(*)(Rboolean))
         R_GetCCallable("this_path_reg_ptrs", "set_R_Visible");
+#endif
+#if defined(HAVE_GET_UTF8LOCALE)
+    ptr_get_utf8locale = (Rboolean(*)(void))
+        R_GetCCallable("this_path_reg_ptrs", "get_utf8locale");
 #endif
 #if defined(NEED_R_4_5_0_FUNCTIONS)
     ptr_PRCODE = (SEXP(*)(SEXP))
@@ -258,6 +311,12 @@ SEXP do_onLoad do_formals
             Rf_error(_("object '%s' of mode '%s' was not found"), EncodeChar(PRINTNAME(sym)), "function");\
         R_LockEnvironment(CLOENV(tmp), (bindings));            \
     } while (0)
+
+
+#if defined(HAVE_GET_UTF8LOCALE)
+    ptr_get_utf8locale = ptr_get_utf8locale_default;
+#endif
+    ptr_get_latin1locale = ptr_get_latin1locale_default;
 
 
 #if defined(NEED_R_4_5_0_FUNCTIONS)
@@ -433,49 +492,11 @@ SEXP do_onLoad do_formals
     R_PreserveObject(last_condition);
 
 
-    _custom_gui_path_character_environment =
-        R_NewEnv(/* enclos */ mynamespace, /* hash */ TRUE, /* size */ 10);
-    R_PreserveObject(_custom_gui_path_character_environment);
-    Rf_defineVar(guinameSymbol, R_MissingArg, _custom_gui_path_character_environment);
-#if defined(NEED_R_4_5_0_FUNCTIONS)
-    {
-        Rf_defineVar(ofileSymbol, R_NilValue, _custom_gui_path_character_environment);
-        R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
-    }
-    {
-        Rf_defineVar(fileSymbol, R_NilValue, _custom_gui_path_character_environment);
-        R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
-    }
-#else
-    {
-        SEXP na = Rf_ScalarString(NA_STRING);
-        Rf_protect(na);
-        ENSURE_NAMEDMAX(na);
-        Rf_defineVar(ofileSymbol, makeEVPROMISE(na, na), _custom_gui_path_character_environment);
-        R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
-        Rf_unprotect(1);
-    }
-    {
-        SEXP expr = Rf_lcons(_normalizePath_not_dirSymbol, Rf_cons(ofileSymbol, R_NilValue));
-        Rf_protect(expr);
-        Rf_defineVar(
-            fileSymbol,
-            makePROMISE(expr, _custom_gui_path_character_environment),
-            _custom_gui_path_character_environment
-        );
-        R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
-        Rf_unprotect(1);
-    }
-#endif
-    Rf_defineVar(_get_contentsSymbol, R_NilValue, _custom_gui_path_character_environment);
-    R_LockEnvironment(_custom_gui_path_character_environment, FALSE);
-
-
-    _custom_gui_path_function_environment =
+    makePROMISE_environment =
         R_NewEnv(/* enclos */ R_EmptyEnv, /* hash */ TRUE, /* size */ 2);
-    R_PreserveObject(_custom_gui_path_function_environment);
-    Rf_defineVar(_custom_gui_path_functionSymbol, R_NilValue, _custom_gui_path_function_environment);
-    R_LockEnvironment(_custom_gui_path_function_environment, FALSE);
+    R_PreserveObject(makePROMISE_environment);
+    Rf_defineVar(xSymbol, R_NilValue, makePROMISE_environment);
+    R_LockEnvironment(makePROMISE_environment, FALSE);
 
 
 #if defined(R_THIS_PATH_NEED_BLANKSCALARSTRING)
@@ -550,7 +571,7 @@ SEXP do_onLoad do_formals
 
     /* ./R/ns-hooks.R */
     convertclosure2activebinding(Rf_install(".mbcslocale"));
-    convertclosure2activebinding(Rf_install(".utf8locale"));
+    convertclosure2activebinding(_utf8localeSymbol);
     convertclosure2activebinding(Rf_install(".latin1locale"));
     convertclosure2activebinding(Rf_install(".R_MB_CUR_MAX"));
     /* ./R/startup.R */
@@ -891,6 +912,17 @@ SEXP do_onLoad do_formals
 #endif
 
 
+    expr_makePROMISE = Rf_allocLang(5);
+    R_PreserveObject(expr_makePROMISE);
+    SETCAR(expr_makePROMISE, getFromBase(Rf_install("delayedAssign")));
+    SETCADR(expr_makePROMISE, /* x */ Rf_mkString("x"));
+    // SETCADDR(expr_makePROMISE, /* value */ R_NilValue);
+    SETCADDDR(expr_makePROMISE, /* eval.env */ R_EmptyEnv);
+    SETCAD4R(expr_makePROMISE, /* assign.env */ makePROMISE_environment);
+    if (!Rf_isFunction(CAR(expr_makePROMISE)))
+        Rf_error(_("object '%s' of mode '%s' was not found"), "delayedAssign", "function");
+
+
     {
         /* if package:utils is loaded, call '.fix_utils' */
         if (!ISUNBOUND(Rf_findVarInFrame(R_NamespaceRegistry, utilsSymbol))) {
@@ -925,6 +957,40 @@ SEXP do_onLoad do_formals
         Rf_eval(expr, mynamespace);
         Rf_unprotect(1);
     }
+
+
+    _custom_gui_path_character_environment =
+        R_NewEnv(/* enclos */ mynamespace, /* hash */ TRUE, /* size */ 10);
+    R_PreserveObject(_custom_gui_path_character_environment);
+    Rf_defineVar(guinameSymbol, R_MissingArg, _custom_gui_path_character_environment);
+    {
+        SEXP na = Rf_ScalarString(NA_STRING);
+        Rf_protect(na);
+        ENSURE_NAMEDMAX(na);
+        Rf_defineVar(ofileSymbol, makeEVPROMISE(na, na), _custom_gui_path_character_environment);
+        R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
+        Rf_unprotect(1);
+    }
+    {
+        SEXP expr = Rf_lcons(_normalizePath_not_dirSymbol, Rf_cons(ofileSymbol, R_NilValue));
+        Rf_protect(expr);
+        Rf_defineVar(
+            fileSymbol,
+            makePROMISE(expr, _custom_gui_path_character_environment),
+            _custom_gui_path_character_environment
+        );
+        R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
+        Rf_unprotect(1);
+    }
+    Rf_defineVar(_get_contentsSymbol, R_NilValue, _custom_gui_path_character_environment);
+    R_LockEnvironment(_custom_gui_path_character_environment, FALSE);
+
+
+    _custom_gui_path_function_environment =
+        R_NewEnv(/* enclos */ R_EmptyEnv, /* hash */ TRUE, /* size */ 2);
+    R_PreserveObject(_custom_gui_path_function_environment);
+    Rf_defineVar(_custom_gui_path_functionSymbol, R_NilValue, _custom_gui_path_function_environment);
+    R_LockEnvironment(_custom_gui_path_function_environment, FALSE);
 
 
 #if R_version_less_than(3,4,0)
@@ -991,6 +1057,7 @@ SEXP do_onUnload do_formals
     maybe_release(last_condition);
     maybe_release(_custom_gui_path_character_environment);
     maybe_release(_custom_gui_path_function_environment);
+    maybe_release(makePROMISE_environment);
 
 
 #if defined(R_THIS_PATH_NEED_BLANKSCALARSTRING)
@@ -1015,6 +1082,7 @@ SEXP do_onUnload do_formals
     maybe_release(expr__toplevel_nframe);
     maybe_release(expr__isMethodsDispatchOn);
     maybe_release(expr_UseMethod_lengths);
+    maybe_release(expr_makePROMISE);
 
 
     return R_NilValue;

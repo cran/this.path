@@ -1,16 +1,89 @@
 #include "thispathdefn.h"
 
 
-SEXP errorCondition(const char *msg, SEXP call, int numFields, SEXP Class)
+#include <wchar.h>
+
+
+LibExtern Rboolean mbcslocale;
+
+
+char *mbcsTruncateToValid(char *s)
 {
-    SEXP value = Rf_allocVector(VECSXP, 2 + numFields);
+    if (!mbcslocale || *s == '\0')
+        return s;
+
+    mbstate_t mb_st;
+    size_t slen = strlen(s);
+    size_t goodlen = 0;
+
+    memset(&mb_st, 0, sizeof(mbstate_t));
+
+    if (my_utf8locale) {
+        goodlen = slen - 1;
+        /*
+         * check that the first two binary digits are 10
+        while (goodlen && ((s[goodlen] & b'11000000') == b'10000000')) */
+        while (goodlen && ((s[goodlen] & '\xC0') == '\x80'))
+            --goodlen;
+    }
+    while (goodlen < slen) {
+        size_t res = mbrtowc(NULL, s + goodlen, slen - goodlen, &mb_st);
+        if (res == (size_t) -1 || res == (size_t) -2) {
+            for (; goodlen < slen; goodlen++)
+                s[goodlen] = '\0';
+            return s;
+        }
+        goodlen += res;
+    }
+    return s;
+}
+
+
+int vsnprintf_mbcs(char *buf, size_t size, const char *format, va_list ap)
+{
+    int value = vsnprintf(buf, size, format, ap);
+    if (size) {
+        if (value < 0) buf[0] = '\0';
+        else buf[size - 1] = '\0';
+        if (value >= size)
+            mbcsTruncateToValid(buf);
+    }
+    return value;
+}
+
+
+int snprintf_mbcs(char *buf, size_t size, const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    int value = vsnprintf_mbcs(buf, size, format, ap);
+    va_end(ap);
+    return value;
+}
+
+
+#define BUFSIZE 8192
+static char emsg_buf[BUFSIZE];
+
+
+SEXP vmake_error_condition(SEXP call, SEXP rho,
+                           SEXP Class,
+                           int nextra, const char *format, va_list ap)
+{
+    if (call == R_CurrentExpression)
+        call = getCurrentCall(rho);
+    Rf_protect(call);
+
+
+    SEXP value = Rf_allocVector(VECSXP, 2 + nextra);
     Rf_protect(value);
-    SEXP names = Rf_allocVector(STRSXP, 2 + numFields);
+    SEXP names = Rf_allocVector(STRSXP, 2 + nextra);
     Rf_setAttrib(value, R_NamesSymbol, names);
 
 
     SET_STRING_ELT(names, 0, Rf_mkChar("message"));
-    SET_VECTOR_ELT(value, 0, Rf_mkString(msg));
+    vsnprintf_mbcs(emsg_buf, BUFSIZE, format, ap);
+    SET_VECTOR_ELT(value, 0, Rf_mkString(emsg_buf));
     SET_STRING_ELT(names, 1, Rf_mkChar("call"));
     SET_VECTOR_ELT(value, 1, call);
 
@@ -18,12 +91,27 @@ SEXP errorCondition(const char *msg, SEXP call, int numFields, SEXP Class)
     Rf_setAttrib(value, R_ClassSymbol, Class);
 
 
-    Rf_unprotect(1);
+    Rf_unprotect(2);
     return value;
 }
 
 
-SEXP errorCondition_strings(const char *msg, SEXP call, int numFields, const char **Class)
+SEXP make_error_condition(SEXP call, SEXP rho,
+                          SEXP Class,
+                          int nextra, const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition(call, rho, Class,
+                                       nextra, format, ap);
+    va_end(ap);
+    return value;
+}
+
+
+SEXP vmake_error_condition_strings(SEXP call, SEXP rho,
+                                   const char **Class,
+                                   int nextra, const char *format, va_list ap)
 {
     /* count the number of strings in 'Class' */
     int nClass = 0;
@@ -39,7 +127,7 @@ SEXP errorCondition_strings(const char *msg, SEXP call, int numFields, const cha
     SET_STRING_ELT(klass, nClass + 1, Rf_mkChar("condition"));
 
 
-    SEXP value = errorCondition(msg, call, numFields, klass);
+    SEXP value = vmake_error_condition(call, rho, klass, nextra, format, ap);
 
 
     Rf_unprotect(1);
@@ -47,7 +135,21 @@ SEXP errorCondition_strings(const char *msg, SEXP call, int numFields, const cha
 }
 
 
-SEXP errorCondition_string(const char *msg, SEXP call, int numFields, const char *Class)
+SEXP make_error_condition_strings(SEXP call, SEXP rho,
+                                  const char **Class,
+                                  int nextra, const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition_strings(call, rho, Class, nextra, format, ap);
+    va_end(ap);
+    return value;
+}
+
+
+SEXP vmake_error_condition_string(SEXP call, SEXP rho,
+                                  const char *Class,
+                                  int nextra, const char *format, va_list ap)
 {
     SEXP klass = Rf_allocVector(STRSXP, 3);
     Rf_protect(klass);
@@ -56,7 +158,7 @@ SEXP errorCondition_string(const char *msg, SEXP call, int numFields, const char
     SET_STRING_ELT(klass, 2, Rf_mkChar("condition"));
 
 
-    SEXP value = errorCondition(msg, call, numFields, klass);
+    SEXP value = vmake_error_condition(call, rho, klass, nextra, format, ap);
 
 
     Rf_unprotect(1);
@@ -64,24 +166,44 @@ SEXP errorCondition_string(const char *msg, SEXP call, int numFields, const char
 }
 
 
-SEXP simpleError(const char *msg, SEXP call)
+SEXP make_error_condition_string(SEXP call, SEXP rho,
+                                 const char *Class,
+                                 int nextra, const char *format, ...)
 {
-    return errorCondition_string(msg, call, 0, "simpleError");
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition_string(call, rho, Class, nextra, format, ap);
+    va_end(ap);
+    return value;
 }
 
 
-SEXP ThisPathInAQUAError(SEXP call)
+SEXP simpleError(SEXP call, SEXP rho, const char *format, ...)
 {
-    const char *msg = "R is running from AQUA for which 'this.path' is currently unimplemented\n"
-                      " consider using RStudio, VSCode, or Emacs until such a time when this is implemented";
-    return errorCondition(msg, call, 0, ThisPathInAQUAErrorClass);
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition_string(call, rho, "simpleError", 0, format, ap);
+    va_end(ap);
+    return value;
 }
 
 
-SEXP ThisPathInZipFileError(SEXP call, SEXP description)
+SEXP ThisPathInAQUAError(SEXP call, SEXP rho)
 {
-    const char *msg = "'this.path' cannot be used within a zip file";
-    SEXP cond = errorCondition(msg, call, 1, ThisPathInZipFileErrorClass);
+    return make_error_condition(
+        call, rho, ThisPathInAQUAErrorClass, 0,
+        "R is running from AQUA for which 'this.path' is currently unimplemented\n"
+        " consider using RStudio, Positron, VSCode, or Emacs until such a time when this is implemented"
+    );
+}
+
+
+SEXP ThisPathInZipFileError(SEXP call, SEXP rho, SEXP description)
+{
+    SEXP cond = make_error_condition(
+        call, rho, ThisPathInZipFileErrorClass, 1,
+        "'this.path' cannot be used within a zip file"
+    );
     Rf_protect(cond);
     SEXP names = Rf_getAttrib(cond, R_NamesSymbol);
     Rf_protect(names);
@@ -92,55 +214,74 @@ SEXP ThisPathInZipFileError(SEXP call, SEXP description)
 }
 
 
-SEXP ThisPathNotExistsError(const char *msg, SEXP call)
+SEXP ThisPathNotExistsError(SEXP call, SEXP rho, const char *format, ...)
 {
-    return errorCondition(msg, call, 0, ThisPathNotExistsErrorClass);
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition(call, rho, ThisPathNotExistsErrorClass, 0, format, ap);
+    va_end(ap);
+    return value;
 }
 
 
-SEXP ThisPathNotFoundError(const char *msg, SEXP call)
+SEXP ThisPathNotFoundError(SEXP call, SEXP rho, const char *format, ...)
 {
-    return errorCondition(msg, call, 0, ThisPathNotFoundErrorClass);
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition(call, rho, ThisPathNotFoundErrorClass, 0, format, ap);
+    va_end(ap);
+    return value;
 }
 
 
-SEXP ThisPathNotImplementedError(const char *msg, SEXP call)
+SEXP ThisPathNotImplementedError(SEXP call, SEXP rho, const char *format, ...)
 {
-    return errorCondition(msg, call, 0, ThisPathNotImplementedErrorClass);
+    va_list ap;
+    va_start(ap, format);
+    SEXP value = vmake_error_condition(call, rho, ThisPathNotImplementedErrorClass, 0, format, ap);
+    va_end(ap);
+    return value;
 }
 
 
 #define funbody(connection_class_as_CHARSXP, summConn)         \
-    const char *klass = EncodeChar((connection_class_as_CHARSXP));\
-    const char *format = "'this.path' not implemented when source()-ing a connection of class '%s'";\
-    const int n = strlen(format) + strlen(klass) + 1;          \
-    char msg[n];                                               \
-    snprintf(msg, n, format, klass);                           \
-    SEXP cond = errorCondition(msg, call, 1, ThisPathUnrecognizedConnectionClassErrorClass);\
-    Rf_protect(cond);                                          \
+    SEXP cond = make_error_condition(                          \
+        call, rho, ThisPathUnrecognizedConnectionClassErrorClass, 1,\
+        "'this.path' not implemented when source()-ing a connection of class '%s'",\
+        EncodeChar((connection_class_as_CHARSXP))              \
+    );                                                         \
+    Rf_protect(cond); nprotect++;                              \
     SEXP names = Rf_getAttrib(cond, R_NamesSymbol);            \
-    Rf_protect(names);                                         \
+    Rf_protect(names); nprotect++;                             \
     SET_STRING_ELT(names, 2, Rf_mkChar("summary"));            \
     SET_VECTOR_ELT(cond , 2, (summConn));                      \
-    Rf_unprotect(2);                                           \
+    Rf_unprotect(nprotect);                                    \
     return cond
-SEXP ThisPathUnrecognizedConnectionClassError(SEXP call, SEXP summary)
+SEXP ThisPathUnrecognizedConnectionClassError(SEXP call, SEXP rho, SEXP summary)
 {
+    int nprotect = 0;
     funbody(STRING_ELT(VECTOR_ELT(summary, 1), 0), summary);
 }
 #if defined(R_CONNECTIONS_VERSION_1)
-SEXP ThisPathUnrecognizedConnectionClassError_Rcon_V1(SEXP call, Rconnection Rcon)
+SEXP ThisPathUnrecognizedConnectionClassError_Rcon_V1(SEXP call, SEXP rho, Rconnection Rcon)
 {
-    funbody(Rf_mkChar(Rcon->class), summary_connection_Rcon_V1(Rcon));
+    int nprotect = 0;
+    SEXP charsxp = Rf_mkChar(Rcon->class);
+    Rf_protect(charsxp); nprotect++;
+    SEXP summary = summary_connection_Rcon_V1(Rcon);
+    Rf_protect(summary); nprotect++;
+    funbody(charsxp, summary);
 }
 #endif
 #undef funbody
 
 
-SEXP ThisPathUnrecognizedMannerError(SEXP call)
+SEXP ThisPathUnrecognizedMannerError(SEXP call, SEXP rho)
 {
-    const char *msg = "R is running in an unrecognized manner";
-    return errorCondition(msg, call, 0, ThisPathUnrecognizedMannerErrorClass);
+    return make_error_condition(
+        call, rho, ThisPathUnrecognizedMannerErrorClass, 0,
+        "R is running in an unrecognized manner"
+    );
 }
 
 
@@ -154,19 +295,80 @@ void stop(SEXP cond)
 }
 
 
+#if R_version_less_than(4,5,0)
+void MissingArgError_c(const char *arg, SEXP call, SEXP rho, const char *subclass)
+{
+    if (call == R_CurrentExpression) {
+        if (*arg)
+            Rf_error(_("argument \"%s\" is missing, with no default"), arg);
+        else
+            Rf_error(_("argument is missing, with no default"));
+    }
+    else {
+        SEXP cond;
+        if (*arg) {
+            cond = simpleError(call, rho,
+                               _("argument \"%s\" is missing, with no default"), arg);
+        }
+        else
+            cond = simpleError(call, rho,
+                               _("argument is missing, with no default"));
+        Rf_protect(cond);
+        stop(cond);
+        Rf_unprotect(1);
+    }
+}
+#else
+void MissingArgError_c(const char *arg, SEXP call, SEXP rho, const char *subclass)
+{
+    Rf_protect(call);
+    const char *Class[3];
+    if (subclass == NULL) {
+        Class[0] = "missingArgError";
+        Class[1] = NULL;
+    }
+    else {
+        Class[0] = subclass;
+        Class[1] = "missingArgError";
+        Class[2] = NULL;
+    }
+    SEXP cond;
+    if (*arg)
+        cond = make_error_condition_strings(
+            call, rho, Class, 0,
+            _("argument \"%s\" is missing, with no default"), arg
+        );
+    else
+        cond = make_error_condition_strings(
+            call, rho, Class, 0,
+            _("argument is missing, with no default")
+        );
+    Rf_protect(cond);
+    stop(cond);
+    Rf_unprotect(2);
+}
+#endif
+
+
+void MissingArgError(SEXP symbol, SEXP call, SEXP rho, const char *subclass)
+{
+    MissingArgError_c(R_CHAR(PRINTNAME(symbol)), call, rho, subclass);
+}
+
+
 
 
 
 SEXP do_ThisPathInAQUAError do_formals
 {
-    do_start_no_call_op_rho("ThisPathInAQUAError", 1);
-    return ThisPathInAQUAError(Rf_lazy_duplicate(CAR(args)));
+    do_start_no_call_op("ThisPathInAQUAError", 1);
+    return ThisPathInAQUAError(Rf_lazy_duplicate(CAR(args)), rho);
 }
 
 
 SEXP do_ThisPathInZipFileError do_formals
 {
-    do_start_no_op_rho("ThisPathInZipFileError", 2);
+    do_start_no_op("ThisPathInZipFileError", 2);
     SEXP call2 = Rf_lazy_duplicate(CAR(args)); args = CDR(args);
     if (!IS_SCALAR(CAR(args), STRSXP) ||
         STRING_ELT(CAR(args), 0) == NA_STRING)
@@ -174,59 +376,74 @@ SEXP do_ThisPathInZipFileError do_formals
         Rf_errorcall(call, _("invalid first argument"));
     }
     SEXP description = STRING_ELT(CAR(args), 0);
-    return ThisPathInZipFileError(call2, description);
+    return ThisPathInZipFileError(call2, rho, description);
 }
 
 
 SEXP do_ThisPathNotExistsError do_formals
 {
-    do_start_no_op_rho("ThisPathNotExistsError", 2);
+    do_start_no_op("ThisPathNotExistsError", 2);
     if (!IS_SCALAR(CAR(args), STRSXP) ||
         STRING_ELT(CAR(args), 0) == NA_STRING)
     {
         Rf_errorcall(call, _("invalid first argument"));
     }
     const char *msg = Rf_translateChar(STRING_ELT(CAR(args), 0));
-    return ThisPathNotExistsError(msg, Rf_lazy_duplicate(CADR(args)));
+    return ThisPathNotExistsError(
+        Rf_lazy_duplicate(CADR(args)), rho,
+        "%s", msg
+    );
 }
 
 
 SEXP do_ThisPathNotFoundError do_formals
 {
-    do_start_no_op_rho("ThisPathNotFoundError", 2);
+    do_start_no_op("ThisPathNotFoundError", 2);
     if (!IS_SCALAR(CAR(args), STRSXP) ||
         STRING_ELT(CAR(args), 0) == NA_STRING)
     {
         Rf_errorcall(call, _("invalid first argument"));
     }
     const char *msg = Rf_translateChar(STRING_ELT(CAR(args), 0));
-    return ThisPathNotFoundError(msg, Rf_lazy_duplicate(CADR(args)));
+    return ThisPathNotFoundError(
+        Rf_lazy_duplicate(CADR(args)), rho,
+        "%s", msg
+    );
 }
 
 
 SEXP do_ThisPathNotImplementedError do_formals
 {
-    do_start_no_op_rho("ThisPathNotImplementedError", 2);
+    do_start_no_op("ThisPathNotImplementedError", 2);
     if (!IS_SCALAR(CAR(args), STRSXP) ||
         STRING_ELT(CAR(args), 0) == NA_STRING)
     {
         Rf_errorcall(call, _("invalid first argument"));
     }
     const char *msg = Rf_translateChar(STRING_ELT(CAR(args), 0));
-    return ThisPathNotImplementedError(msg, Rf_lazy_duplicate(CADR(args)));
+    return ThisPathNotImplementedError(
+        Rf_lazy_duplicate(CADR(args)), rho,
+        "%s", msg
+    );
 }
 
 
 SEXP do_ThisPathUnrecognizedConnectionClassError do_formals
 {
-    do_start_no_call_op_rho("ThisPathUnrecognizedConnectionClassError", 2);
+    do_start_no_call_op("ThisPathUnrecognizedConnectionClassError", 2);
 #if defined(R_CONNECTIONS_VERSION_1)
     if (ptr_R_GetConnection)
-        return ThisPathUnrecognizedConnectionClassError_Rcon_V1(Rf_lazy_duplicate(CAR(args)), ptr_R_GetConnection(CADR(args)));
+        return ThisPathUnrecognizedConnectionClassError_Rcon_V1(
+            Rf_lazy_duplicate(CAR(args)), rho,
+            ptr_R_GetConnection(CADR(args))
+        );
 #endif
     SEXP summary = summary_connection(CADR(args));
     Rf_protect(summary);
-    SEXP value = ThisPathUnrecognizedConnectionClassError(Rf_lazy_duplicate(CAR(args)), summary);
+    SEXP value = ThisPathUnrecognizedConnectionClassError(
+        Rf_lazy_duplicate(CAR(args)), rho,
+        summary
+    );
     Rf_unprotect(1);
     return value;
 }
@@ -234,8 +451,8 @@ SEXP do_ThisPathUnrecognizedConnectionClassError do_formals
 
 SEXP do_ThisPathUnrecognizedMannerError do_formals
 {
-    do_start_no_call_op_rho("ThisPathUnrecognizedMannerError", 1);
-    return ThisPathUnrecognizedMannerError(Rf_lazy_duplicate(CAR(args)));
+    do_start_no_call_op("ThisPathUnrecognizedMannerError", 1);
+    return ThisPathUnrecognizedMannerError(Rf_lazy_duplicate(CAR(args)), rho);
 }
 
 
@@ -311,20 +528,27 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
         switch (op) {
         case TRYCATCHOP_2:
         {
+            /* formals <- pairlist(c = quote(expr = )) */
             SEXP formals = Rf_cons(R_MissingArg, R_NilValue);
             Rf_protect(formals);
             SET_TAG(formals, cSymbol);
 
+            /* body <- call("invisible") */
             SEXP body = Rf_lcons(invisibleSymbol, R_NilValue);
             Rf_protect(body);
 
+            /* fun <- function(c) invisible() */
             MARK_NOT_MUTABLE_defineVar(funSymbol, R_mkClosure(formals, body, rho), rho);
             Rf_unprotect(2);
 
+            /* expr0 <- fun */
             SEXP expr0 = funSymbol;
+            /* move backwards through the dots list,
+               building the condition handlers list */
             for (int i = dots_length - 1; i >= 0; i--) {
                 SEXP dot = Rf_nthcdr(dots, i);
                 if (CAR(dot) != R_MissingArg) {
+                    /* expr0 <- as.symbol(paste0("..", i + 1)) */
                     char buf[15];
                     snprintf(buf, 15, "..%d", i + 1);
                     expr0 = Rf_install(buf);
@@ -340,10 +564,12 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
         {
             SEXP fun0, formals, assign_last_condition;
 
+            /* formals <- pairlist(c = quote(expr = )) */
             formals = Rf_cons(R_MissingArg, R_NilValue);
             Rf_protect(formals);
             SET_TAG(formals, cSymbol);
 
+            /* body <- call("{", NULL, call("invisible")) */
             SEXP body = Rf_lcons(
                 R_BraceSymbol,
                 Rf_cons(
@@ -356,6 +582,7 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
             );
             Rf_protect(body);
 
+            /* assign_last_condition <- body[[2L]] <- call(".last.condition", as.symbol("c")) */
             assign_last_condition = SETCADR(
                 body,
                 Rf_lcons(
@@ -364,10 +591,26 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
                 )
             );
 
+            /* fun0 <- function(c) { .last.condition(c); invisible() } */
             fun0 = R_mkClosure(formals, body, rho);
             MARK_NOT_MUTABLE(fun0);
             Rf_protect(fun0);
 
+            /* I don't remember exactly why we do this in such a way
+             *
+             * but basically, funs is a list of functions that look like this
+             *
+             * funs <- list(
+             *     function(c) { .last.condition(c); ..1 },
+             *     function(c) { .last.condition(c); ..2 },
+             *     function(c) { .last.condition(c); ..3 },
+             *     <...>
+             * )
+             *
+             * there are special cases, such as a missing condition handler
+             * refers to the next non-missing, or invisible() if there is no
+             * next non-missing
+             */
             SEXP funs = Rf_allocVector(VECSXP, dots_length);
             Rf_protect(funs);
             MARK_NOT_MUTABLE_defineVar(funsSymbol, funs, rho);
@@ -378,6 +621,7 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
                 else {
                     char buf[15];
                     snprintf(buf, 15, "..%d", i + 1);
+                    /* fun0 <- function(c) { .last.condition(c); ...elt(i + 1) } */
                     fun0 = R_mkClosure(
                         formals,
                         Rf_lcons(
@@ -393,6 +637,7 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
                 }
                 R_Reprotect(
                     expr = Rf_cons(
+                        /* call("[[", as.symbol("funs"), i + 1) */
                         Rf_lcons(
                             R_Bracket2Symbol,
                             Rf_cons(
@@ -440,6 +685,12 @@ SEXP tryCatch(TRYCATCHOP op, SEXP rho)
     }
     else {
         Rf_defineVar(do_elseSymbol, R_FalseValue, rho);
+        /* expr[[2L]] <- call(
+               "{",
+               as.symbol("expr"),
+               call("<-", as.symbol("do_else"), TRUE)
+           )
+         */
         SETCADR(
             expr,
             Rf_lcons(

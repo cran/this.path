@@ -5,7 +5,7 @@
 \description{
   Determine the path of the executing script.
 
-  Compatible with a few popular GUIs:
+  Compatible with several popular GUIs:
 
   \itemize{
     \item{\sQuote{Rgui}}
@@ -13,11 +13,13 @@
     \item{\sQuote{\RStudio} (including
       \href{https://docs.posit.co/ide/user/ide/guide/tools/jobs.html}{background jobs})}
 
-    \item{\sQuote{\VSCode}}
+    \item{\sQuote{\Positron}}
+
+    \item{\sQuote{\VSCode} + \sQuote{\REditorSupport}}
 
     \item{\sQuote{\Jupyter}}
 
-    \item{\sQuote{\Emacs}}
+    \item{\sQuote{\Emacs} + \sQuote{\ESS}}
 
     \item{\sQuote{\ifelse{html}{\Rscriptlink}{\ifelse{text}{Rscript}{\code{Rscript}}}}
       (shell)}
@@ -94,7 +96,7 @@
   report your issue.
 }
 \author{
-  Iris Simmons
+  Iris Simmons [aut, cre]
 
   Maintainer: Iris Simmons <ikwsimmo@gmail.com>
 }

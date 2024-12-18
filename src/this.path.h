@@ -153,6 +153,9 @@ extern SEXP do_is_clipboard        do_formals;
 extern SEXP do_windows_is_abs_path do_formals;
 extern SEXP do_unix_is_abs_path    do_formals;
 extern SEXP do_is_abs_path         do_formals;
+extern SEXP do_fixslash            do_formals;
+extern SEXP do_fixbackslash        do_formals;
+extern SEXP do_file_URL_path       do_formals;
 
 
 /* ns-hooks.c */
@@ -295,6 +298,9 @@ extern SEXP do_asIntegerGE0  do_formals;
 extern SEXP do_IS_SCALAR_STR do_formals;
 extern SEXP do_AS_SCALAR_STR do_formals;
 extern SEXP do_scalar_streql do_formals;
+extern SEXP do_tolower_ASCII do_formals;
+extern SEXP do_toupper_ASCII do_formals;
+extern SEXP do_str_equal_useBytes do_formals;
 
 
 #endif  /* R_THISPATH_THISPATH_H */
