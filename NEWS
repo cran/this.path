@@ -1,5 +1,28 @@
 this.path News
 
+CHANGES IN this.path 2.7.0 (2025-04-10):
+
+SIGNIFICANT USER-VISIBLE CHANGES:
+
+    * Previously defunct functions set.sys.path.jupyter() and
+      fileArgs() were removed entirely.
+
+    * path.join() now respects the declared encodings of its arguments
+      and appropriately marks the encodings of its output, similar to
+      paste().
+
+    * path.split() and path.unsplit() now respect the declared
+      encodings of their arguments and appropriately mark the encodings
+      of their outputs.
+
+NEW FEATURES:
+
+    * set.sys.path() now accepts argument 'delayed' indicating whether
+      the normalizing of the path should be delayed.
+
+    * make_fix_funs() now accepts argument 'delayed' indicating whether
+      the normalizing of 'file' should be delayed.
+
 CHANGES IN this.path 2.6.0 (2024-12-18):
 
 SIGNIFICANT USER-VISIBLE CHANGES:

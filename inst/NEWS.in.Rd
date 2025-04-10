@@ -1,5 +1,31 @@
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.7.0 (2025-04-10)}{
+  \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
+    \itemize{
+      \item{Previously defunct functions \code{set.sys.path.jupyter()} and
+        \code{fileArgs()} were removed entirely.}
+
+      \item{\code{path.join()} now respects the declared encodings of its
+        arguments and appropriately marks the encodings of its output, similar
+        to \code{paste()}.}
+
+      \item{\code{path.split()} and \code{path.unsplit()} now respect the
+        declared encodings of their arguments and appropriately mark the
+        encodings of their outputs.}
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item{\code{set.sys.path()} now accepts argument \codeorsQuote{delayed}
+        indicating whether the normalizing of the path should be delayed.}
+
+      \item{\code{make_fix_funs()} now accepts argument \codeorsQuote{delayed}
+        indicating whether the normalizing of \codeorsQuote{file} should be
+        delayed.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.6.0 (2024-12-18)}{
   \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
     \itemize{

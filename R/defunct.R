@@ -1,9 +1,5 @@
-## Defunct in 2.4.0 (2024-02-16)
+## Defunct in <pkgname> <version> (<date>)
 
 
-set.sys.path.jupyter <- function (...)
-stop(.defunctError("set.jupyter.path", "this.path", old = "set.sys.path.jupyter"))
-
-
-fileArgs <- function ()
-stop(.defunctError("progArgs", "this.path", old = "fileArgs"))
+# <old> <- function (<formals>)
+# stop(.defunctError("<new>", "this.path", old = "<old>"))
