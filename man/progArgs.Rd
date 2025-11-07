@@ -98,11 +98,15 @@ this.path::withArgs(
     source(FILE.R, local = TRUE, verbose = FALSE),
     letters[6:10], pi, exp(1)
 )
-this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE.R,
-    this.path::asArgs(letters[16:20], pi, Sys.time())))
-this.path:::.Rscript(c("--default-packages=NULL", "--vanilla",
+this.path:::.Rscript(c(
+    "--default-packages=NULL", "--no-save", FILE.R,
+    this.path::asArgs(letters[16:20], pi, Sys.time())
+))
+this.path:::.Rscript(c(
+    "--default-packages=NULL", "--no-save",
     rbind("-e", readLines(FILE.R)[-2L]),
-    this.path::asArgs(letters[16:20], pi, Sys.time())))
+    this.path::asArgs(letters[16:20], pi, Sys.time())
+))
 
 
 # ## with R >= 4.1.0, use the forward pipe operator '|>' to

@@ -26,28 +26,33 @@ from.shell()
 FILE.R <- tempfile(fileext = ".R")
 this.path:::.writeCode({
     this.path:::.withAutoprint({
-        from.shell()
-        is.main()
+        this.path::from.shell()
+        this.path::is.main()
     }, spaced = TRUE, verbose = FALSE,
        prompt.echo = "FILE.R> ", continue.echo = "FILE.R+ ")
 }, FILE.R)
 
-this.path:::.Rscript(c(
-    "--default-packages=this.path", "--vanilla",
-    FILE.R
-), show.command = FALSE, show.output.on.console = TRUE)
+this.path:::.Rscript(
+    c("--default-packages=NULL", "--no-save", FILE.R),
+    show.command = FALSE,
+    show.output.on.console = TRUE
+)
 
 source(FILE.R, verbose = FALSE)
 
-this.path:::.Rscript(c(
-    "--default-packages=this.path", "--vanilla",
-    "-e", "cat(\\"\\n> from.shell()\\\\n\\")",
-    "-e", "from.shell()",
-    "-e", "cat(\\"\\n> is.main()\\\\n\\")",
-    "-e", "is.main()",
-    "-e", "cat(\\"\\n> source(commandArgs(trailingOnly = TRUE))\\\\n\\")",
-    "-e", "source(commandArgs(trailingOnly = TRUE))", FILE.R
-), show.command = FALSE, show.output.on.console = TRUE)
+this.path:::.Rscript(
+    c(
+        "--default-packages=NULL", "--no-save",
+        "-e", "cat(\\"\\n> this.path::from.shell()\\\\n\\")",
+        "-e", "this.path::from.shell()",
+        "-e", "cat(\\"\\n> this.path::is.main()\\\\n\\")",
+        "-e", "this.path::is.main()",
+        "-e", "cat(\\"\\n> source(commandArgs(trailingOnly = TRUE))\\\\n\\")",
+        "-e", "source(commandArgs(trailingOnly = TRUE))", FILE.R
+    ),
+    show.command = FALSE,
+    show.output.on.console = TRUE
+)
 
 unlink(FILE.R)
 }

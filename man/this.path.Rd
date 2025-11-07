@@ -148,12 +148,12 @@ this.dir(verbose = getOption("verbose"), local = FALSE,
       that the source document will \emph{NEVER} be a document open in another
       window (with the \strong{Show in new window} button). Please also note
       that an active document open in another window can sometimes lose focus
-      and become inactive, thus returning the incorrect path. It is best
-      \strong{NOT} to not run \R code from a document open in another window.
-      It is important to not leave the current tab (either by closing or
-      switching tabs) while any calls to \code{this.path()} have yet to be
-      evaluated in the run selection. If no documents are open or the source
-      document does not exist (not saved anywhere), an error is thrown.}
+      and become inactive, thus returning the incorrect path. It is best to not
+      run \R code from a document open in another window. It is important to
+      not leave the current tab (either by closing or switching tabs) while any
+      calls to \code{this.path()} have yet to be evaluated in the run
+      selection. If no documents are open or the source document does not exist
+      (not saved anywhere), an error is thrown.}
 
     \item{\sQuote{\Positron}}{
 
@@ -341,7 +341,9 @@ if (requireNamespace("compiler")) {
 }
 
 ## 'this.path()' works with 'Rscript'
-this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE1.R))
+this.path:::.Rscript(c(
+    "--default-packages=NULL", "--no-save", FILE1.R
+))
 
 ## 'this.path()' also works when 'source()'-ing a URL
 ## (included tryCatch in case an internet connection is not available)

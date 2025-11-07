@@ -7,7 +7,9 @@ local({
         } else cat("\n'package:microbenchmark' is not available :(\n")
     })
     cat("\n")
-    this.path:::.Rscript(c("--default-packages=NULL", "--vanilla", FILE.R))
+    this.path:::.Rscript(c(
+        "--default-packages=NULL", "--no-save", FILE.R
+    ))
 
 
     cat("\n> source(FILE.R, chdir = FALSE)\n")

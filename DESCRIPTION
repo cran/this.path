@@ -1,6 +1,6 @@
 Package: this.path
-Version: 2.7.0
-Date: 2025-04-10
+Version: 2.7.1
+Date: 2025-11-07
 License: MIT + file LICENSE
 Title: Get Executing Script's Path
 Description: Determine the path of the executing script. Compatible
@@ -27,6 +27,6 @@ Biarch: TRUE
 BuildManual: TRUE
 Type: Package
 NeedsCompilation: yes
-Packaged: 2025-04-10 04:12:43 UTC; iris
+Packaged: 2025-11-07 04:03:50 UTC; iris
 Repository: CRAN
-Date/Publication: 2025-04-10 08:50:02 UTC
+Date/Publication: 2025-11-07 10:10:02 UTC

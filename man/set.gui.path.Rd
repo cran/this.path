@@ -88,7 +88,7 @@ function(pkgname, pkgpath)
                 gettext("Untitled", domain = "RGui", trim = FALSE)
             else
                 stop(this.path::thisPathNotFoundError(
-                    "document in ", .guiname, " does not exist"))
+                    "document in ", .guiname, " has no associated path (has yet to be saved)"))
         }
     }
     ## recommended to prevent tampering
