@@ -1,3 +1,9 @@
+##
+## this.path : Get Executing Script's Path
+## Copyright (C) 2023-2026   Iris Simmons
+##
+
+
 main <- function ()
 {
     if (getRversion() < "3.2.0") {
@@ -212,13 +218,17 @@ main <- function ()
                     "}",
                     "\\usage{",
                     paste(
-                        vapply(seq_len(nrow(backports)), function(ind) {
-                            value <- c(
-            sprintf("# Introduced in R %s", backports[[ind, "version"]]),
-                    backports[[ind, "usage"]]
-                            )
-                            paste(value, collapse = "\n")
-                        }, ""),
+                        vapply(
+                            seq_len(nrow(backports)),
+                            function(i) {
+                                value <- c(
+            sprintf("# Introduced in R %s", backports[[i, "version"]]),
+                    backports[[i, "usage"]]
+                                )
+                                paste(value, collapse = "\n")
+                            },
+                            ""
+                        ),
                         collapse = "\n\n"
                     ),
                     "}",
@@ -300,9 +310,11 @@ main <- function ()
     }
 
 
-    text <- vapply(files, function(file) {
-        readChar(file, file.size(file), useBytes = TRUE)
-    }, "")
+    text <- vapply(
+        files,
+        function(x) readChar(x, file.size(x), useBytes = TRUE),
+        ""
+    )
     Encoding(text) <- "bytes"
     o <- text
     if (info[["substituted_file_contents"]]) {
@@ -310,13 +322,20 @@ main <- function ()
         text <- gsub_from_DESCRIPTION(text)
         info[["substituted_file_contents"]] <- "TRUE"
     }
-    if (info[["dedented_NEWS_subsections"]]) {
+    if (info[["reindented_NEWS"]]) {
     } else {
         local({
             if (!devel)
                 if (i <- match("./NEWS", names(text), 0L)) {
-                    text[i] <<- gsub("(?<=^|\r\n|[\r\n])  (?! )", "", text[i], perl = TRUE)
-                    info[["dedented_NEWS_subsections"]] <<- "TRUE"
+                    m <- gregexpr("(?<=^|\r\n|[\r\n])(  )?(?![ \r\n])", text[i], perl = TRUE)
+                    regmatches(text[i], m) <<- lapply(regmatches(text[i], m), function(x) {
+                        i <- nzchar(x)
+                        x[!i] <- "                 "  ## indent sections by 17
+                        x[ i] <- ""                   ## do not indent subsections
+                        x[1L] <- ""                   ## do not indent title
+                        x
+                    })
+                    info[["reindented_NEWS"]] <<- "TRUE"
                 }
         })
     }

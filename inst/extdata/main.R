@@ -1,27 +1,63 @@
-.languages <- matrix(dimnames = list(NULL, c(
-    "LANGUAGE", "Format: (* Custom Locale)"    , "locale.codepage"                                , "locale.utf8"                      )), data = c(
-    "da"      , "Danish (Denmark)"             , "Danish_Denmark.865"                             , "Danish_Denmark.utf8"              ,
-    "de"      , "German (Germany)"             , "German_Germany.1252"                            , "German_Germany.utf8"              ,
-    "en"      , "English (World)"              , "English_World.1252"                             , "English_World.utf8"               ,
-    "en@quot" , "English (World)"              , "English_World.1252"                             , "English_World.utf8"               ,
-    "en_GB"   , "English (United Kingdom)"     , "English_United Kingdom.1252"                    , "English_United Kingdom.utf8"      ,
-    "es"      , "Spanish (Spain)"              , "Spanish_Spain.1252"                             , "Spanish_Spain.utf8"               ,
-    "fa"      , "Persian (Iran)"               , "Persian_Iran.1256"                              , "Persian_Iran.utf8"                ,
-    "fr"      , "French (France)"              , "French_France.1252"                             , "French_France.utf8"               ,
-    "it"      , "Italian (Italy)"              , "Italian_Italy.1252"                             , "Italian_Italy.utf8"               ,
-    "ja"      , "Japanese (Japan)"             , "Japanese_Japan.932"                             , "Japanese_Japan.utf8"              ,
-    "ko"      , "Korean (Korea)"               , "Korean_Korea.949"                               , "Korean_Korea.utf8"                ,
-    "lt"      , "Lithuanian (Lithuania)"       , "Lithuanian_Lithuania.1257"                      , "Lithuanian_Lithuania.utf8"        ,
-    "Meta"    , ""                             , ""                                               , ""                                 ,
-    "nn"      , "Norwegian Nynorsk (Norway)"   , "Norwegian-Nynorsk_Norway.865"                   , "Norwegian Nynorsk_Norway.utf8"    ,
-    "pl"      , "Polish (Poland)"              , "Polish_Poland.1250"                             , "Polish_Poland.utf8"               ,
-    "pt_BR"   , "Portuguese (Brazil)"          , "Portuguese_Brazil.850"                          , "Portuguese_Brazil.utf8"           ,
-    "ru"      , "Russian (Russia)"             , "Russian_Russia.1251"                            , "Russian_Russia.utf8"              ,
-    "tr"      , "Turkish (T\u00FCrkiye)"       , `Encoding<-`("Turkish_T\xFCrkiye.1254", "latin1"), "Turkish_T\u00FCrkiye.utf8"        ,
-    "zh_CN"   , "Chinese (Simplified, China)"  , "Chinese (Simplified)_China.936"                 , "Chinese (Simplified)_China.utf8"  ,
-    "zh_TW"   , "Chinese (Traditional, Taiwan)", "Chinese (Traditional)_Taiwan.950"               , "Chinese (Traditional)_Taiwan.utf8"
-), ncol = 4L, byrow = TRUE)
+##
+## this.path : Get Executing Script's Path
+## Copyright (C) 2021-2026   Iris Simmons
+##
+
+
+.package_translations_languages <- function ()
+{
+    ## the languages supported by R can be listed using this:
+    ##
+    ## dirname(grep('/LC_MESSAGES$',list.dirs(system.file(package='translations'),full.names=FALSE),perl=TRUE,value=TRUE))
+    ##
+    ## or, written more plainly, using this:
+    x <- system.file(package = "translations")
+    x <- list.dirs(x, full.names = FALSE)
+    x <- grep("/LC_MESSAGES$", x, perl = TRUE, value = TRUE)
+    dirname(x)
+}
+
+
+.languages <- matrix(
+    ncol = 4L,
+    byrow = TRUE,
+    dimnames = list(NULL, c(
+"LANGUAGE", "Format: (* Custom Locale)"    , "locale.codepage"                                , "locale.utf8"                      )), c(
+"ar"      , "Arabic (Saudi Arabia)"        , "Arabic_Saudi Arabia.1256"                       , "Arabic_Saudi Arabia.utf8"         ,
+"bn"      , "Bengali (India)"              , "Bengali_India.1252"                             , "Bengali_India.utf8"               ,
+"ca"      , "Catalan (Catalan)"            , "Catalan_Spain.1252"                             , "Catalan_Spain.utf8"               ,
+"da"      , "Danish (Denmark)"             , "Danish_Denmark.1252"                            , "Danish_Denmark.utf8"              ,
+"de"      , "German (Germany)"             , "German_Germany.1252"                            , "German_Germany.utf8"              ,
+"en"      , "English (World)"              , "English_World.1252"                             , "English_World.utf8"               ,
+"en@quot" , "English (World)"              , "English_World.1252"                             , "English_World.utf8"               ,
+"en_GB"   , "English (United Kingdom)"     , "English_United Kingdom.1252"                    , "English_United Kingdom.utf8"      ,
+"es"      , "Spanish (Spain)"              , "Spanish_Spain.1252"                             , "Spanish_Spain.utf8"               ,
+"fa"      , "Persian (Iran)"               , "Persian_Iran.1256"                              , "Persian_Iran.utf8"                ,
+"fr"      , "French (France)"              , "French_France.1252"                             , "French_France.utf8"               ,
+"hi"      , "Hindi (India)"                , "Hindi_India.1252"                               , "Hindi_India.utf8"                 ,
+"hu"      , "Hungarian (Hungary)"          , "Hungarian_Hungary.1250"                         , "Hungarian_Hungary.utf8"           ,
+"id"      , "Indonesian (Indonesia)"       , "Indonesian_Indonesia.1252"                      , "Indonesian_Indonesia.utf8"        ,
+"it"      , "Italian (Italy)"              , "Italian_Italy.1252"                             , "Italian_Italy.utf8"               ,
+"ja"      , "Japanese (Japan)"             , "Japanese_Japan.932"                             , "Japanese_Japan.utf8"              ,
+"ko"      , "Korean (Korea)"               , "Korean_Korea.949"                               , "Korean_Korea.utf8"                ,
+"lt"      , "Lithuanian (Lithuania)"       , "Lithuanian_Lithuania.1257"                      , "Lithuanian_Lithuania.utf8"        ,
+"ne"      , "Nepali (Nepal)"               , "Nepali_Nepal.1252"                              , "Nepali_Nepal.utf8"                ,
+"nn"      , "Norwegian Nynorsk (Norway)"   , "Norwegian-Nynorsk_Norway.1252"                  , "Norwegian Nynorsk_Norway.utf8"    ,
+"pl"      , "Polish (Poland)"              , "Polish_Poland.1250"                             , "Polish_Poland.utf8"               ,
+"pt_BR"   , "Portuguese (Brazil)"          , "Portuguese_Brazil.1252"                         , "Portuguese_Brazil.utf8"           ,
+"ru"      , "Russian (Russia)"             , "Russian_Russia.1251"                            , "Russian_Russia.utf8"              ,
+"sq"      , "Albanian (Albania)"           , "Albanian_Albania.1250"                          , "Albanian_Albania.utf8"            ,
+"tr"      , "Turkish (T\u00FCrkiye)"       , `Encoding<-`("Turkish_T\xFCrkiye.1254", "latin1"), "Turkish_T\u00FCrkiye.utf8"        ,
+"ur"      , "Urdu (Pakistan)"              , "Urdu_Pakistan.1256"                             , "Urdu_Pakistan.utf8"               ,
+"zh_CN"   , "Chinese (Simplified, China)"  , "Chinese (Simplified)_China.936"                 , "Chinese (Simplified)_China.utf8"  ,
+"zh_TW"   , "Chinese (Traditional, Taiwan)", "Chinese (Traditional)_Taiwan.950"               , "Chinese (Traditional)_Taiwan.utf8"
+    )
+)
 rownames(.languages) <- .languages[, "LANGUAGE"]
+
+
+.my_unsupported_languages <- function ()
+setdiff(.package_translations_languages(), rownames(.languages))
 
 
 .language_envvars_list <- sapply(
@@ -97,16 +133,11 @@ Sys.putenv <- function (x)
         stop(sprintf("incomplete final string found on '%s'", path))
     if (length(nul <- which(x == as.raw(0L))) %% divisor)
         stop(sprintf("expected a multiple of %s strings on '%s'", divisor, path))
-    x <- .mapply(
-        function(to, length.out) {
-            rawToChar(x[seq.int(to = to, length.out = length.out)])
-        },
-        list(
-            to = nul - 1L,
-            length.out = diff(c(0L, nul)) - 1L
-        ),
-        NULL
-    )
+    to <- nul - 1L
+    length.out <- diff(c(0L, nul)) - 1L
+    x <- lapply(seq_along(nul), function(i) {
+        rawToChar(x[seq.int(to = to[[i]], length.out = length.out[[i]])])
+    })
     as.character(x)
 }
 

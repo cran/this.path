@@ -1,3 +1,9 @@
+%%
+%% this.path : Get Executing Script's Path
+%% Copyright (C) 2022-2025   Iris Simmons
+%%
+
+
 \name{ext}
 \alias{splitext}
 \alias{removeext}
@@ -58,11 +64,11 @@ path <- c("file.tar.gz", "file.tar.bz2", "file.tar.xz")
 splitext(path, compression = FALSE)
 splitext(path, compression = TRUE)
 
-path <- "this.path_2.7.1.tar.gz"
+path <- "this.path_2.8.0.tar.gz"
 ext(path) <- ".png"
 path
 
-path <- "this.path_2.7.1.tar.gz"
+path <- "this.path_2.8.0.tar.gz"
 ext(path, compression = TRUE) <- ".png"
 path
 }

@@ -1,3 +1,9 @@
+/*
+this.path : Get Executing Script's Path
+Copyright (C) 2022-2026   Iris Simmons
+ */
+
+
 #include "thispathdefn.h"
 
 
@@ -92,13 +98,13 @@ SEXP do_mbcslocale do_formals
 // }
 
 
-#if R_version_at_least(4,2,0)
-LibExtern int R_MB_CUR_MAX;
-#endif
 SEXP do_R_MB_CUR_MAX do_formals
 {
     do_start_no_call_op_rho("R_MB_CUR_MAX", 0);
-#if R_version_at_least(4,2,0)
+#if R_version_at_least(4,6,0)
+    return Rf_ScalarInteger(MB_CUR_MAX);
+#elif R_version_at_least(4,2,0)
+    LibExtern int R_MB_CUR_MAX;
     return Rf_ScalarInteger(R_MB_CUR_MAX);
 #else
     return Rf_ScalarInteger(MB_CUR_MAX);
@@ -116,7 +122,7 @@ void (*ptr_set_R_Visible)(Rboolean x);
 Rboolean (*ptr_get_utf8locale)(void);
 #endif
 Rboolean (*ptr_get_latin1locale)(void);
-#if defined(NEED_R_4_5_0_FUNCTIONS)
+#if defined(NEED_PROMISE_FUNCTION_POINTERS)
 SEXP (*ptr_PRCODE)(SEXP x);
 SEXP (*ptr_PRENV)(SEXP x);
 SEXP (*ptr_R_PromiseExpr)(SEXP x);
@@ -158,7 +164,7 @@ Rboolean ptr_get_latin1locale_default(void)
 }
 
 
-#if defined(NEED_R_4_5_0_FUNCTIONS)
+#if defined(NEED_PROMISE_FUNCTION_POINTERS)
 /* create default values for the function pointers
  *
  * this works exclusively because listsxp_struct and promsxp_struct have the
@@ -291,12 +297,15 @@ SEXP do_onLoad do_formals
 #endif
 
 
+    init_UnboundValue();
+
+
 #define R_THIS_PATH_DEFINE_SYMBOLS
 #include "symbols.h"
 
 
     /* get my namespace from the namespace registry */
-    mynamespace = Rf_findVarInFrame(R_NamespaceRegistry, Rf_install("this.path"));
+    mynamespace = my_getRegisteredNamespace_c("this.path");
     if (TYPEOF(mynamespace) != ENVSXP)
         Rf_error(_("not an environment"));
     R_PreserveObject(mynamespace);
@@ -321,7 +330,7 @@ SEXP do_onLoad do_formals
     ptr_get_latin1locale = ptr_get_latin1locale_default;
 
 
-#if defined(NEED_R_4_5_0_FUNCTIONS)
+#if defined(NEED_PROMISE_FUNCTION_POINTERS)
     ptr_PRCODE = ptr_PRCODE_default;
     ptr_PRENV = ptr_PRENV_default;
     ptr_R_PromiseExpr = ptr_R_PromiseExpr_default;
@@ -934,7 +943,7 @@ SEXP do_onLoad do_formals
 
     {
         /* if package:utils is loaded, call '.fix_utils' */
-        if (!ISUNBOUND(Rf_findVarInFrame(R_NamespaceRegistry, utilsSymbol))) {
+        if (my_getRegisteredNamespace("utils", utilsSymbol) != R_NilValue) {
             SEXP expr = Rf_lcons(Rf_install(".fix_utils"), R_NilValue);
             Rf_protect(expr);
             Rf_eval(expr, mynamespace);
@@ -952,7 +961,7 @@ SEXP do_onLoad do_formals
 
     {
         /* if package:plumber is loaded, call '.fix_plumber_parseUTF8' */
-        if (!ISUNBOUND(Rf_findVarInFrame(R_NamespaceRegistry, plumberSymbol))) {
+        if (my_getRegisteredNamespace("plumber", plumberSymbol) != R_NilValue) {
             SEXP expr = Rf_lcons(Rf_install(".fix_plumber_parseUTF8"), R_NilValue);
             Rf_protect(expr);
             Rf_eval(expr, mynamespace);
@@ -976,16 +985,16 @@ SEXP do_onLoad do_formals
         SEXP na = Rf_ScalarString(NA_STRING);
         Rf_protect(na);
         ENSURE_NAMEDMAX(na);
-        Rf_defineVar(ofileSymbol, makeEVPROMISE(na, na), _custom_gui_path_character_environment);
+        R_MakeForcedBinding(ofileSymbol, na, na, _custom_gui_path_character_environment);
         R_LockBinding(ofileSymbol, _custom_gui_path_character_environment);
         Rf_unprotect(1);
     }
     {
         SEXP expr = Rf_lcons(_normalizePath_not_dirSymbol, Rf_cons(ofileSymbol, R_NilValue));
         Rf_protect(expr);
-        Rf_defineVar(
+        R_MakeDelayedBinding(
             fileSymbol,
-            makePROMISE(expr, _custom_gui_path_character_environment),
+            expr, _custom_gui_path_character_environment,
             _custom_gui_path_character_environment
         );
         R_LockBinding(fileSymbol, _custom_gui_path_character_environment);
@@ -1005,10 +1014,10 @@ SEXP do_onLoad do_formals
 #if R_version_less_than(3,4,0)
     {
         SEXP sym = Rf_install("print.connection");
-        SEXP val = Rf_findVarInFrame(mynamespace, sym);
-        if (val != R_UnboundValue) {
+        binding_info_t val; my_findVarInFrame(mynamespace, sym, &val);
+        if (val.value != my_UnboundValue) {
             R_unLockBinding(sym, R_BaseEnv);
-            Rf_defineVar(sym, val, R_BaseEnv);
+            Rf_defineVar(sym, force(&val), R_BaseEnv);
             R_LockBinding(sym, R_BaseEnv);
         }
     }

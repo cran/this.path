@@ -1,3 +1,9 @@
+##
+## this.path : Get Executing Script's Path
+## Copyright (C) 2021-2026   Iris Simmons
+##
+
+
 local({
     owd <- getwd()
     if (is.null(owd)) {
@@ -17,8 +23,6 @@ local({
         if (is.na(n) || n < 1L) stop("invalid traceback")
         sym <- ".this.path::document.context"
         frame <- sys.frame(n)
-        if (!exists(sym, envir = frame, inherits = FALSE))
-            sym <- ".this.path::document.contexts"
         stopifnot(bindingIsLocked(sym, frame))
         cat("\n> getwd()\n")
         print(getwd())
@@ -68,11 +72,11 @@ local({
 
 
     fun <- function(expr, envir = parent.frame(),
-        bquote.envir = envir, eval.envir = envir)
+        bquote_envir = envir, eval_envir = envir)
     {
         if (!is.environment(envir))
             stop("not an environment", domain = "R")
-        expr <- call("bquote", substitute(expr), as.symbol("bquote.envir"))
+        expr <- call("bquote", substitute(expr), as.symbol("bquote_envir"))
         expr <- eval(expr)
         dep <- deparse(expr)
         cat("\n\n\n\n\n\n\n\n\n\n")
@@ -80,7 +84,7 @@ local({
         print(getwd())
         cat("\n> ")
         cat(dep, sep = "\n+ ")
-        eval(expr, eval.envir)
+        eval(expr, eval_envir)
     }
 
 
@@ -92,18 +96,18 @@ local({
     setwd(basename_dir)
     fun(source(.(basename_R)                                 , local = TRUE, chdir = FALSE))               ## from a  basename                    without changing directory
     fun(source(.(basename_R)                                 , local = TRUE, chdir = TRUE ))               ## from a  basename                    with    changing directory (shouldn't do anything)
-    fun(source(.(basename_R_URL)                             , local = TRUE))                              ## from a  basename      'file://' URL
-    fun(source(print(conn <- file(open = "r", .(basename_R))), local = TRUE))               ; close(conn)  ## from a  basename      connection
+    fun(source(.(basename_R_URL)                             , local = TRUE               ))               ## from a  basename      'file://' URL
+    fun(source(print(conn <- file(open = "r", .(basename_R))), local = TRUE               )); close(conn)  ## from a  basename      connection
     setwd(rel_path_dir)
     fun(source(.(rel_path_R)                                 , local = TRUE, chdir = FALSE))               ## from a  relative path               without changing directory
     fun(source(.(rel_path_R)                                 , local = TRUE, chdir = TRUE ))               ## from a  relative path               with    changing directory
-    fun(source(.(rel_path_R_URL)                             , local = TRUE))                              ## from a  relative path 'file://' URL
-    fun(source(print(conn <- file(open = "r", .(rel_path_R))), local = TRUE))               ; close(conn)  ## from a  relative path connection
+    fun(source(.(rel_path_R_URL)                             , local = TRUE               ))               ## from a  relative path 'file://' URL
+    fun(source(print(conn <- file(open = "r", .(rel_path_R))), local = TRUE               )); close(conn)  ## from a  relative path connection
     setwd(abs_path_dir)
     fun(source(.(abs_path_R)                                 , local = TRUE, chdir = FALSE))               ## from an absolute path               without changing directory
     fun(source(.(abs_path_R)                                 , local = TRUE, chdir = TRUE ))               ## from an absolute path               with    changing directory
-    fun(source(.(abs_path_R_URL)                             , local = TRUE))                              ## from an absolute path 'file://' URL
-    fun(source(print(conn <- file(open = "r", .(abs_path_R))), local = TRUE))               ; close(conn)  ## from an absolute path connection
+    fun(source(.(abs_path_R_URL)                             , local = TRUE               ))               ## from an absolute path 'file://' URL
+    fun(source(print(conn <- file(open = "r", .(abs_path_R))), local = TRUE               )); close(conn)  ## from an absolute path connection
 
 
     ## 'sys.source' cannot handle 'file://' URLs nor connections
@@ -174,9 +178,12 @@ local({
             ## remove expressions starting with 'cat'
             {
                 exprs <- parse(abs_path_R)
-                exprs <- exprs[!vapply(exprs, function(expr) {
-                    is.call(expr) && identical(expr[[1L]], as.symbol("cat"))
-                }, NA, USE.NAMES = FALSE)]
+                exprs <- exprs[!vapply(
+                    exprs,
+                    function(x) is.call(x) && identical(x[[1L]], as.symbol("cat")),
+                    NA,
+                    USE.NAMES = FALSE
+                )]
                 this.path:::.writeCode(exprs, NULL)
             },
             "@",
@@ -237,9 +244,12 @@ local({
             ## remove expressions starting with 'cat'
             {
                 exprs <- parse(abs_path_R)
-                exprs <- exprs[!vapply(exprs, function(expr) {
-                    is.call(expr) && identical(expr[[1L]], as.symbol("cat"))
-                }, NA, USE.NAMES = FALSE)]
+                exprs <- exprs[!vapply(
+                    exprs,
+                    function(x) is.call(x) && identical(x[[1L]], as.symbol("cat")),
+                    NA,
+                    USE.NAMES = FALSE
+                )]
                 this.path:::.writeCode(exprs, NULL)
             },
             "```"

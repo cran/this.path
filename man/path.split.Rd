@@ -1,3 +1,9 @@
+%%
+%% this.path : Get Executing Script's Path
+%% Copyright (C) 2023-2026   Iris Simmons
+%%
+
+
 \name{path.split}
 \alias{path.split}
 \alias{path.split.1}
@@ -25,8 +31,8 @@ path.unsplit(...)
 \note{
   \code{path.unsplit()} is \strong{NOT} the same as \code{\link{path.join}()}.
 }
-#ifdef windows
 \examples{
+#ifdef windows
 path <- c(
     NA,
     "",
@@ -46,10 +52,8 @@ path <- c(
 )
 print(x <- path.split(path))
 print(path.unsplit(x))
-}
 #endif
 #ifdef unix
-\examples{
 path <- c(
     NA,
     "",
@@ -67,5 +71,5 @@ path <- c(
 )
 print(x <- path.split(path))
 print(path.unsplit(x))
-}
 #endif
+}

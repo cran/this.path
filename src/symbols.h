@@ -1,3 +1,9 @@
+/*
+this.path : Get Executing Script's Path
+Copyright (C) 2022-2026   Iris Simmons
+ */
+
+
 #define R_NO_REMAP
 #include <Rinternals.h>       /* need definition of SEXP */
 #include "devel.h"
@@ -62,7 +68,6 @@ extern0 SEXP0
     existsSymbol                           INI_as(Rf_install("exists")),
 #endif
     documentcontextSymbol                  INI_as(Rf_install(".this.path::document.context")),
-    documentcontextsSymbol                 INI_as(Rf_install(".this.path::document.contexts")),
     errcndSymbol                           INI_as(Rf_install("errcnd")),
     associated_with_fileSymbol             INI_as(Rf_install("associated.with.file")),
     setsyspathwashereSymbol                INI_as(Rf_install("set.sys.path.was.here")),

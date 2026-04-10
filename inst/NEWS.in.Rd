@@ -1,5 +1,50 @@
+%%
+%% this.path : Get Executing Script's Path
+%% Copyright (C) 2022-2026   Iris Simmons
+%%
+
+
 \name{NEWS}
 \title{\pkg{this.path} News}
+\section{CHANGES IN VERSION 2.8.0 (2026-04-09)}{
+  \subsection{SIGNIFICANT USER-VISIBLE CHANGES}{
+    \itemize{
+      \item{Due to changes in the API entry points in \R, the behaviour of
+        \code{set.sys.path()} with argument \code{delayed=TRUE} has changed.
+
+        \code{set.sys.path()} previously would occasionally return a promise,
+        which is no longer allowed. Now, where it previously would have
+        returned a promise to the normalized path, it returns an absolute path
+        instead.
+
+        Additionally, \code{set.sys.path()} now accepts argument
+        \codeorsQuote{assign_to} specifying a variable name for which to assign
+        the return value in the currently active environment, including if such
+        a return value is a promise.}
+    }
+  }
+  \subsection{NEW FEATURES}{
+    \itemize{
+      \item{\code{this.path()} is now compatible with the \string{zstdfile}
+        connection introduced in \R 4.5.0}
+
+      \item{\code{this.path()} now works in \sQuote{Rgui} running in the
+        following locales: Arabic, Bengali, Catalan, Hindi, Hungarian,
+        Indonesian, Nepali, Albanian, and Urdu.}
+    }
+  }
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item{\code{this.path()} once again works in \sQuote{\Positron} after
+        update 2026.01.0-147}
+
+      \item{Removed the restriction that \code{with_sys.path()} could not be
+        used within a function.}
+
+      \item{Removed calls to non-API entry points in \R.}
+    }
+  }
+}
 \section{CHANGES IN VERSION 2.7.1 (2025-11-07)}{
   \subsection{BUG FIXES}{
     \itemize{
@@ -10,7 +55,7 @@
         allow for the processing of site and user files for setting environment
         variables, the site-wide startup profile file, and a user profile.}
 
-      \item{Removed calls to non-API entry points in R.}
+      \item{Removed calls to non-API entry points in \R.}
     }
   }
 }
@@ -177,7 +222,7 @@
   \subsection{NEW FEATURES}{
     \itemize{
       \item{\code{this.path()} is now compatible with GUI \sQuote{\Emacs} +
-        package \sQuote{\ESS}.}
+        \sQuote{\ESS}.}
     }
   }
 }

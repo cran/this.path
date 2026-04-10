@@ -1,3 +1,9 @@
+/*
+this.path : Get Executing Script's Path
+Copyright (C) 2023-2026   Iris Simmons
+ */
+
+
 #ifndef R_THISPATH_BACKPORTS_H
 #define R_THISPATH_BACKPORTS_H
 
@@ -8,7 +14,7 @@
 #include "rversiondefines.h"  /* need definition of R_version_less_than */
 
 
-#if R_version_at_least(4,6,0)
+#if R_version_at_least(4,6,0) && !defined(R_THIS_PATH_DEVEL)
 #define Rf_lazy_duplicate(s) (s)
 #else
 extern SEXP Rf_lazy_duplicate(SEXP s);
@@ -139,7 +145,11 @@ extern SEXP ddfind(int i, SEXP rho);
 #endif
 
 
-#if R_version_at_least(3,1,0)
+#if R_version_at_least(4,6,0)
+#define R_TrueValue Rf_ScalarLogical(TRUE)
+#define R_FalseValue Rf_ScalarLogical(FALSE)
+#define R_LogicalNAValue Rf_ScalarLogical(NA_LOGICAL)
+#elif R_version_at_least(3,1,0)
 LibExtern SEXP R_TrueValue;
 LibExtern SEXP R_FalseValue;
 LibExtern SEXP R_LogicalNAValue;
@@ -171,6 +181,9 @@ extern SEXP R_BlankScalarString;
 #endif
 
 
+#if R_version_at_least(4,6,0)
+#define R_CurrentExpression NULL
+#endif
 #if R_version_less_than(3,4,0)
 #define R_CurrentExpression NULL
 #define my_errorcall(call, ...) do {                           \

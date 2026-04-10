@@ -1,3 +1,9 @@
+##
+## this.path : Get Executing Script's Path
+## Copyright (C) 2023-2026   Iris Simmons
+##
+
+
 .site_file <- evalq(envir = new.env(), {
     delayedAssign("file_info", {
         local({
@@ -214,10 +220,7 @@ init.file <- function (original = FALSE, for.msg = FALSE, default, else.)
 
 
 with_site.file <- function (expr)
-{
-    .External2(.C_with_startup_file)
-    invisible()
-}
+.External2(.C_with_startup_file)
 
 
 with_init.file <- function (expr)
@@ -246,5 +249,4 @@ with_init.file <- function (expr)
         on.exit(.External2(.C_unset_init_file))
     }
     .External2(.C_with_startup_file)
-    invisible()
 }

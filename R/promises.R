@@ -1,3 +1,9 @@
+##
+## this.path : Get Executing Script's Path
+## Copyright (C) 2022-2026   Iris Simmons
+##
+
+
 ## these are expressions that are used in this package,
 ## but which are not expected to change value in a session,
 ## so we can evaluate them exactly once when needed
@@ -248,8 +254,8 @@ delayedAssign(".GUI_Positron", {
     Sys.getenv("POSITRON_VERSION") != "" &&
 
     (
-        ( .OS_unix    && .Platform$GUI %in% c("X11", "unknown", "none") ) ||
-        ( .OS_windows && .Platform$GUI == "Rgui"                        )
+        ( .OS_unix    && .Platform$GUI %in% c("Positron", "X11", "unknown", "none") ) ||
+        ( .OS_windows && .Platform$GUI %in% c("Positron", "Rgui"                  ) )
     )
 })
 

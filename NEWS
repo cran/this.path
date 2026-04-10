@@ -1,6 +1,42 @@
 this.path News
 
-CHANGES IN this.path 2.7.1 (2025-11-07):
+                 CHANGES IN this.path 2.8.0 (2026-04-09):
+
+SIGNIFICANT USER-VISIBLE CHANGES:
+
+    * Due to changes in the API entry points in R, the behaviour of
+      set.sys.path() with argument 'delayed=TRUE' has changed.
+
+      set.sys.path() previously would occasionally return a promise,
+      which is no longer allowed. Now, where it previously would have
+      returned a promise to the normalized path, it returns an absolute
+      path instead.
+
+      Additionally, set.sys.path() now accepts argument 'assign_to'
+      specifying a variable name for which to assign the return value
+      in the currently active environment, including if such a return
+      value is a promise.
+
+NEW FEATURES:
+
+    * this.path() is now compatible with the "zstdfile" connection
+      introduced in R 4.5.0
+
+    * this.path() now works in 'Rgui' running in the following locales:
+      Arabic, Bengali, Catalan, Hindi, Hungarian, Indonesian, Nepali,
+      Albanian, and Urdu.
+
+BUG FIXES:
+
+    * this.path() once again works in 'Positron' after update
+      2026.01.0-147
+
+    * Removed the restriction that with_sys.path() could not be used
+      within a function.
+
+    * Removed calls to non-API entry points in R.
+
+                 CHANGES IN this.path 2.7.1 (2025-11-07):
 
 BUG FIXES:
 
@@ -14,7 +50,7 @@ BUG FIXES:
 
     * Removed calls to non-API entry points in R.
 
-CHANGES IN this.path 2.7.0 (2025-04-10):
+                 CHANGES IN this.path 2.7.0 (2025-04-10):
 
 SIGNIFICANT USER-VISIBLE CHANGES:
 
@@ -37,7 +73,7 @@ NEW FEATURES:
     * make_fix_funs() now accepts argument 'delayed' indicating whether
       the normalizing of 'file' should be delayed.
 
-CHANGES IN this.path 2.6.0 (2024-12-18):
+                 CHANGES IN this.path 2.6.0 (2024-12-18):
 
 SIGNIFICANT USER-VISIBLE CHANGES:
 
@@ -66,7 +102,7 @@ BUG FIXES:
     * Improved detection of 'RStudio', no longer relying on environment
       variable "RSTUDIO_SESSION_PID" which may be unset.
 
-CHANGES IN this.path 2.5.0 (2024-06-29):
+                 CHANGES IN this.path 2.5.0 (2024-06-29):
 
 NEW FEATURES:
 
@@ -82,7 +118,7 @@ BUG FIXES:
     * this.path() once again works in 'Rgui' running in a Japanese or
       Turkish locale.
 
-CHANGES IN this.path 2.4.0 (2024-02-16):
+                 CHANGES IN this.path 2.4.0 (2024-02-16):
 
 SIGNIFICANT USER-VISIBLE CHANGES:
 
@@ -140,7 +176,7 @@ BUG FIXES:
 
     * Namespaces loaded with requireNamespace() are now loaded quietly.
 
-CHANGES IN this.path 2.3.1 (2023-12-10):
+                 CHANGES IN this.path 2.3.1 (2023-12-10):
 
 BUG FIXES:
 
@@ -148,7 +184,7 @@ BUG FIXES:
       function containing source references. By extension, this.path()
       and LINENO() now work as well.
 
-CHANGES IN this.path 2.3.0 (2023-12-02):
+                 CHANGES IN this.path 2.3.0 (2023-12-02):
 
 SIGNIFICANT USER-VISIBLE CHANGES:
 
@@ -159,7 +195,7 @@ NEW FEATURES:
 
     * this.path() is now compatible with GUI 'Emacs'.
 
-CHANGES IN this.path 2.2.0 (2023-10-29):
+                 CHANGES IN this.path 2.2.0 (2023-10-29):
 
 SIGNIFICANT USER-VISIBLE CHANGES:
 
@@ -185,7 +221,7 @@ NEW FEATURES:
     * Added set.gui.path() for implementing sys.path() for arbitrary
       GUIs.
 
-CHANGES IN this.path 2.1.0 (2023-09-12):
+                 CHANGES IN this.path 2.1.0 (2023-09-12):
 
 NEW FEATURES:
 
@@ -209,7 +245,7 @@ BUG FIXES:
     * set.src.path() now accepts an expression vector containing a
       source file.
 
-CHANGES IN this.path 2.0.0 (2023-08-08):
+                 CHANGES IN this.path 2.0.0 (2023-08-08):
 
 SIGNIFICANT USER-VISIBLE CHANGES:
 
@@ -311,3 +347,4 @@ BUG FIXES:
     * Fixed 'package:this.path' used in the site-wide startup profile
       file, a user profile, or the function .First() on Windows in
       'RStudio'.
+                 

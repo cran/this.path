@@ -1,3 +1,9 @@
+%%
+%% this.path : Get Executing Script's Path
+%% Copyright (C) 2022-2026   Iris Simmons
+%%
+
+
 \name{relpath}
 \alias{relpath}
 \alias{rel2here}
@@ -46,8 +52,8 @@ rel2proj(path, local = FALSE, n = 0,
 \value{
   character vector of the same length as \code{path}.
 }
-#ifdef unix
 \examples{
+#ifdef unix
 \dontrun{
 relpath(
     c(
@@ -68,10 +74,8 @@ relpath(
     relative.to = "/home/effective_user/Documents/this.path/man"
 )
 }
-}
 #endif
 #ifdef windows
-\examples{
 \dontrun{
 relpath(
     c(
@@ -93,5 +97,5 @@ relpath(
     relative.to = "C:/Users/effective_user/Documents/this.path/man"
 )
 }
-}
 #endif
+}

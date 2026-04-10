@@ -1,3 +1,9 @@
+%%
+%% this.path : Get Executing Script's Path
+%% Copyright (C) 2021-2024   Iris Simmons
+%%
+
+
 \name{this.path-package}
 \alias{this.path-package}
 \docType{package}
